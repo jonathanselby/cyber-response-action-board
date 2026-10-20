@@ -89,9 +89,15 @@ func TestRejectedTriggerRemovesActiveClockButKeepsLedgerHistory(t *testing.T) {
 	}
 	appendProposalAndDecision(t, kernel, signer, proposal, "rejected", projection)
 	var clocks, waits, ledgerEntries int
-	if err := db.runtime.QueryRow(ctx, `SELECT count(*) FROM crab.obligation_clocks WHERE incident_id='INC-R'`).Scan(&clocks); err != nil { t.Fatal(err) }
-	if err := db.runtime.QueryRow(ctx, `SELECT count(*) FROM crab.timed_wait_list WHERE incident_id='INC-R'`).Scan(&waits); err != nil { t.Fatal(err) }
-	if err := db.runtime.QueryRow(ctx, `SELECT count(*) FROM crab.ledger_entries`).Scan(&ledgerEntries); err != nil { t.Fatal(err) }
+	if err := db.runtime.QueryRow(ctx, `SELECT count(*) FROM crab.obligation_clocks WHERE incident_id='INC-R'`).Scan(&clocks); err != nil {
+		t.Fatal(err)
+	}
+	if err := db.runtime.QueryRow(ctx, `SELECT count(*) FROM crab.timed_wait_list WHERE incident_id='INC-R'`).Scan(&waits); err != nil {
+		t.Fatal(err)
+	}
+	if err := db.runtime.QueryRow(ctx, `SELECT count(*) FROM crab.ledger_entries`).Scan(&ledgerEntries); err != nil {
+		t.Fatal(err)
+	}
 	if clocks != 0 || waits != 0 || ledgerEntries != 4 {
 		t.Fatalf("clocks=%d waits=%d ledger=%d", clocks, waits, ledgerEntries)
 	}
@@ -112,22 +118,30 @@ func TestObligationExtensionAndWaiverPreserveOriginalDeadline(t *testing.T) {
 	original := before[0].OriginalDeadline
 	extended := original.Add(24 * time.Hour)
 	change, err := domain.ProposeObligationChange(domain.Scope{IncidentID: "INC-C", Mode: "live", Compartment: "GENERAL"}, "CHANGE-1", "alice", base.Add(4*time.Minute), domain.ObligationChange{ClockID: "CLOCK-C", Kind: "extend", AuthoritySource: "Regulator email REF-7", Reason: "Written extension granted", NewDeadline: &extended})
-	if err != nil { t.Fatal(err) }
+	if err != nil {
+		t.Fatal(err)
+	}
 	appendProposalAndDecision(t, kernel, signer, change, "confirmed", projection)
 	after, _ := store.Clocks(ctx, "INC-C", base)
 	if !after[0].OriginalDeadline.Equal(original) || !after[0].Deadline.Equal(extended) || after[0].LastChangeKind != "extend" {
 		t.Fatalf("extended clock=%+v", after[0])
 	}
 	waive, err := domain.ProposeObligationChange(domain.Scope{IncidentID: "INC-C", Mode: "live", Compartment: "GENERAL"}, "CHANGE-2", "alice", base.Add(6*time.Minute), domain.ObligationChange{ClockID: "CLOCK-C", Kind: "waive", AuthoritySource: "Regulator letter REF-8", Reason: "Obligation waived"})
-	if err != nil { t.Fatal(err) }
+	if err != nil {
+		t.Fatal(err)
+	}
 	appendProposalAndDecision(t, kernel, signer, waive, "confirmed", projection)
 	after, _ = store.Clocks(ctx, "INC-C", base)
 	if after[0].Status != domain.ObligationStatusWaived || !after[0].OriginalDeadline.Equal(original) {
 		t.Fatalf("waived clock=%+v", after[0])
 	}
 	var waits int
-	if err := db.runtime.QueryRow(ctx, `SELECT count(*) FROM crab.timed_wait_list WHERE incident_id='INC-C' AND clock_id='CLOCK-C'`).Scan(&waits); err != nil { t.Fatal(err) }
-	if waits != 0 { t.Fatalf("waived clock retained %d wakeups", waits) }
+	if err := db.runtime.QueryRow(ctx, `SELECT count(*) FROM crab.timed_wait_list WHERE incident_id='INC-C' AND clock_id='CLOCK-C'`).Scan(&waits); err != nil {
+		t.Fatal(err)
+	}
+	if waits != 0 {
+		t.Fatalf("waived clock retained %d wakeups", waits)
+	}
 }
 
 func TestExerciseClockIsSimulatedAndRebuildRestoresTimedWaits(t *testing.T) {
@@ -142,20 +156,38 @@ func TestExerciseClockIsSimulatedAndRebuildRestoresTimedWaits(t *testing.T) {
 	appendProposalAndDecision(t, kernel, signer, trigger, "confirmed", projection)
 	store, _ := NewObligationStore(db.runtime)
 	clocks, _ := store.Clocks(ctx, "EX-1", base)
-	if len(clocks) != 1 || !clocks[0].Simulated { t.Fatalf("exercise clock=%+v", clocks) }
-	if _, err := db.runtime.Exec(ctx, `TRUNCATE crab.timed_wait_list, crab.obligation_clocks, crab.obligation_proposals, crab.obligation_definitions`); err != nil { t.Fatal(err) }
-	if _, err := kernel.Rebuild(ctx, projection); err != nil { t.Fatal(err) }
+	if len(clocks) != 1 || !clocks[0].Simulated {
+		t.Fatalf("exercise clock=%+v", clocks)
+	}
+	if _, err := db.runtime.Exec(ctx, `TRUNCATE crab.timed_wait_list, crab.obligation_clocks, crab.obligation_proposals, crab.obligation_definitions`); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := kernel.Rebuild(ctx, projection); err != nil {
+		t.Fatal(err)
+	}
 	clocks, _ = store.Clocks(ctx, "EX-1", base)
-	if len(clocks) != 1 || !clocks[0].Simulated { t.Fatalf("rebuilt exercise clock=%+v", clocks) }
+	if len(clocks) != 1 || !clocks[0].Simulated {
+		t.Fatalf("rebuilt exercise clock=%+v", clocks)
+	}
 	var waits int
-	if err := db.runtime.QueryRow(ctx, `SELECT count(*) FROM crab.timed_wait_list WHERE incident_id='EX-1' AND clock_id='CLOCK-X'`).Scan(&waits); err != nil { t.Fatal(err) }
-	if waits != 3 { t.Fatalf("rebuilt waits=%d", waits) }
+	if err := db.runtime.QueryRow(ctx, `SELECT count(*) FROM crab.timed_wait_list WHERE incident_id='EX-1' AND clock_id='CLOCK-X'`).Scan(&waits); err != nil {
+		t.Fatal(err)
+	}
+	if waits != 3 {
+		t.Fatalf("rebuilt waits=%d", waits)
+	}
 }
 
 func TestTimedWaitListIsBoundedAtReadBoundary(t *testing.T) {
 	db := setupTestDB(t)
 	store, err := NewObligationStore(db.runtime)
-	if err != nil { t.Fatal(err) }
-	if _, err := store.DueWakeups(context.Background(), time.Now().UTC(), 0); err == nil { t.Fatal("zero timed-wait bound accepted") }
-	if _, err := store.DueWakeups(context.Background(), time.Now().UTC(), 1001); err == nil { t.Fatal("oversized timed-wait bound accepted") }
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := store.DueWakeups(context.Background(), time.Now().UTC(), 0); err == nil {
+		t.Fatal("zero timed-wait bound accepted")
+	}
+	if _, err := store.DueWakeups(context.Background(), time.Now().UTC(), 1001); err == nil {
+		t.Fatal("oversized timed-wait bound accepted")
+	}
 }
