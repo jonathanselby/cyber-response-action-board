@@ -12,9 +12,9 @@ import (
 )
 
 type memoryIncidentBackend struct {
-	appended     []ledger.Record
-	proposals    map[string]ledger.Record
-	picture      domain.OperatingPicture
+	appended    []ledger.Record
+	proposals   map[string]ledger.Record
+	picture     domain.OperatingPicture
 	declaration bool
 }
 
