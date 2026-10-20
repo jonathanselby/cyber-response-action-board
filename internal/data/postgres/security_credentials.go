@@ -20,8 +20,8 @@ func (s *SecurityStore) PutTOTPRecord(ctx context.Context, wrapKey []byte, recor
 	if err != nil {
 		return err
 	}
-	_, err = s.pool.Exec(ctx, `INSERT INTO crab.totp_credentials(human_id, secret_nonce, secret_ciphertext, window, updated_at)
-		VALUES ($1,$2,$3,$4,now()) ON CONFLICT (human_id) DO UPDATE SET secret_nonce=EXCLUDED.secret_nonce, secret_ciphertext=EXCLUDED.secret_ciphertext, window=EXCLUDED.window, updated_at=now()`, record.HumanID, nonce, ciphertext, record.Window)
+	_, err = s.pool.Exec(ctx, `INSERT INTO crab.totp_credentials(human_id, secret_nonce, secret_ciphertext, totp_window, updated_at)
+		VALUES ($1,$2,$3,$4,now()) ON CONFLICT (human_id) DO UPDATE SET secret_nonce=EXCLUDED.secret_nonce, secret_ciphertext=EXCLUDED.secret_ciphertext, totp_window=EXCLUDED.totp_window, updated_at=now()`, record.HumanID, nonce, ciphertext, record.Window)
 	if err != nil {
 		return fmt.Errorf("store TOTP credential: %w", err)
 	}
@@ -31,7 +31,7 @@ func (s *SecurityStore) PutTOTPRecord(ctx context.Context, wrapKey []byte, recor
 func (s *SecurityStore) GetTOTPRecord(ctx context.Context, wrapKey []byte, humanID string) (authn.TOTPRecord, bool, error) {
 	var nonce, ciphertext []byte
 	var window int
-	err := s.pool.QueryRow(ctx, `SELECT secret_nonce, secret_ciphertext, window FROM crab.totp_credentials WHERE human_id=$1`, humanID).Scan(&nonce, &ciphertext, &window)
+	err := s.pool.QueryRow(ctx, `SELECT secret_nonce, secret_ciphertext, totp_window FROM crab.totp_credentials WHERE human_id=$1`, humanID).Scan(&nonce, &ciphertext, &window)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return authn.TOTPRecord{}, false, nil
 	}
