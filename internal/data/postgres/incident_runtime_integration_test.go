@@ -45,8 +45,8 @@ func TestIncidentServiceEndToEndThroughLedgerAndPostgres(t *testing.T) {
 
 	aliceUnassigned := slice3Principal("alice", authz.RoleMajor, scope.IncidentID, false)
 	declaration, err := service.ProposeIncidentDeclaration(ctx, aliceUnassigned, scope, "DECLARE-APP", domain.IncidentDeclaration{
-		Title: "Payroll ransomware",
-		Summary: "Encryption confirmed on payroll endpoints",
+		Title:    "Payroll ransomware",
+		Summary:  "Encryption confirmed on payroll endpoints",
 		Severity: "High",
 	}, base)
 	if err != nil {
@@ -64,7 +64,7 @@ func TestIncidentServiceEndToEndThroughLedgerAndPostgres(t *testing.T) {
 	carolMinor := slice3Principal("carol", authz.RoleMinor, scope.IncidentID, true)
 	if _, err := service.RecordFact(ctx, carolMinor, scope, "FACT-APP", domain.Fact{
 		Statement: "Five endpoints encrypted; severity should change to Critical",
-		Source: "SOC",
+		Source:    "SOC",
 	}, base.Add(2*time.Minute)); err != nil {
 		t.Fatal(err)
 	}
