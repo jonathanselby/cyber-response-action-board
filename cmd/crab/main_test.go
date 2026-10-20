@@ -12,7 +12,7 @@ func TestVersionCommand(t *testing.T) {
 	if code != exitOK {
 		t.Fatalf("exit = %d stderr=%s", code, errOut.String())
 	}
-	if !strings.HasPrefix(out.String(), "crab 0.0.14-dev") {
+	if !strings.HasPrefix(out.String(), "crab 0.0.15-dev") {
 		t.Fatalf("version output = %q", out.String())
 	}
 }
@@ -48,7 +48,7 @@ func TestReadinessFailsClosedBeforeConfiguredDurableStore(t *testing.T) {
 
 func TestUnbuiltControlPathRefusesRatherThanFakingCapability(t *testing.T) {
 	var out, errOut bytes.Buffer
-	code := run([]string{"setup"}, &out, &errOut)
+	code := run([]string{"mcp"}, &out, &errOut)
 	if code != exitRefused || !strings.Contains(errOut.String(), "no alternate control path") {
 		t.Fatalf("exit=%d stderr=%q", code, errOut.String())
 	}

@@ -8,25 +8,11 @@
 </head>
 <body>
   <header class="shell">
-    <div>
-      <p class="eyebrow">Cyber Response Action Board</p>
-      <h1>CRAB</h1>
-    </div>
+    <div><p class="eyebrow">Cyber Response Action Board</p><h1>CRAB</h1></div>
     <div class="version">{{.Version}}</div>
   </header>
   <main>
-    <section class="status" aria-labelledby="build-status">
-      <div class="status-mark" aria-hidden="true">BUILD</div>
-      <div>
-        <h2 id="build-status">First executable checkpoint</h2>
-        <p>The local shell and standalone ledger verifier are built. Incident operation is deliberately unavailable until PostgreSQL, authentication and authorisation land through the frozen build sequence.</p>
-      </div>
-    </section>
-    <section class="grid" aria-label="Build capability status">
-      <article><h3>Available</h3><p>Version, readiness, offline shell and portable signed-ledger verification.</p></article>
-      <article><h3>Next locked slice</h3><p>PostgreSQL ledger append, atomic projection update, full verification and deterministic replay.</p></article>
-      <article><h3>Security posture</h3><p>No incident mutation endpoint exists yet. The build does not create a temporary bypass around the future authorisation boundary.</p></article>
-    </section>
+    <section class="notice"><strong>Presentation test shell</strong><p>The executable operator runtime is registered by <code>cmd/crab</code>. This fallback exists only for isolated presentation tests.</p></section>
   </main>
 </body>
 </html>
