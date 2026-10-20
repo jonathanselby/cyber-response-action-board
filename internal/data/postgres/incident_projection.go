@@ -3,8 +3,10 @@ package postgres
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -15,7 +17,7 @@ import (
 type IncidentProjection struct{}
 
 func (IncidentProjection) Reset(ctx context.Context, tx pgx.Tx) error {
-	_, err := tx.Exec(ctx, `TRUNCATE crab.incident_proposals, crab.incident_operational_roles, crab.incident_actions, crab.incident_decisions, crab.incident_uncertainties, crab.incident_facts, crab.incidents`)
+	_, err := tx.Exec(ctx, `TRUNCATE crab.incident_timeline, crab.incident_proposals, crab.incident_operational_roles, crab.incident_actions, crab.incident_decisions, crab.incident_uncertainties, crab.incident_facts, crab.incidents`)
 	return err
 }
 
@@ -35,8 +37,16 @@ func (IncidentProjection) Apply(ctx context.Context, tx pgx.Tx, entry ledger.Ent
 			if err != nil {
 				return err
 			}
-			_, err = tx.Exec(ctx, `INSERT INTO crab.incident_facts(incident_id,record_id,compartment,statement,source,maker,recorded_at) VALUES ($1,$2,$3,$4,$5,$6,$7)`, record.IncidentID, record.RecordID, record.Compartment, fact.Statement, fact.Source, record.Maker, record.Timestamp)
-			return err
+			if err := domain.ValidateFactTiming(fact); err != nil {
+				return err
+			}
+			awareness, err := json.Marshal(fact.Awareness)
+			if err != nil {
+				return err
+			}
+			if _, err = tx.Exec(ctx, `INSERT INTO crab.incident_facts(incident_id,record_id,compartment,statement,source,maker,recorded_at,occurred_at,flagged_at,awareness) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`, record.IncidentID, record.RecordID, record.Compartment, fact.Statement, fact.Source, record.Maker, record.Timestamp, fact.OccurredAt, fact.FlaggedAt, awareness); err != nil {
+				return err
+			}
 		case domain.TypeUncertainty:
 			item, err := domain.DecodePayload[domain.Uncertainty](record)
 			if err != nil {
@@ -45,11 +55,13 @@ func (IncidentProjection) Apply(ctx context.Context, tx pgx.Tx, entry ledger.Ent
 			if item.Kind != "unknown" && item.Kind != "hypothesis" {
 				return errors.New("invalid uncertainty kind")
 			}
-			_, err = tx.Exec(ctx, `INSERT INTO crab.incident_uncertainties(incident_id,record_id,compartment,kind,statement,maker,recorded_at) VALUES ($1,$2,$3,$4,$5,$6,$7)`, record.IncidentID, record.RecordID, record.Compartment, item.Kind, item.Statement, record.Maker, record.Timestamp)
-			return err
+			if _, err = tx.Exec(ctx, `INSERT INTO crab.incident_uncertainties(incident_id,record_id,compartment,kind,statement,maker,recorded_at) VALUES ($1,$2,$3,$4,$5,$6,$7)`, record.IncidentID, record.RecordID, record.Compartment, item.Kind, item.Statement, record.Maker, record.Timestamp); err != nil {
+				return err
+			}
 		default:
 			return errors.New("controlled incident state cannot use immediate record semantic")
 		}
+		return applyTimeline(ctx, tx, entry)
 	}
 
 	data, err := domain.DecodeGovernedData(record.Data)
@@ -60,8 +72,10 @@ func (IncidentProjection) Apply(ctx context.Context, tx pgx.Tx, entry ledger.Ent
 		if err := validateControlledPayload(record); err != nil {
 			return err
 		}
-		_, err := tx.Exec(ctx, `INSERT INTO crab.incident_proposals(incident_id,record_id,record_type,compartment,version,maker,payload,proposed_at,mode) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`, record.IncidentID, record.RecordID, record.RecordType, record.Compartment, data.Version, record.Maker, []byte(data.Payload), record.Timestamp, record.IncidentMode)
-		return err
+		if _, err := tx.Exec(ctx, `INSERT INTO crab.incident_proposals(incident_id,record_id,record_type,compartment,version,maker,payload,proposed_at,mode) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) ON CONFLICT (incident_id,record_type,record_id) DO UPDATE SET compartment=EXCLUDED.compartment,version=EXCLUDED.version,maker=EXCLUDED.maker,payload=EXCLUDED.payload,proposed_at=EXCLUDED.proposed_at,mode=EXCLUDED.mode`, record.IncidentID, record.RecordID, record.RecordType, record.Compartment, data.Version, record.Maker, []byte(data.Payload), record.Timestamp, record.IncidentMode); err != nil {
+			return err
+		}
+		return applyTimeline(ctx, tx, entry)
 	}
 	if record.Status != "confirmed" && record.Status != "rejected" {
 		return errors.New("invalid governed incident status")
@@ -84,8 +98,10 @@ func (IncidentProjection) Apply(ctx context.Context, tx pgx.Tx, entry ledger.Ent
 			return err
 		}
 	}
-	_, err = tx.Exec(ctx, `DELETE FROM crab.incident_proposals WHERE incident_id=$1 AND record_type=$2 AND record_id=$3`, record.IncidentID, record.RecordType, record.RecordID)
-	return err
+	if _, err = tx.Exec(ctx, `DELETE FROM crab.incident_proposals WHERE incident_id=$1 AND record_type=$2 AND record_id=$3`, record.IncidentID, record.RecordType, record.RecordID); err != nil {
+		return err
+	}
+	return applyTimeline(ctx, tx, entry)
 }
 
 func validateControlledPayload(record ledger.Record) error {
@@ -97,8 +113,11 @@ func validateControlledPayload(record ledger.Record) error {
 		_, err := domain.DecodePayload[domain.Decision](record)
 		return err
 	case domain.TypeAction:
-		_, err := domain.DecodePayload[domain.Action](record)
-		return err
+		action, err := domain.DecodePayload[domain.Action](record)
+		if err != nil {
+			return err
+		}
+		return domain.ValidateAction(action)
 	case domain.TypeOperationalRoleAssignment:
 		_, err := domain.DecodePayload[domain.OperationalRoleAssignment](record)
 		return err
@@ -128,7 +147,14 @@ func applyConfirmedIncident(ctx context.Context, tx pgx.Tx, record ledger.Record
 		if err != nil {
 			return err
 		}
-		_, err = tx.Exec(ctx, `INSERT INTO crab.incident_actions(incident_id,record_id,compartment,title,owner_human_id,maker,confirmer,confirmed_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`, record.IncidentID, record.RecordID, record.Compartment, action.Title, action.OwnerHumanID, record.Maker, record.Confirmer, record.Timestamp)
+		if err := domain.ValidateAction(action); err != nil {
+			return err
+		}
+		evidence, err := json.Marshal(action.EvidenceRefs)
+		if err != nil {
+			return err
+		}
+		_, err = tx.Exec(ctx, `INSERT INTO crab.incident_actions(incident_id,record_id,compartment,title,owner_human_id,status,priority,due_at,source_ref,notes,evidence_refs,skip_reason,checklist_template_id,checklist_step_id,maker,confirmer,confirmed_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17) ON CONFLICT (incident_id,record_id) DO UPDATE SET compartment=EXCLUDED.compartment,title=EXCLUDED.title,owner_human_id=EXCLUDED.owner_human_id,status=EXCLUDED.status,priority=EXCLUDED.priority,due_at=EXCLUDED.due_at,source_ref=EXCLUDED.source_ref,notes=EXCLUDED.notes,evidence_refs=EXCLUDED.evidence_refs,skip_reason=EXCLUDED.skip_reason,checklist_template_id=EXCLUDED.checklist_template_id,checklist_step_id=EXCLUDED.checklist_step_id,maker=EXCLUDED.maker,confirmer=EXCLUDED.confirmer,confirmed_at=EXCLUDED.confirmed_at`, record.IncidentID, record.RecordID, record.Compartment, action.Title, action.OwnerHumanID, action.Status, action.Priority, action.DueAt, action.SourceRef, action.Notes, evidence, action.SkipReason, action.ChecklistTemplateID, action.ChecklistStepID, record.Maker, record.Confirmer, record.Timestamp)
 		return err
 	case domain.TypeOperationalRoleAssignment:
 		assignment, err := domain.DecodePayload[domain.OperationalRoleAssignment](record)
@@ -139,6 +165,49 @@ func applyConfirmedIncident(ctx context.Context, tx pgx.Tx, record ledger.Record
 		return err
 	default:
 		return errors.New("unsupported controlled incident type")
+	}
+}
+
+func applyTimeline(ctx context.Context, tx pgx.Tx, entry ledger.Entry) error {
+	record := entry.Record
+	summary, occurred, flagged, awareness, err := timelineFields(record)
+	if err != nil {
+		return err
+	}
+	awarenessJSON, err := json.Marshal(awareness)
+	if err != nil {
+		return err
+	}
+	governance := record.Status
+	if record.WriteSemantic == "record" {
+		governance = "recorded"
+	}
+	_, err = tx.Exec(ctx, `INSERT INTO crab.incident_timeline(sequence,incident_id,record_id,record_type,governance,compartment,summary,occurred_at,flagged_at,recorded_at,awareness,time_status) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`, entry.Sequence, record.IncidentID, record.RecordID, record.RecordType, governance, record.Compartment, summary, occurred, flagged, record.Timestamp, awarenessJSON, record.TimeStatus)
+	return err
+}
+
+func timelineFields(record ledger.Record) (string, *time.Time, *time.Time, []domain.AwarenessTime, error) {
+	switch record.RecordType {
+	case domain.TypeIncidentDeclaration:
+		v, err := domain.DecodePayload[domain.IncidentDeclaration](record)
+		return v.Title, nil, nil, nil, err
+	case domain.TypeFact:
+		v, err := domain.DecodePayload[domain.Fact](record)
+		return v.Statement, v.OccurredAt, v.FlaggedAt, v.Awareness, err
+	case domain.TypeUncertainty:
+		v, err := domain.DecodePayload[domain.Uncertainty](record)
+		return v.Statement, nil, nil, nil, err
+	case domain.TypeDecision:
+		v, err := domain.DecodePayload[domain.Decision](record)
+		return v.Decision, nil, nil, nil, err
+	case domain.TypeAction:
+		v, err := domain.DecodePayload[domain.Action](record)
+		return v.Title, nil, nil, nil, err
+	case domain.TypeOperationalRoleAssignment:
+		v, err := domain.DecodePayload[domain.OperationalRoleAssignment](record)
+		return v.RoleName + ": " + v.HumanID, nil, nil, nil, err
+	default:
+		return "", nil, nil, nil, errors.New("unsupported timeline type")
 	}
 }
 
@@ -180,7 +249,7 @@ func (s *IncidentStore) CommonOperatingPicture(ctx context.Context, incidentID s
 	if err := s.readDecisions(ctx, incidentID, &picture); err != nil {
 		return domain.OperatingPicture{}, false, err
 	}
-	if err := s.readActions(ctx, incidentID, &picture); err != nil {
+	if err := s.readActions(ctx, incidentID, &picture, time.Now().UTC()); err != nil {
 		return domain.OperatingPicture{}, false, err
 	}
 	if err := s.readRoles(ctx, incidentID, &picture); err != nil {
@@ -189,18 +258,25 @@ func (s *IncidentStore) CommonOperatingPicture(ctx context.Context, incidentID s
 	if err := s.readPending(ctx, incidentID, &picture); err != nil {
 		return domain.OperatingPicture{}, false, err
 	}
+	if err := s.readTimeline(ctx, incidentID, &picture); err != nil {
+		return domain.OperatingPicture{}, false, err
+	}
 	return picture, true, nil
 }
 
 func (s *IncidentStore) readFacts(ctx context.Context, incidentID string, picture *domain.OperatingPicture) error {
-	rows, err := s.pool.Query(ctx, `SELECT record_id,compartment,statement,source,maker,recorded_at FROM crab.incident_facts WHERE incident_id=$1 ORDER BY recorded_at,record_id`, incidentID)
+	rows, err := s.pool.Query(ctx, `SELECT record_id,compartment,statement,source,maker,recorded_at,occurred_at,flagged_at,awareness FROM crab.incident_facts WHERE incident_id=$1 ORDER BY recorded_at,record_id`, incidentID)
 	if err != nil {
 		return err
 	}
 	defer rows.Close()
 	for rows.Next() {
 		var v domain.FactView
-		if err := rows.Scan(&v.RecordID, &v.Compartment, &v.Fact.Statement, &v.Fact.Source, &v.Maker, &v.RecordedAt); err != nil {
+		var awareness []byte
+		if err := rows.Scan(&v.RecordID, &v.Compartment, &v.Fact.Statement, &v.Fact.Source, &v.Maker, &v.RecordedAt, &v.Fact.OccurredAt, &v.Fact.FlaggedAt, &awareness); err != nil {
+			return err
+		}
+		if err := json.Unmarshal(awareness, &v.Fact.Awareness); err != nil {
 			return err
 		}
 		picture.Facts = append(picture.Facts, v)
@@ -244,17 +320,22 @@ func (s *IncidentStore) readDecisions(ctx context.Context, incidentID string, pi
 	return rows.Err()
 }
 
-func (s *IncidentStore) readActions(ctx context.Context, incidentID string, picture *domain.OperatingPicture) error {
-	rows, err := s.pool.Query(ctx, `SELECT record_id,compartment,title,owner_human_id,maker,confirmer,confirmed_at FROM crab.incident_actions WHERE incident_id=$1 ORDER BY confirmed_at,record_id`, incidentID)
+func (s *IncidentStore) readActions(ctx context.Context, incidentID string, picture *domain.OperatingPicture, now time.Time) error {
+	rows, err := s.pool.Query(ctx, `SELECT record_id,compartment,title,owner_human_id,status,priority,due_at,source_ref,notes,evidence_refs,skip_reason,checklist_template_id,checklist_step_id,maker,confirmer,confirmed_at FROM crab.incident_actions WHERE incident_id=$1 ORDER BY confirmed_at,record_id`, incidentID)
 	if err != nil {
 		return err
 	}
 	defer rows.Close()
 	for rows.Next() {
 		var v domain.ActionView
-		if err := rows.Scan(&v.RecordID, &v.Compartment, &v.Action.Title, &v.Action.OwnerHumanID, &v.Maker, &v.Confirmer, &v.ConfirmedAt); err != nil {
+		var evidence []byte
+		if err := rows.Scan(&v.RecordID, &v.Compartment, &v.Action.Title, &v.Action.OwnerHumanID, &v.Action.Status, &v.Action.Priority, &v.Action.DueAt, &v.Action.SourceRef, &v.Action.Notes, &evidence, &v.Action.SkipReason, &v.Action.ChecklistTemplateID, &v.Action.ChecklistStepID, &v.Maker, &v.Confirmer, &v.ConfirmedAt); err != nil {
 			return err
 		}
+		if err := json.Unmarshal(evidence, &v.Action.EvidenceRefs); err != nil {
+			return err
+		}
+		v.Overdue = domain.ActionOverdue(v.Action, now)
 		picture.Actions = append(picture.Actions, v)
 	}
 	return rows.Err()
@@ -288,6 +369,26 @@ func (s *IncidentStore) readPending(ctx context.Context, incidentID string, pict
 			return err
 		}
 		picture.Pending = append(picture.Pending, v)
+	}
+	return rows.Err()
+}
+
+func (s *IncidentStore) readTimeline(ctx context.Context, incidentID string, picture *domain.OperatingPicture) error {
+	rows, err := s.pool.Query(ctx, `SELECT sequence,record_id,record_type,governance,compartment,summary,occurred_at,flagged_at,recorded_at,awareness,time_status FROM crab.incident_timeline WHERE incident_id=$1 ORDER BY recorded_at,sequence`, incidentID)
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var v domain.TimelineEntry
+		var awareness []byte
+		if err := rows.Scan(&v.Sequence, &v.RecordID, &v.RecordType, &v.Governance, &v.Compartment, &v.Summary, &v.OccurredAt, &v.FlaggedAt, &v.RecordedAt, &awareness, &v.TimeStatus); err != nil {
+			return err
+		}
+		if err := json.Unmarshal(awareness, &v.Awareness); err != nil {
+			return err
+		}
+		picture.Timeline = append(picture.Timeline, v)
 	}
 	return rows.Err()
 }
