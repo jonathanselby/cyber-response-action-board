@@ -185,35 +185,26 @@ func (k *Kernel) Rebuild(ctx context.Context, projections ...Projection) (ledger
 			}
 		}
 	}
-	rows, err := tx.Query(ctx, `SELECT entry_bytes FROM crab.ledger_entries ORDER BY seq`)
-	if err != nil {
-		return res, fmt.Errorf("read ledger for replay: %w", err)
-	}
-	for rows.Next() {
+	// Read one verified sequence at a time so projection SQL can use the same
+	// transaction without an open pgx Rows result making the connection busy.
+	// This keeps replay memory bounded without introducing another queue/buffer.
+	for replaySeq := uint64(1); replaySeq <= seq; replaySeq++ {
 		var raw []byte
-		if err := rows.Scan(&raw); err != nil {
-			rows.Close()
-			return res, fmt.Errorf("scan ledger replay: %w", err)
+		if err := tx.QueryRow(ctx, `SELECT entry_bytes FROM crab.ledger_entries WHERE seq = $1`, int64(replaySeq)).Scan(&raw); err != nil {
+			return res, fmt.Errorf("read ledger replay seq %d: %w", replaySeq, err)
 		}
 		var entry ledger.Entry
 		if err := json.Unmarshal(raw, &entry); err != nil {
-			rows.Close()
-			return res, fmt.Errorf("decode verified ledger entry: %w", err)
+			return res, fmt.Errorf("decode verified ledger entry seq %d: %w", replaySeq, err)
 		}
 		for _, projection := range projections {
 			if projection != nil {
 				if err := projection.Apply(ctx, tx, entry); err != nil {
-					rows.Close()
 					return res, fmt.Errorf("replay projection: %w", err)
 				}
 			}
 		}
 	}
-	if err := rows.Err(); err != nil {
-		rows.Close()
-		return res, fmt.Errorf("read ledger replay: %w", err)
-	}
-	rows.Close()
 	if err := tx.Commit(ctx); err != nil {
 		return res, fmt.Errorf("commit rebuild: %w", err)
 	}
