@@ -64,8 +64,7 @@ func run(args []string, stdout, stderr io.Writer) int {
 	case "print":
 		return runPrint(args[1:], stdout, stderr)
 	case "recover":
-		fmt.Fprintf(stderr, "crab %s: not built in checkpoint %s; no alternate control path is enabled\n", args[0], buildinfo.Version)
-		return exitRefused
+		return runRecover(args[1:], stdout, stderr)
 	case "help", "-h", "--help":
 		usage(stdout)
 		return exitOK
@@ -375,8 +374,6 @@ Implemented through the current verified checkpoint:
   crab mcp --session-file <path>
   crab print incident-brief --incident <id> --session-file <path> [--page-size A4|LETTER]
   crab print emergency-pack --organisation <name> --session-file <path> [--page-size A4|LETTER]
-  crab version
-
-Frozen CLI surface, intentionally refused until its implementation lands:
-  crab recover`)
+  crab recover --request-file <path>
+  crab version`)
 }
