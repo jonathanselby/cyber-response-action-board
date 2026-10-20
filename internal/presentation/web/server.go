@@ -18,6 +18,8 @@ type Server struct {
 	mux      *http.ServeMux
 	template *template.Template
 	static   http.Handler
+	runtime  Runtime
+	version  string
 }
 
 func New() (*Server, error) {
@@ -29,17 +31,24 @@ func New() (*Server, error) {
 	if err != nil {
 		return nil, err
 	}
-	s := &Server{template: t, static: http.FileServer(http.FS(staticFS))}
+	s := &Server{template: t, static: http.FileServer(http.FS(staticFS)), version: buildinfo.Version}
 	s.mux = http.NewServeMux()
-	s.mux.HandleFunc("GET /", s.index)
-	s.mux.HandleFunc("GET /healthz", s.health)
 	s.mux.Handle("GET /static/", http.StripPrefix("/static/", s.static))
+	s.mux.HandleFunc("GET /healthz", s.health)
+	if RuntimeFactory == nil {
+		s.mux.HandleFunc("GET /", s.index)
+		return s, nil
+	}
+	runtime, err := RuntimeFactory()
+	if err != nil {
+		return nil, err
+	}
+	s.runtime = runtime
+	s.registerOperatorRoutes()
 	return s, nil
 }
 
-func (s *Server) Handler() http.Handler {
-	return securityHeaders(s.mux)
-}
+func (s *Server) Handler() http.Handler { return securityHeaders(s.mux) }
 
 func (s *Server) index(w http.ResponseWriter, r *http.Request) {
 	if r.URL.Path != "/" {
@@ -47,24 +56,19 @@ func (s *Server) index(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	data := struct {
-		Version string
-	}{Version: buildinfo.Version}
+	data := struct{ Version string }{Version: buildinfo.Version}
 	if err := s.template.ExecuteTemplate(w, "index.html", data); err != nil {
 		http.Error(w, "render failed", http.StatusInternalServerError)
 	}
 }
 
 func (s *Server) health(w http.ResponseWriter, _ *http.Request) {
+	status := "presentation-test-shell"
+	if s.runtime != nil {
+		status = "operator-runtime"
+	}
 	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(map[string]any{
-		"status":        "build-checkpoint",
-		"version":       buildinfo.Version,
-		"ledger":        "portable-verifier-available",
-		"database":      "slice1-ledger-kernel-built",
-		"authorisation": "not-built",
-		"time":          time.Now().UTC().Format(time.RFC3339),
-	})
+	_ = json.NewEncoder(w).Encode(map[string]any{"status": status, "version": buildinfo.Version, "time": time.Now().UTC().Format(time.RFC3339)})
 }
 
 func securityHeaders(next http.Handler) http.Handler {

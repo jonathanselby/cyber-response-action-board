@@ -12,7 +12,7 @@ func TestVersionCommand(t *testing.T) {
 	if code != exitOK {
 		t.Fatalf("exit = %d stderr=%s", code, errOut.String())
 	}
-	if !strings.HasPrefix(out.String(), "crab 0.0.14-dev") {
+	if !strings.HasPrefix(out.String(), "crab 0.0.15-dev") {
 		t.Fatalf("version output = %q", out.String())
 	}
 }
@@ -23,23 +23,7 @@ func TestReadinessFailsClosedBeforeConfiguredDurableStore(t *testing.T) {
 	if code != exitRefused {
 		t.Fatalf("exit = %d stdout=%s stderr=%s", code, out.String(), errOut.String())
 	}
-	for _, want := range []string{
-		`"ready": false`,
-		`"postgresql"`,
-		`"key_custody"`,
-		`"authentication_authorisation"`,
-		`"incident_semantic_kernel"`,
-		`"actions_checklists_timeline"`,
-		`"obligations_timed_waits"`,
-		`"access_governance_compartments"`,
-		`"evidence_immutable_blobs"`,
-		`"corpus_deterministic_retrieval"`,
-		`"model_assistance"`,
-		`"communications_notifier"`,
-		`"print_paper_resilience"`,
-		`"recovery_pir_retention_closure"`,
-		`"backup_restore"`,
-	} {
+	for _, want := range []string{`"ready": false`, `"postgresql"`, `"key_custody"`, `"authentication_authorisation"`, `"incident_semantic_kernel"`, `"actions_checklists_timeline"`, `"obligations_timed_waits"`, `"access_governance_compartments"`, `"evidence_immutable_blobs"`, `"corpus_deterministic_retrieval"`, `"model_assistance"`, `"communications_notifier"`, `"print_paper_resilience"`, `"recovery_pir_retention_closure"`, `"backup_restore"`} {
 		if !strings.Contains(out.String(), want) {
 			t.Fatalf("readiness output missing %s: %s", want, out.String())
 		}
