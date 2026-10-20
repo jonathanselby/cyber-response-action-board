@@ -16,9 +16,10 @@ import (
 )
 
 const (
-	RecordBootstrap         = "security.bootstrap"
-	RecordCustodianRecovery = "security.custodian_recovery"
-	RecordBreakGlass        = "security.break_glass"
+	RecordBootstrap              = "security.bootstrap"
+	RecordCustodianRecovery      = "security.custodian_recovery"
+	RecordBreakGlass             = "security.break_glass"
+	RecordBreakGlassAlertAttempt = "security.break_glass_alert_attempt"
 )
 
 type BootstrapIdentity struct {
@@ -35,8 +36,6 @@ type BootstrapPlan struct {
 	BreakGlassKeyholderIDs []string
 }
 
-// ValidateBootstrap enforces the frozen no-superuser setup ceremony. It does
-// not create incident membership or content visibility.
 func ValidateBootstrap(plan BootstrapPlan) error {
 	if strings.TrimSpace(plan.PreparedBy) == "" || strings.TrimSpace(plan.ConfirmedBy) == "" || plan.PreparedBy == plan.ConfirmedBy {
 		return errors.New("bootstrap requires two distinct named humans")
@@ -94,8 +93,6 @@ func ValidateBootstrap(plan BootstrapPlan) error {
 	return nil
 }
 
-// BootstrapRecords returns only governed system-scope state. There is
-// deliberately no incident-membership record in bootstrap.
 func BootstrapRecords(plan BootstrapPlan, now time.Time) ([]ledger.Record, error) {
 	if err := ValidateBootstrap(plan); err != nil {
 		return nil, err
@@ -192,22 +189,33 @@ type BreakGlassCredentialSource interface {
 	ActiveBreakGlassRecords(context.Context) ([]authn.BreakGlassRecord, error)
 }
 
-type BreakGlassResult struct {
-	Token      string
-	Session    authn.Session
+type BreakGlassAlert struct {
+	HumanID    string
 	Keyholders []string
-	Audit      ledger.Record
+	ExpiresAt  time.Time
+}
+
+type BreakGlassAlertSink interface {
+	AlertBreakGlass(context.Context, BreakGlassAlert) error
+}
+
+type BreakGlassResult struct {
+	Token        string
+	Session      authn.Session
+	Keyholders   []string
+	Audit        ledger.Record
+	AlertAttempt ledger.Record
 }
 
 // EstablishBreakGlass authenticates one existing named human with two offline
-// proofs. Authorisation is intentionally absent: the session must subsequently
-// resolve the same human through the ordinary AccessStore/Authorise boundary.
-func EstablishBreakGlass(ctx context.Context, targetHumanID, reason string, presented map[string]string, source BreakGlassCredentialSource, sessions authn.Sessions, now time.Time) (BreakGlassResult, error) {
+// proofs. It calls one alert edge and records the attempt, but notification
+// failure never widens authority or cancels otherwise-valid emergency auth.
+func EstablishBreakGlass(ctx context.Context, targetHumanID, reason string, presented map[string]string, source BreakGlassCredentialSource, alerts BreakGlassAlertSink, sessions authn.Sessions, now time.Time) (BreakGlassResult, error) {
 	if strings.TrimSpace(targetHumanID) == "" || strings.TrimSpace(reason) == "" {
 		return BreakGlassResult{}, errors.New("break-glass target human and reason are required")
 	}
-	if source == nil || sessions.Store == nil || now.IsZero() {
-		return BreakGlassResult{}, errors.New("break-glass security stores and time are required")
+	if source == nil || alerts == nil || sessions.Store == nil || now.IsZero() {
+		return BreakGlassResult{}, errors.New("break-glass security stores, alert edge and time are required")
 	}
 	records, err := source.ActiveBreakGlassRecords(ctx)
 	if err != nil {
@@ -235,25 +243,48 @@ func EstablishBreakGlass(ctx context.Context, targetHumanID, reason string, pres
 		_ = sessions.Revoke(ctx, token)
 		return BreakGlassResult{}, err
 	}
-	audit := ledger.Record{
+	audit := observedSystemRecord(RecordBreakGlass, "break-glass:"+targetHumanID+":"+now.UTC().Format(time.RFC3339Nano), targetHumanID, raw, now)
+	if err := ledger.ValidateRecord(audit); err != nil {
+		_ = sessions.Revoke(ctx, token)
+		return BreakGlassResult{}, err
+	}
+
+	alertErr := alerts.AlertBreakGlass(ctx, BreakGlassAlert{HumanID: targetHumanID, Keyholders: append([]string(nil), keyholders...), ExpiresAt: session.ExpiresAt.UTC()})
+	outcome := "attempted"
+	if alertErr != nil {
+		outcome = "failed"
+	}
+	alertPayload, err := json.Marshal(map[string]any{
+		"human_id": targetHumanID,
+		"outcome":  outcome,
+	})
+	if err != nil {
+		_ = sessions.Revoke(ctx, token)
+		return BreakGlassResult{}, err
+	}
+	alertAttempt := observedSystemRecord(RecordBreakGlassAlertAttempt, "break-glass-alert:"+targetHumanID+":"+now.UTC().Format(time.RFC3339Nano), targetHumanID, alertPayload, now)
+	if err := ledger.ValidateRecord(alertAttempt); err != nil {
+		_ = sessions.Revoke(ctx, token)
+		return BreakGlassResult{}, err
+	}
+	return BreakGlassResult{Token: token, Session: session, Keyholders: keyholders, Audit: audit, AlertAttempt: alertAttempt}, nil
+}
+
+func observedSystemRecord(recordType, recordID, maker string, payload json.RawMessage, now time.Time) ledger.Record {
+	return ledger.Record{
 		SchemaVersion:  1,
 		Timestamp:      now.UTC(),
 		TimeStatus:     "trusted",
 		IncidentMode:   "system",
 		WriteSemantic:  "record",
-		RecordType:     RecordBreakGlass,
-		RecordID:       "break-glass:" + targetHumanID + ":" + now.UTC().Format(time.RFC3339Nano),
+		RecordType:     recordType,
+		RecordID:       recordID,
 		Status:         "recorded",
-		Maker:          targetHumanID,
+		Maker:          maker,
 		Compartment:    "SYSTEM",
-		Data:           raw,
-		MakerSignature: ledger.Signature{MissingReason: "break-glass authentication event is server-observed"},
+		Data:           payload,
+		MakerSignature: ledger.Signature{MissingReason: "server-observed security event"},
 	}
-	if err := ledger.ValidateRecord(audit); err != nil {
-		_ = sessions.Revoke(ctx, token)
-		return BreakGlassResult{}, err
-	}
-	return BreakGlassResult{Token: token, Session: session, Keyholders: keyholders, Audit: audit}, nil
 }
 
 func governedSystemRecord(recordType, recordID, maker, confirmer string, payload any, now time.Time) (ledger.Record, error) {
