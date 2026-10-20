@@ -25,7 +25,7 @@ func NewIncidentRuntime(kernel *Kernel, signer Signer, store *IncidentStore) (*I
 }
 
 func (r *IncidentRuntime) AppendIncident(ctx context.Context, record ledger.Record) error {
-	_, err := r.Kernel.Append(ctx, record, r.Signer, IncidentProjection{}, DeclarationAccessProjection{})
+	_, err := r.Kernel.Append(ctx, record, r.Signer, IncidentProjection{}, PaperProjection{}, DeclarationAccessProjection{})
 	return err
 }
 
@@ -47,21 +47,7 @@ func (r *IncidentRuntime) PendingProposalRecord(ctx context.Context, incidentID,
 	if err != nil {
 		return ledger.Record{}, false, err
 	}
-	record := ledger.Record{
-		SchemaVersion:  1,
-		Timestamp:      proposedAt.UTC(),
-		TimeStatus:     "trusted",
-		IncidentID:     incidentID,
-		IncidentMode:   mode,
-		WriteSemantic:  "governed",
-		RecordType:     recordType,
-		RecordID:       recordID,
-		Status:         "proposed",
-		Maker:          maker,
-		Compartment:    compartment,
-		Data:           wrapped,
-		MakerSignature: ledger.Signature{MissingReason: "maker authenticated on immutable proposal entry"},
-	}
+	record := ledger.Record{SchemaVersion: 1, Timestamp: proposedAt.UTC(), TimeStatus: "trusted", IncidentID: incidentID, IncidentMode: mode, WriteSemantic: "governed", RecordType: recordType, RecordID: recordID, Status: "proposed", Maker: maker, Compartment: compartment, Data: wrapped, MakerSignature: ledger.Signature{MissingReason: "maker authenticated on immutable proposal entry"}}
 	if _, err := domain.ProposalVersion(record); err != nil {
 		return ledger.Record{}, false, err
 	}
