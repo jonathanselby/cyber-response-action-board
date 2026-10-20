@@ -38,7 +38,7 @@ func TestPendingActionProposalCannotBeOverwritten(t *testing.T) {
 	if _, err := kernel.Append(ctx, second, signer, IncidentProjection{}); err == nil {
 		t.Fatal("unresolved Action proposal was overwritten")
 	}
-	stored, found, err := NewIncidentStore(db.runtime)
+	stored, err := NewIncidentStore(db.runtime)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -60,7 +60,6 @@ func TestPendingActionProposalCannotBeOverwritten(t *testing.T) {
 	if actual != version {
 		t.Fatalf("pending proposal version changed from %s to %s", version, actual)
 	}
-	_ = found
 }
 
 func TestActionLifecycleKeepsOneCurrentProjectionAndLedgerHistory(t *testing.T) {
@@ -85,10 +84,6 @@ func TestActionLifecycleKeepsOneCurrentProjectionAndLedgerHistory(t *testing.T) 
 	}
 	appendProposalAndDecision(t, kernel, signer, completed, "confirmed", projection)
 
-	store, err := NewIncidentStore(db.runtime)
-	if err != nil {
-		t.Fatal(err)
-	}
 	var count int
 	if err := db.runtime.QueryRow(ctx, `SELECT count(*) FROM crab.incident_actions WHERE incident_id=$1 AND record_id=$2`, scope.IncidentID, "ACT-1").Scan(&count); err != nil {
 		t.Fatal(err)
@@ -110,7 +105,6 @@ func TestActionLifecycleKeepsOneCurrentProjectionAndLedgerHistory(t *testing.T) 
 	if ledgerEntries != 4 {
 		t.Fatalf("Action lifecycle ledger entries=%d want 4", ledgerEntries)
 	}
-	_ = store
 }
 
 func TestTimelineKeepsOccurredFlaggedRecordedAndAwarenessDistinctAcrossRebuild(t *testing.T) {
