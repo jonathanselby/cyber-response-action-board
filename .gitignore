@@ -1,0 +1,6 @@
+/bin/
+*.out
+*.test
+.DS_Store
+.env
+crab.local.json
