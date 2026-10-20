@@ -43,6 +43,7 @@ type ActionView struct {
 	Maker       string
 	Confirmer   string
 	ConfirmedAt time.Time
+	Overdue     bool
 }
 
 type OperationalRoleView struct {
@@ -72,4 +73,5 @@ type OperatingPicture struct {
 	Actions          []ActionView
 	OperationalRoles []OperationalRoleView
 	Pending          []PendingProposal
+	Timeline         []TimelineEntry
 }

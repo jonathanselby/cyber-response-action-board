@@ -14,11 +14,11 @@ import (
 )
 
 const (
-	TypeIncidentDeclaration       = "incident.declaration"
-	TypeFact                      = "incident.fact"
-	TypeUncertainty               = "incident.uncertainty"
-	TypeDecision                  = "incident.decision"
-	TypeAction                    = "incident.action"
+	TypeIncidentDeclaration        = "incident.declaration"
+	TypeFact                       = "incident.fact"
+	TypeUncertainty                = "incident.uncertainty"
+	TypeDecision                   = "incident.decision"
+	TypeAction                     = "incident.action"
 	TypeOperationalRoleAssignment = "incident.operational_role_assignment"
 )
 
@@ -35,8 +35,11 @@ type IncidentDeclaration struct {
 }
 
 type Fact struct {
-	Statement string `json:"statement"`
-	Source    string `json:"source,omitempty"`
+	Statement  string          `json:"statement"`
+	Source     string          `json:"source,omitempty"`
+	OccurredAt *time.Time      `json:"occurred_at,omitempty"`
+	FlaggedAt  *time.Time      `json:"flagged_at,omitempty"`
+	Awareness  []AwarenessTime `json:"awareness,omitempty"`
 }
 
 type Uncertainty struct {
@@ -50,8 +53,17 @@ type Decision struct {
 }
 
 type Action struct {
-	Title        string `json:"title"`
-	OwnerHumanID string `json:"owner_human_id,omitempty"`
+	Title               string     `json:"title"`
+	OwnerHumanID        string     `json:"owner_human_id"`
+	Status              string     `json:"status"`
+	Priority            string     `json:"priority"`
+	DueAt               *time.Time `json:"due_at,omitempty"`
+	SourceRef           string     `json:"source_ref"`
+	Notes               string     `json:"notes,omitempty"`
+	EvidenceRefs        []string   `json:"evidence_refs,omitempty"`
+	SkipReason          string     `json:"skip_reason,omitempty"`
+	ChecklistTemplateID string     `json:"checklist_template_id,omitempty"`
+	ChecklistStepID     string     `json:"checklist_step_id,omitempty"`
 }
 
 type OperationalRoleAssignment struct {
@@ -71,6 +83,9 @@ func RecordFact(scope Scope, recordID, maker string, now time.Time, fact Fact) (
 	}
 	if strings.TrimSpace(fact.Statement) == "" {
 		return ledger.Record{}, errors.New("fact statement is required")
+	}
+	if err := ValidateFactTiming(fact); err != nil {
+		return ledger.Record{}, err
 	}
 	return immediateRecord(scope, TypeFact, recordID, maker, now, fact)
 }
@@ -112,8 +127,12 @@ func ProposeAction(scope Scope, recordID, maker string, now time.Time, action Ac
 	if err := validateScope(scope); err != nil {
 		return ledger.Record{}, err
 	}
-	if strings.TrimSpace(action.Title) == "" {
-		return ledger.Record{}, errors.New("action title is required")
+	if err := ValidateAction(action); err != nil {
+		return ledger.Record{}, err
+	}
+	if action.DueAt != nil {
+		due := action.DueAt.UTC()
+		action.DueAt = &due
 	}
 	return proposedRecord(scope, TypeAction, recordID, maker, now, action)
 }

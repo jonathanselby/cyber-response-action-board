@@ -34,7 +34,9 @@ func TestRecordFactIsImmediateAndCannotCarryGovernedState(t *testing.T) {
 }
 
 func TestGovernedProposalCapturesExactPayloadVersion(t *testing.T) {
-	proposal, err := ProposeAction(scope(), "ACT-1", "alice", time.Date(2026, 10, 20, 2, 20, 0, 0, time.UTC), Action{Title: "Isolate affected endpoints", OwnerHumanID: "bob"})
+	proposal, err := ProposeAction(scope(), "ACT-1", "alice", time.Date(2026, 10, 20, 2, 20, 0, 0, time.UTC), Action{
+		Title: "Isolate affected endpoints", OwnerHumanID: "bob", Status: ActionStatusNotStarted, Priority: "P1", SourceRef: "DEC-1",
+	})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -93,13 +95,38 @@ func TestUnknownAndHypothesisRemainDistinct(t *testing.T) {
 	}
 }
 
+func TestFactKeepsOccurrenceFlaggingRecordingAndAwarenessDistinct(t *testing.T) {
+	occurred := time.Date(2026, 10, 20, 1, 0, 0, 0, time.UTC)
+	flagged := occurred.Add(10 * time.Minute)
+	recorded := flagged.Add(5 * time.Minute)
+	aware := flagged.Add(2 * time.Minute)
+	record, err := RecordFact(scope(), "FACT-TIME", "alice", recorded, Fact{
+		Statement:  "Payroll files encrypted",
+		OccurredAt: &occurred,
+		FlaggedAt:  &flagged,
+		Awareness:  []AwarenessTime{{Subject: "Incident Major", At: aware}},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	fact, err := DecodePayload[Fact](record)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if fact.OccurredAt == nil || !fact.OccurredAt.Equal(occurred) || fact.FlaggedAt == nil || !fact.FlaggedAt.Equal(flagged) || record.Timestamp != recorded || len(fact.Awareness) != 1 || !fact.Awareness[0].At.Equal(aware) {
+		t.Fatalf("time concepts collapsed record=%+v fact=%+v", record, fact)
+	}
+}
+
 func TestSemanticProposalSchemasRemainDedicated(t *testing.T) {
 	now := time.Now().UTC()
 	declaration, err := ProposeIncidentDeclaration(scope(), "INC-001", "alice", now, IncidentDeclaration{Title: "Payroll ransomware", Summary: "Encryption reported in payroll workstations", Severity: "High"})
 	if err != nil {
 		t.Fatal(err)
 	}
-	action, err := ProposeAction(scope(), "ACT-1", "alice", now, Action{Title: "Preserve endpoint images"})
+	action, err := ProposeAction(scope(), "ACT-1", "alice", now, Action{
+		Title: "Preserve endpoint images", OwnerHumanID: "bob", Status: ActionStatusNotStarted, Priority: "P1", SourceRef: "RUNBOOK-IR",
+	})
 	if err != nil {
 		t.Fatal(err)
 	}
