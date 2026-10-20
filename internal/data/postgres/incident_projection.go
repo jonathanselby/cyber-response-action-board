@@ -182,7 +182,7 @@ func applyTimeline(ctx context.Context, tx pgx.Tx, entry ledger.Entry) error {
 	if record.WriteSemantic == "record" {
 		governance = "recorded"
 	}
-	_, err = tx.Exec(ctx, `INSERT INTO crab.incident_timeline(sequence,incident_id,record_id,record_type,governance,compartment,summary,occurred_at,flagged_at,recorded_at,awareness,time_status) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`, entry.Sequence, record.IncidentID, record.RecordID, record.RecordType, governance, record.Compartment, summary, occurred, flagged, record.Timestamp, awarenessJSON, record.TimeStatus)
+	_, err = tx.Exec(ctx, `INSERT INTO crab.incident_timeline(sequence,incident_id,record_id,record_type,governance,compartment,summary,occurred_at,flagged_at,recorded_at,awareness,time_status) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`, entry.Seq, record.IncidentID, record.RecordID, record.RecordType, governance, record.Compartment, summary, occurred, flagged, record.Timestamp, awarenessJSON, record.TimeStatus)
 	return err
 }
 
