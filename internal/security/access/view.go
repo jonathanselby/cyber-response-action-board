@@ -21,9 +21,9 @@ type MembershipView struct {
 
 type AdministrationView struct {
 	Sponsors               []DesignationView
-	Controllers             []DesignationView
-	IncidentMemberships     []MembershipView
-	CompartmentMemberships  []MembershipView
+	Controllers            []DesignationView
+	IncidentMemberships    []MembershipView
+	CompartmentMemberships []MembershipView
 }
 
 func WindowStatus(effectiveAt, expiresAt *time.Time, now time.Time) string {
