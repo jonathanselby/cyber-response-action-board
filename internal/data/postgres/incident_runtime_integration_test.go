@@ -70,7 +70,13 @@ func TestIncidentServiceEndToEndThroughLedgerAndPostgres(t *testing.T) {
 	}
 
 	alice := slice3Principal("alice", authz.RoleMajor, scope.IncidentID, true)
-	action, err := service.ProposeAction(ctx, alice, scope, "ACT-APP", domain.Action{Title: "Isolate affected endpoints", OwnerHumanID: "carol"}, base.Add(3*time.Minute))
+	action, err := service.ProposeAction(ctx, alice, scope, "ACT-APP", domain.Action{
+		Title:        "Isolate affected endpoints",
+		OwnerHumanID: "carol",
+		Status:       domain.ActionStatusNotStarted,
+		Priority:     "P1",
+		SourceRef:    "DEC-CONTAIN",
+	}, base.Add(3*time.Minute))
 	if err != nil {
 		t.Fatal(err)
 	}
