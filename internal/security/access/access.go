@@ -71,10 +71,10 @@ func Decode(recordType string, raw []byte) (Change, bool, error) {
 		change.HumanID, change.IncidentID, change.Active = payload.HumanID, payload.IncidentID, payload.Active
 	case RecordCompartmentMembership:
 		var payload struct {
-			HumanID    string `json:"human_id"`
-			IncidentID string `json:"incident_id"`
+			HumanID     string `json:"human_id"`
+			IncidentID  string `json:"incident_id"`
 			Compartment string `json:"compartment"`
-			Active     bool   `json:"active"`
+			Active      bool   `json:"active"`
 		}
 		if err := decodeStrict(raw, &payload); err != nil {
 			return Change{}, true, err
