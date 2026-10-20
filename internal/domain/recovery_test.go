@@ -88,10 +88,10 @@ func TestClosureOutputsCannotLeakPrivilegedSummaryIntoShareable(t *testing.T) {
 
 func TestGeneratePIRDraftUsesExistingIncidentRecord(t *testing.T) {
 	picture := OperatingPicture{
-		Incident: IncidentState{IncidentID: "INC-1", Title: "Payroll incident", Summary: "Payroll unavailable", Severity: "High"},
-		Timeline: []TimelineEntry{{RecordID: "FACT-1", Summary: "Encryption confirmed"}},
+		Incident:  IncidentState{IncidentID: "INC-1", Title: "Payroll incident", Summary: "Payroll unavailable", Severity: "High"},
+		Timeline:  []TimelineEntry{{RecordID: "FACT-1", Summary: "Encryption confirmed"}},
 		Decisions: []DecisionView{{RecordID: "DEC-1", Decision: Decision{Decision: "Restore clean backup"}}},
-		Actions: []ActionView{{RecordID: "ACT-1", Action: Action{Title: "Restore payroll"}}},
+		Actions:   []ActionView{{RecordID: "ACT-1", Action: Action{Title: "Restore payroll"}}},
 	}
 	draft := GeneratePIRDraft(picture)
 	if draft.ExecutiveSummary == "" || len(draft.Timeline) != 1 || len(draft.Decisions) != 1 || len(draft.Actions) != 1 {
