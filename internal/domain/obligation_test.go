@@ -37,6 +37,26 @@ func TestObligationClockBusinessDaysAndHoliday(t *testing.T) {
 	}
 }
 
+func TestObligationClockPersistedUTCInstantUsesConfiguredTimezone(t *testing.T) {
+	def := testObligationDefinition()
+	loc, err := time.LoadLocation("Australia/Sydney")
+	if err != nil {
+		t.Fatal(err)
+	}
+	localTrigger := time.Date(2026, 10, 23, 10, 0, 0, 0, loc)
+	localResult, err := CalculateObligationDeadline(def, localTrigger)
+	if err != nil {
+		t.Fatal(err)
+	}
+	persistedResult, err := CalculateObligationDeadline(def, localTrigger.UTC())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !persistedResult.Deadline.Equal(localResult.Deadline) {
+		t.Fatalf("persisted instant deadline=%v local deadline=%v", persistedResult.Deadline, localResult.Deadline)
+	}
+}
+
 func TestObligationClockElapsedHoursCrossesDSTAsElapsedTime(t *testing.T) {
 	def := testObligationDefinition()
 	def.Duration = 24
@@ -74,11 +94,13 @@ func TestObligationClockCalendarDayRejectsNonexistentWallTime(t *testing.T) {
 	}
 }
 
-func TestObligationClockRefusesTimezoneMismatchAndContradictoryCalendar(t *testing.T) {
+func TestObligationClockRefusesInvalidTimezoneAndContradictoryCalendar(t *testing.T) {
 	def := testObligationDefinition()
-	if _, err := CalculateObligationDeadline(def, time.Date(2026, 10, 23, 10, 0, 0, 0, time.UTC)); err == nil {
-		t.Fatal("timezone/offset contradiction accepted")
+	def.Calendar.Timezone = "Not/A_Timezone"
+	if err := ValidateObligationDefinition(def); err == nil {
+		t.Fatal("invalid configured timezone accepted")
 	}
+	def = testObligationDefinition()
 	def.Calendar.Weekend = []string{"Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"}
 	if err := ValidateObligationDefinition(def); err == nil {
 		t.Fatal("calendar with no business weekday accepted")
