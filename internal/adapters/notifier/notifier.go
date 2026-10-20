@@ -138,9 +138,13 @@ func (s Sender) deliverWebhook(ctx context.Context, target string, message app.N
 		return "", fmt.Errorf("build webhook request: %w", err)
 	}
 	req.Header.Set("Content-Type", "application/json")
-	client := s.Client
-	if client == nil {
-		client = http.DefaultClient
+	baseClient := s.Client
+	if baseClient == nil {
+		baseClient = http.DefaultClient
+	}
+	client := *baseClient
+	client.CheckRedirect = func(*http.Request, []*http.Request) error {
+		return http.ErrUseLastResponse
 	}
 	resp, err := client.Do(req)
 	if err != nil {
