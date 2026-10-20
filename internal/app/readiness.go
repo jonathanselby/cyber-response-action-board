@@ -32,6 +32,7 @@ func CurrentReadiness(cfg config.Config) Readiness {
 		{Name: "access_governance_compartments", Status: "implemented", Message: "Slice 6 Sponsor/Controller -> Custodian governance, expiring incident/compartment access, metadata-only administration and selective-release scope are built; PostgreSQL RLS was spiked and deliberately not retained because it would require a second privileged projection/rebuild path"},
 		{Name: "evidence_immutable_blobs", Status: "implemented", Message: "Slice 7 bounded PostgreSQL hostile-byte storage, SHA-256 integrity verification, opaque per-upload IDs, no cross-incident dedupe, scoped evidence register/history and fail-closed attachment presentation are built; authenticated browser route composition remains later presentation work"},
 		{Name: "corpus_deterministic_retrieval", Status: "implemented", Message: "Slice 8 governed Markdown/DOCX corpus ingestion, immutable original blobs, bounded passive extraction, database scope filtering before deterministic lexical ranking, stable citations and unsupported-query refusal are built; no embedding model, vector database or network is required"},
+		{Name: "model_assistance", Status: "implemented", Message: "Slice 9 static prompt-versioned draft specs, explicit three-lane routing, local/managed provider adapters, sensitivity and model-send gates, provenance traces, bounded shedding and untrusted draft validation are built; deployment provider configuration and authenticated operator routes remain later composition work"},
 	}
 	return Readiness{Ready: false, Checks: checks}
 }

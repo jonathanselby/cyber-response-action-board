@@ -6,7 +6,7 @@ CRAB is a single Go application for running a cyber incident from first report t
 
 ## Build status
 
-**0.0.9-dev — Slice 8 governed corpus and deterministic retrieval.**
+**0.0.10-dev — Slice 9 model assistance.**
 
 Implemented and CI-proven now:
 
@@ -20,24 +20,27 @@ Implemented and CI-proven now:
 - Slice 5 organisation-defined deterministic obligation clocks and bounded rebuildable timed wait list without a legal rules engine or delivery queue;
 - Slice 6 Sponsor/Controller -> Custodian access governance, expiring incident/compartment membership, metadata-only administration and selective-release scope; PostgreSQL RLS was tested and deliberately not retained;
 - Slice 7 bounded hostile-byte streaming into immutable PostgreSQL blob rows, exact SHA-256 verification, evidence register/handling history and fail-closed attachment presentation;
-- Slice 8 governed Markdown/DOCX corpus sources backed by the same immutable blob primitive, with a hard 16 MiB source limit and bounded passive ZIP/XML handling for DOCX;
-- original corpus bytes remain immutable durable supporting state while confirmed source metadata and extracted passages are rebuildable projections;
-- only `word/document.xml` text is extracted from DOCX; macros and embedded active content are neither executed nor indexed;
-- incident/compartment scope is filtered in PostgreSQL **before** candidate passages reach the lexical ranker;
-- deterministic lexical retrieval requires no embedding model, vector database, local LLM or network connection;
-- citations are stable across rebuilds because they bind source ID, immutable source SHA-256 and deterministic source locator;
-- unsupported queries return an explicit refusal rather than invented support;
-- tests deliberately make restricted and other-incident passages stronger lexical matches and prove they never enter the authorised ranking set;
-- a confirmed incident declaration now establishes the declaration maker's initial Sponsor, incident-membership and `GENERAL` membership state from the declaration ledger record itself, closing the frozen Slice 6 declaration invariant;
+- Slice 8 governed Markdown/DOCX corpus admission, immutable source blobs, bounded passive extraction, scope filtering before deterministic lexical ranking, stable citations and explicit unsupported-query refusal;
+- Slice 9 five small prompt-versioned model draft specifications: retrieval summary, situation report, board update, notification language and PIR summary;
+- explicit `simple`, `standard` and `complex` model lanes: the caller classifies work and the harness routes exactly that lane; there is no hidden model selector or automatic fallback;
+- local Ollama plus managed Azure OpenAI/Foundry, Amazon Bedrock and Google Vertex adapters using standard-library HTTP and no new direct runtime dependency;
+- deterministic authorised retrieval always precedes model generation, so the model receives only the already-authorised source set;
+- managed model calls require both the sensitivity policy and the separate `model_send` output permission before provider I/O;
+- model traces carry request/spec/prompt version, selected provider/model, prompt SHA-256, stable citation IDs, duration and provider-reported token counts without routinely logging prompt bodies;
+- model output is always explicitly untrusted; `validated` means only that deterministic structural checks passed and never means human approval or effective governed state;
+- provider failures and invalid output retain authorised source provenance and fail visibly rather than coercing model text into incident truth;
+- no automatic provider reroute/failover: failure of the configured lane remains a visible failure;
+- bounded model capacity sheds new model generation first while deterministic retrieval and core incident work remain available;
+- provider adapter tests exercise wire contracts locally and managed-provider error handling does not echo provider response bodies;
 - frozen PRD V0.2 / EDD V0.4 and companion build, test and UX/print notes remain beside source.
 
 Not yet claimed complete:
 
-- secure operator/presentation wiring for `crab setup`, browser login and authenticated operational routes; source/evidence application paths exist but no unauthenticated shortcut is introduced;
-- Slice 9 model assistance;
+- secure operator/presentation wiring for `crab setup`, browser login and authenticated operational routes;
+- deployment composition for live model credentials/provider configuration and operator-facing model routes; Slice 9 proves the application/provider boundary without pretending live cloud-account integration;
 - communications/notifier delivery, print/paper, recovery/PIR/retention/closure, backup/restore and final Bafflewick/Pi/visual acceptance.
 
-The checkpoint does not create a universal administrator, universal Major visibility, emergency read-in, external portal, per-object ACL estate, production RLS, object store, media-processing service, malware scanner, workflow engine, delivery queue, vector database or generic CRUD incident model.
+The checkpoint does not create a universal administrator, universal Major visibility, emergency read-in, external portal, per-object ACL estate, production RLS, object store, media-processing service, malware scanner, workflow engine, delivery queue, vector database, autonomous agent framework, automatic model classifier or generic CRUD incident model.
 
 ## Commands
 
@@ -65,6 +68,8 @@ Evidence capture metadata and evidence-handling events use `Record(...)`: they p
 
 Corpus admission uses governed `Propose(...) -> Decide(...)`. Uploading bytes alone does not make a document retrievable. A confirmed corpus source must exactly bind the immutable blob metadata before deterministic extraction/index projection is effective.
 
+Model drafts use neither write semantic. They are transient, untrusted assistance. A human must still perform the ordinary CRAB Record or Propose/Decide action if any model-derived wording is to become incident history or governed state.
+
 ## Security boundary
 
 CRAB's application decision remains deliberately small:
@@ -84,9 +89,13 @@ Role determines what a person may do. Incident membership determines where. Comp
 
 For retrieval, ranking is not a security boundary. PostgreSQL first returns only organisation-wide or incident-specific passages within the requester's authorised compartment set; the deterministic ranker can only rank that already-authorised set.
 
+For managed model use, retrieval authorisation is not permission to disclose externally. The sensitivity rule and separate `model_send` permission must both pass before provider I/O. A local lane does not create governed authority either: all model output remains untrusted.
+
 ## Database boundary
 
 The schema-owner identity performs migrations. The ordinary runtime identity is not table owner, superuser or `BYPASSRLS`. Authoritative ledger rows cannot be updated/deleted by the runtime role. Blob metadata/chunks are durable supporting state and are insert/read-only to runtime. Security, incident, obligation, access, evidence and corpus current state are rebuildable projections from ledger history.
+
+Slice 9 adds no model database, model queue or prompt store. Model assistance consumes already-authorised retrieval results and returns transient drafts/traces; core incident operation does not depend on a provider being available.
 
 RLS was tested, not hand-waved. The Slice 6 spike showed it can stop accidental broad reads with transaction-local scope, but retaining it would require an additional privileged projection/rebuild channel in the current one-runtime-role architecture. V0.4 therefore keeps application authorisation primary and records the rejected RLS design in `docs/rls-spike-decision.md`.
 
