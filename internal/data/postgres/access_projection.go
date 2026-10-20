@@ -16,7 +16,7 @@ import (
 type AccessProjection struct{}
 
 func (AccessProjection) Reset(ctx context.Context, tx pgx.Tx) error {
-	_, err := tx.Exec(ctx, `TRUNCATE crab.output_permissions, crab.compartment_memberships, crab.incident_memberships, crab.custodian_designations, crab.role_eligibility`)
+	_, err := tx.Exec(ctx, `TRUNCATE crab.security_state, crab.output_permissions, crab.compartment_memberships, crab.incident_memberships, crab.custodian_designations, crab.role_eligibility`)
 	return err
 }
 
@@ -74,6 +74,8 @@ func (AccessProjection) Apply(ctx context.Context, tx pgx.Tx, entry ledger.Entry
 		} else {
 			_, err = tx.Exec(ctx, `DELETE FROM crab.output_permissions WHERE human_id=$1 AND action=$2`, change.HumanID, string(change.Action))
 		}
+	case access.RecordIsolateMode:
+		_, err = tx.Exec(ctx, `INSERT INTO crab.security_state(state_key, bool_value) VALUES ('isolate_mode',$1) ON CONFLICT (state_key) DO UPDATE SET bool_value=EXCLUDED.bool_value`, change.Active)
 	}
 	if err != nil {
 		return fmt.Errorf("apply access projection: %w", err)
@@ -83,7 +85,7 @@ func (AccessProjection) Apply(ctx context.Context, tx pgx.Tx, entry ledger.Entry
 
 func validateAccessEnvelope(record ledger.Record, change access.Change) error {
 	switch change.RecordType {
-	case access.RecordRoleEligibility, access.RecordCustodianDesignation, access.RecordOutputPermission:
+	case access.RecordRoleEligibility, access.RecordCustodianDesignation, access.RecordOutputPermission, access.RecordIsolateMode:
 		if record.IncidentMode != "system" || record.IncidentID != "" {
 			return errors.New("system access metadata requires system ledger scope")
 		}
@@ -104,6 +106,18 @@ func NewAccessStore(pool *pgxpool.Pool) (*AccessStore, error) {
 		return nil, errors.New("PostgreSQL pool is required")
 	}
 	return &AccessStore{pool: pool}, nil
+}
+
+func (s *AccessStore) IsolateMode(ctx context.Context) (bool, error) {
+	var active bool
+	err := s.pool.QueryRow(ctx, `SELECT bool_value FROM crab.security_state WHERE state_key='isolate_mode'`).Scan(&active)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return false, nil
+	}
+	if err != nil {
+		return false, fmt.Errorf("read isolate mode: %w", err)
+	}
+	return active, nil
 }
 
 func (s *AccessStore) Principal(ctx context.Context, humanID string, authenticated bool) (authz.Principal, error) {
@@ -185,8 +199,6 @@ func (s *AccessStore) Principal(ctx context.Context, humanID string, authenticat
 	return principal, nil
 }
 
-// MarshalAccessData is used by typed application commands/tests to avoid
-// hand-building generic JSON at the presentation boundary.
 func MarshalAccessData(v any) (json.RawMessage, error) {
 	return json.Marshal(v)
 }

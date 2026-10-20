@@ -16,6 +16,7 @@ const (
 	RecordIncidentMembership    = "security.incident_membership"
 	RecordCompartmentMembership = "security.compartment_membership"
 	RecordOutputPermission      = "security.output_permission"
+	RecordIsolateMode           = "security.isolate_mode"
 )
 
 type Change struct {
@@ -96,6 +97,14 @@ func Decode(recordType string, raw []byte) (Change, bool, error) {
 			return Change{}, true, errors.New("invalid output permission change")
 		}
 		change.HumanID, change.Action, change.Active = payload.HumanID, payload.Action, payload.Active
+	case RecordIsolateMode:
+		var payload struct {
+			Active bool `json:"active"`
+		}
+		if err := decodeStrict(raw, &payload); err != nil {
+			return Change{}, true, err
+		}
+		change.Active = payload.Active
 	default:
 		return Change{}, false, nil
 	}
