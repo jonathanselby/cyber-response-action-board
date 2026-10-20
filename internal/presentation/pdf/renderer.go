@@ -225,6 +225,9 @@ func newDocument(pageSize, printMode string, source domain.PrintSourceMark, exer
 }
 
 func (d *document) addPage(title, subtitle string) {
+	if d.page > 0 {
+		d.footer()
+	}
 	d.pdf.AddPage()
 	d.page++
 	d.y = margin
@@ -321,8 +324,12 @@ func (d *document) wrap(value string, width float64) []string {
 			out = append(out, "")
 			continue
 		}
-		line := words[0]
-		for _, word := range words[1:] {
+		var bounded []string
+		for _, word := range words {
+			bounded = append(bounded, d.splitLongWord(word, width)...)
+		}
+		line := bounded[0]
+		for _, word := range bounded[1:] {
 			candidate := line + " " + word
 			w, err := d.pdf.MeasureTextWidth(candidate)
 			if err == nil && w <= width {
@@ -335,6 +342,38 @@ func (d *document) wrap(value string, width float64) []string {
 		out = append(out, line)
 	}
 	return out
+}
+
+func (d *document) splitLongWord(word string, width float64) []string {
+	measured, err := d.pdf.MeasureTextWidth(word)
+	if err == nil && measured <= width {
+		return []string{word}
+	}
+	runes := []rune(word)
+	if len(runes) == 0 {
+		return []string{""}
+	}
+	var parts []string
+	start := 0
+	for start < len(runes) {
+		end := start + 1
+		for end <= len(runes) {
+			candidate := string(runes[start:end])
+			measured, measureErr := d.pdf.MeasureTextWidth(candidate)
+			if measureErr != nil || measured > width {
+				break
+			}
+			end++
+		}
+		if end == start+1 {
+			parts = append(parts, string(runes[start:end]))
+			start = end
+			continue
+		}
+		parts = append(parts, string(runes[start:end-1]))
+		start = end - 1
+	}
+	return parts
 }
 
 func (d *document) footer() {
