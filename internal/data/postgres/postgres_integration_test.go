@@ -179,7 +179,7 @@ func TestMigrationSeparatesOwnerAndRuntime(t *testing.T) {
 	if _, err := db.runtime.Exec(ctx, `UPDATE crab.ledger_entries SET hash = hash`); err == nil {
 		t.Fatal("runtime unexpectedly has UPDATE on authoritative ledger")
 	}
-	if _, err := db.owner.Exec(ctx, `INSERT INTO crab.schema_migrations(version) VALUES (4)`); err != nil {
+	if _, err := db.owner.Exec(ctx, `INSERT INTO crab.schema_migrations(version) VALUES (5)`); err != nil {
 		t.Fatal(err)
 	}
 	if err := ValidateSchema(ctx, db.runtime); err == nil {
