@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/base64"
+	"errors"
 	"testing"
 	"time"
 
@@ -34,6 +35,21 @@ type memoryBreakGlass []authn.BreakGlassRecord
 
 func (m memoryBreakGlass) ActiveBreakGlassRecords(context.Context) ([]authn.BreakGlassRecord, error) {
 	return []authn.BreakGlassRecord(m), nil
+}
+
+type memoryAlert struct {
+	called bool
+	fail   bool
+	alert  BreakGlassAlert
+}
+
+func (m *memoryAlert) AlertBreakGlass(_ context.Context, alert BreakGlassAlert) error {
+	m.called = true
+	m.alert = alert
+	if m.fail {
+		return errors.New("injected alert failure")
+	}
+	return nil
 }
 
 func validBootstrap() BootstrapPlan {
@@ -110,13 +126,17 @@ func TestBreakGlassCreatesAuthenticationSessionWithoutAuthority(t *testing.T) {
 	a, _ := authn.NewBreakGlassRecord("key-a", "offline-a", authn.MinPBKDF2Iterations)
 	b, _ := authn.NewBreakGlassRecord("key-b", "offline-b", authn.MinPBKDF2Iterations)
 	store := &memorySessions{}
+	alerts := &memoryAlert{}
 	now := time.Date(2026, 10, 20, 4, 0, 0, 0, time.UTC)
-	result, err := EstablishBreakGlass(context.Background(), "responder-1", "corporate identity unavailable", map[string]string{"key-a": "offline-a", "key-b": "offline-b"}, memoryBreakGlass{a, b}, authn.Sessions{Store: store, TTL: 15 * time.Minute}, now)
+	result, err := EstablishBreakGlass(context.Background(), "responder-1", "corporate identity unavailable", map[string]string{"key-a": "offline-a", "key-b": "offline-b"}, memoryBreakGlass{a, b}, alerts, authn.Sessions{Store: store, TTL: 15 * time.Minute}, now)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if !result.Session.BreakGlass || result.Session.HumanID != "responder-1" || result.Audit.IncidentID != "" {
 		t.Fatalf("break-glass result=%+v audit=%+v", result.Session, result.Audit)
+	}
+	if !alerts.called || alerts.alert.HumanID != "responder-1" || result.AlertAttempt.RecordType != RecordBreakGlassAlertAttempt {
+		t.Fatalf("alert attempt missing called=%v alert=%+v record=%+v", alerts.called, alerts.alert, result.AlertAttempt)
 	}
 	raw, err := base64.RawURLEncoding.DecodeString(result.Token)
 	if err != nil || len(raw) != authn.SessionTokenBytes {
@@ -129,5 +149,23 @@ func TestBreakGlassCreatesAuthenticationSessionWithoutAuthority(t *testing.T) {
 	}
 	if len(result.Keyholders) != 2 {
 		t.Fatal("break-glass did not retain two-keyholder provenance")
+	}
+}
+
+func TestBreakGlassAlertFailureDoesNotCancelAuthentication(t *testing.T) {
+	a, _ := authn.NewBreakGlassRecord("key-a", "offline-a", authn.MinPBKDF2Iterations)
+	b, _ := authn.NewBreakGlassRecord("key-b", "offline-b", authn.MinPBKDF2Iterations)
+	store := &memorySessions{}
+	alerts := &memoryAlert{fail: true}
+	now := time.Date(2026, 10, 20, 4, 30, 0, 0, time.UTC)
+	result, err := EstablishBreakGlass(context.Background(), "responder-1", "corporate identity unavailable", map[string]string{"key-a": "offline-a", "key-b": "offline-b"}, memoryBreakGlass{a, b}, alerts, authn.Sessions{Store: store, TTL: 15 * time.Minute}, now)
+	if err != nil {
+		t.Fatalf("alert failure cancelled break-glass authentication: %v", err)
+	}
+	if result.Token == "" || result.AlertAttempt.RecordType != RecordBreakGlassAlertAttempt {
+		t.Fatalf("break-glass result missing token/alert audit: %+v", result)
+	}
+	if string(result.AlertAttempt.Data) != `{"human_id":"responder-1","outcome":"failed"}` {
+		t.Fatalf("failed alert outcome not recorded: %s", result.AlertAttempt.Data)
 	}
 }
