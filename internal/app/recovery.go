@@ -135,6 +135,12 @@ func (s RecoveryService) State(ctx context.Context, principal authz.Principal, i
 		}
 	}
 	state.Updates = updates
+	if state.Closure != nil && state.Closure.PrivilegedCompartment != "" && state.Closure.PrivilegedCompartment != compartment {
+		closure := *state.Closure
+		closure.PrivilegedCompartment = ""
+		closure.PrivilegedSummary = ""
+		state.Closure = &closure
+	}
 	return domain.FinaliseRecoveryState(state), true, nil
 }
 
