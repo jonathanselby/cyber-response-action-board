@@ -25,7 +25,7 @@ func NewIncidentRuntime(kernel *Kernel, signer Signer, store *IncidentStore) (*I
 }
 
 func (r *IncidentRuntime) AppendIncident(ctx context.Context, record ledger.Record) error {
-	_, err := r.Kernel.Append(ctx, record, r.Signer, IncidentProjection{})
+	_, err := r.Kernel.Append(ctx, record, r.Signer, IncidentProjection{}, DeclarationAccessProjection{})
 	return err
 }
 

@@ -12,7 +12,7 @@ import (
 )
 
 const (
-	currentMigrationVersion = 11
+	currentMigrationVersion = 12
 	migrationLockKey        = int64(0x435241424d494752)
 )
 
@@ -49,6 +49,9 @@ var migration010 string
 //go:embed migrations/011_evidence_blobs.sql
 var migration011 string
 
+//go:embed migrations/012_corpus_retrieval.sql
+var migration012 string
+
 func Migrate(ctx context.Context, owner *pgxpool.Pool, runtimeRole string) error {
 	runtimeRole = strings.TrimSpace(runtimeRole)
 	if runtimeRole == "" {
@@ -69,7 +72,7 @@ func Migrate(ctx context.Context, owner *pgxpool.Pool, runtimeRole string) error
 	if _, err := tx.Exec(ctx, `SELECT pg_advisory_xact_lock($1)`, migrationLockKey); err != nil {
 		return fmt.Errorf("lock migration: %w", err)
 	}
-	migrations := []string{migration001, migration002, migration003, migration004, migration005, migration006, migration007, migration008, migration009, migration010, migration011}
+	migrations := []string{migration001, migration002, migration003, migration004, migration005, migration006, migration007, migration008, migration009, migration010, migration011, migration012}
 	for version, migration := range migrations {
 		if _, err := tx.Exec(ctx, migration); err != nil {
 			return fmt.Errorf("migration %03d: %w", version+1, err)
@@ -110,6 +113,9 @@ func Migrate(ctx context.Context, owner *pgxpool.Pool, runtimeRole string) error
 		`GRANT SELECT, INSERT ON crab.blob_chunks TO ` + role,
 		`GRANT SELECT, INSERT, UPDATE, DELETE, TRUNCATE ON crab.evidence_register TO ` + role,
 		`GRANT SELECT, INSERT, UPDATE, DELETE, TRUNCATE ON crab.evidence_handling TO ` + role,
+		`GRANT SELECT, INSERT, UPDATE, DELETE, TRUNCATE ON crab.corpus_proposals TO ` + role,
+		`GRANT SELECT, INSERT, UPDATE, DELETE, TRUNCATE ON crab.corpus_sources TO ` + role,
+		`GRANT SELECT, INSERT, UPDATE, DELETE, TRUNCATE ON crab.corpus_passages TO ` + role,
 	}
 	for _, statement := range grants {
 		if _, err := tx.Exec(ctx, statement); err != nil {
