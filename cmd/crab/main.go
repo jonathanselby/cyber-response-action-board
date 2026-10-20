@@ -111,10 +111,10 @@ func runReadiness(stdout, stderr io.Writer) int {
 
 	keyCheck := app.Check{Name: "key_custody", Status: "pass", Message: "configured local key files are readable and non-empty"}
 	for name, path := range map[string]string{
-		"ledger keyring":       cfg.LedgerKeyringFile,
-		"session key":          cfg.SessionKeyFile,
-		"server signing key":   cfg.ServerSigningKeyFile,
-		"credential wrap key":  cfg.CredentialWrapKeyFile,
+		"ledger keyring":      cfg.LedgerKeyringFile,
+		"session key":         cfg.SessionKeyFile,
+		"server signing key":  cfg.ServerSigningKeyFile,
+		"credential wrap key": cfg.CredentialWrapKeyFile,
 	} {
 		if err := readableNonEmptyFile(path); err != nil {
 			keyCheck.Status = "fail"
