@@ -1,4 +1,4 @@
--- Slice 4: richer Action projection, governed checklist templates and incident timeline.
+-- Slice 4: richer Action projection and incident timeline.
 
 ALTER TABLE crab.incident_actions
     ADD COLUMN IF NOT EXISTS status text NOT NULL DEFAULT 'not_started',
@@ -15,18 +15,6 @@ ALTER TABLE crab.incident_facts
     ADD COLUMN IF NOT EXISTS occurred_at timestamptz,
     ADD COLUMN IF NOT EXISTS flagged_at timestamptz,
     ADD COLUMN IF NOT EXISTS awareness jsonb NOT NULL DEFAULT '[]'::jsonb;
-
-CREATE TABLE IF NOT EXISTS crab.checklist_templates (
-    record_id text PRIMARY KEY,
-    version text NOT NULL,
-    name text NOT NULL,
-    source_ref text NOT NULL,
-    payload jsonb NOT NULL,
-    maker text NOT NULL,
-    confirmer text NOT NULL,
-    confirmed_at timestamptz NOT NULL
-);
-COMMENT ON TABLE crab.checklist_templates IS 'Rebuildable current projection of confirmed governed checklist templates.';
 
 CREATE TABLE IF NOT EXISTS crab.incident_timeline (
     sequence bigint PRIMARY KEY,
