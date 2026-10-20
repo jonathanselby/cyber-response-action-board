@@ -105,7 +105,7 @@ func TestRecoveryStandDownPIRRetentionClosureAndRebuild(t *testing.T) {
 		t.Fatalf("closure-ready state=%+v err=%v", state, err)
 	}
 
-	closureValue := domain.Closure{Reason: "PIR confirmed and records handed off", PrivilegedSummary: "Privileged legal closure material", ShareableSummary: "Recovery verified and incident administratively closed"}
+	closureValue := domain.Closure{Reason: "PIR confirmed and records handed off", ShareableSummary: "Recovery verified and incident administratively closed"}
 	closure, err := service.ProposeClosure(ctx, alice, scope, "CLOSE-1", closureValue, base.Add(11*time.Minute))
 	if err != nil {
 		t.Fatal(err)
