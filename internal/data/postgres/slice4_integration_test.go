@@ -38,27 +38,23 @@ func TestPendingActionProposalCannotBeOverwritten(t *testing.T) {
 	if _, err := kernel.Append(ctx, second, signer, IncidentProjection{}); err == nil {
 		t.Fatal("unresolved Action proposal was overwritten")
 	}
-	stored, err := NewIncidentStore(db.runtime)
+	expectedVersion, err := domain.ProposalVersion(first)
 	if err != nil {
 		t.Fatal(err)
 	}
-	proposal, ok, err := stored.PendingProposalRecord(ctx, scope.IncidentID, domain.TypeAction, "ACT-1")
-	if err != nil || !ok {
-		t.Fatalf("pending proposal found=%v err=%v", ok, err)
-	}
-	version, err := domain.ProposalVersion(first)
-	if err != nil {
+	var storedVersion string
+	if err := db.runtime.QueryRow(ctx, `SELECT version FROM crab.incident_proposals WHERE incident_id=$1 AND record_type=$2 AND record_id=$3`, scope.IncidentID, domain.TypeAction, "ACT-1").Scan(&storedVersion); err != nil {
 		t.Fatal(err)
 	}
-	if proposal.Data == nil {
-		t.Fatal("pending proposal lost payload")
+	if storedVersion != expectedVersion {
+		t.Fatalf("pending proposal version changed from %s to %s", expectedVersion, storedVersion)
 	}
-	actual, err := domain.ProposalVersion(proposal)
-	if err != nil {
+	var ledgerEntries int
+	if err := db.runtime.QueryRow(ctx, `SELECT count(*) FROM crab.ledger_entries`).Scan(&ledgerEntries); err != nil {
 		t.Fatal(err)
 	}
-	if actual != version {
-		t.Fatalf("pending proposal version changed from %s to %s", version, actual)
+	if ledgerEntries != 1 {
+		t.Fatalf("rejected overwrite committed ledger entries=%d", ledgerEntries)
 	}
 }
 
