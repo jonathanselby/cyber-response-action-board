@@ -1,6 +1,28 @@
 # Changelog
 
-## Unreleased — 0.0.3-dev
+## Unreleased — 0.0.4-dev
+
+Slice 3 incident + semantic write kernel.
+
+- Added typed semantic domain records for incident declaration, facts, unknowns/hypotheses, decisions, actions and operational role assignments.
+- Added immediate `Record(...)` semantics for observations and `Propose(...) -> Decide(...)` semantics for governed state.
+- Added SHA-256 proposal-version capture over canonical payload JSON and exact-version confirmation checks.
+- Added rebuildable incident, fact, uncertainty, decision, action, operational-role and pending-proposal PostgreSQL projections.
+- Added the first common operating picture with facts, unknowns, hypotheses, decisions, actions, operational roles and pending approvals kept semantically distinct.
+- Kept pending proposals separate from effective state; rejection removes pending state without creating an effective row.
+- Proved observational fact text cannot mutate effective severity, before or after deterministic ledger rebuild.
+- Preserved custom organisation role labels without changing security roles.
+- Added live/exercise proposal mode to the pending projection and reject mode-swapped confirmations.
+- Added an application service that applies Major/Minor/Observer and incident/compartment authorisation before semantic writes.
+- Added the frozen new-incident rule: a Major may propose a declaration before incident membership exists; a different Major confirms it.
+- Confirmation reloads the pending proposal from CRAB rather than trusting caller-supplied proposal bodies.
+- Added end-to-end tests through application service, domain semantics, ledger append, PostgreSQL projections and authorised common-operating-picture read.
+- Added negative rollback tests proving controlled state cannot use immediate Record semantics and failed mode-swapped decisions do not enter the authoritative ledger.
+- Preserved the Slice 2 agent-binding security primitive after CI caught an accidental replacement during the Slice 3 authz extension.
+
+The semantic browser UI, full action lifecycle/checklists/timeline and later product slices remain out of scope for this checkpoint. No release tag should be created yet.
+
+## 0.0.3-dev
 
 Slice 2 security boundary.
 
