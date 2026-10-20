@@ -26,7 +26,8 @@ func CurrentReadiness(cfg config.Config) Readiness {
 		{Name: "portable_ledger_verifier", Status: "pass"},
 		postgres,
 		{Name: "authentication_authorisation", Status: "implemented", Message: "Slice 2 security kernel, projections and ceremonies are built; live installation state still requires secure setup wiring"},
-		{Name: "incident_semantic_kernel", Status: "implemented", Message: "Slice 3 Record/Propose/Decide application kernel and rebuildable common-operating-picture projections are built; browser incident UX remains later work"},
+		{Name: "incident_semantic_kernel", Status: "implemented", Message: "Slice 3 Record/Propose/Decide application kernel and rebuildable common-operating-picture projections are built"},
+		{Name: "actions_checklists_timeline", Status: "implemented", Message: "Slice 4 governed Action lifecycle, configured checklist activation, explicit incident timeline and dedicated Action/timeline renderers are built; authenticated browser routing remains later presentation work"},
 	}
 	return Readiness{Ready: false, Checks: checks}
 }

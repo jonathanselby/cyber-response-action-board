@@ -1,6 +1,25 @@
 # Changelog
 
-## Unreleased — 0.0.4-dev
+## Unreleased — 0.0.5-dev
+
+Slice 4 actions, checklists and timeline.
+
+- Expanded Action into the frozen operational contract: title, owner, status, priority, due time, source, notes, evidence and skip reason.
+- Made overdue a derived condition rather than stored state; completed/skipped Actions do not remain overdue.
+- Required a reason for skipped Actions and refused skip reasons on other Action states.
+- Added governed Action lifecycle updates under the same Action ID, keeping one current projection while immutable ledger history preserves every proposal and confirmation.
+- Made unresolved pending proposals immutable so a later proposal cannot replace the exact version awaiting maker-checker decision.
+- Added strict data-driven checklist configuration and activation into ordinary governed Action proposals with template/step/runbook provenance, owner overrides and due offsets; no checklist service/database was introduced.
+- Added explicit fact occurrence, flagging and named-human awareness times while keeping ledger recording time separate.
+- Added a rebuildable incident timeline over semantic ledger history, retaining time-trust status.
+- Added dedicated semantic Action and timeline renderers with owner/status/priority/due/overdue/source/checklist/evidence and distinct timeline-time labels.
+- Added architecture protection proving Slice 4 does not introduce a workflow engine or Temporal-style dependency.
+- Updated all Slice 3 Action fixtures to the stricter Slice 4 contract rather than weakening validation for compatibility.
+- Preserved existing maker-checker, incident/compartment authorisation, live/exercise separation and rollback-on-projection-failure behaviour.
+
+Authenticated browser routing, Slice 5 obligations/clocks and later product slices remain out of scope for this checkpoint. No release tag should be created yet.
+
+## 0.0.4-dev
 
 Slice 3 incident + semantic write kernel.
 

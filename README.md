@@ -6,35 +6,34 @@ CRAB is a single Go application for running a cyber incident from first report t
 
 ## Build status
 
-**0.0.4-dev — Slice 3 incident + semantic write kernel.**
+**0.0.5-dev — Slice 4 actions, checklists and timeline.**
 
 Implemented and CI-proven now:
 
 - one `crab` executable with amd64/arm64 build gates;
 - file-first deployment configuration and embedded offline web shell;
 - PostgreSQL as the single durable live store with separate schema-owner/runtime identities;
-- authoritative signed/hash-chained ledger, atomic projections, full verification, integrity-failed read-only mode, deterministic rebuild and portable JSONL export;
+- authoritative signed/hash-chained ledger, atomic projections, full verification, integrity-failed read-only mode, deterministic projection rebuild and portable JSONL export;
 - Slice 2 local/password, TOTP, passkey and pinned-key OIDC authentication, isolate mode, hashed sessions, break-glass, OOB verification and failure limiting;
 - one deny-by-default authorisation evaluator across role, incident, compartment, authoritative object scope and separately governed data exits;
-- rebuildable role/Custodian/incident/compartment/output/isolate security state, agent-to-human binding, bootstrap and Custodian recovery;
-- explicit Slice 3 semantic write paths: immediate `Record(...)` for observations and `Propose(...) -> Decide(...)` for governed state;
-- dedicated incident declaration, fact, unknown/hypothesis, decision, action and operational-role schemas rather than generic Item CRUD;
-- exact proposal-version capture and maker-checker confirmation against the stored proposal rather than caller-supplied state;
-- rebuildable PostgreSQL projections for the first common operating picture: incident header, facts, unknowns, hypotheses, decisions, actions, operational roles and pending proposals;
-- strict separation of pending proposals from effective state; rejected proposals never become effective;
-- facts cannot mutate governed state: an observation saying “severity should change to Critical” leaves effective severity unchanged, including after full ledger rebuild;
-- custom organisation role labels are preserved without changing Major/Minor/Observer authorisation roles;
-- live/exercise mode is carried by the authoritative proposal path and cannot be swapped during confirmation;
-- application-service role boundaries: Major/Minor may record observations, Major alone may propose/confirm governed changes, Observer remains read-only, and existing-incident writes require current incident + compartment authority;
-- new incident declaration follows the frozen rule that a Major may propose before membership exists, with a different Major confirming it;
-- end-to-end CI proof across application service → domain semantics → ledger → PostgreSQL projection → authorised common-operating-picture read;
+- Slice 3 immediate `Record(...)` observations and `Propose(...) -> Decide(...)` governed state, with exact proposal-version maker-checker confirmation;
+- rebuildable common-operating-picture projections for incident header, facts, unknowns, hypotheses, decisions, actions, operational roles and pending proposals;
+- Slice 4 Action semantics with mandatory owner, status, priority and source; optional due time, notes and evidence; skipped Actions require a reason;
+- Action overdue state derived from due time and current time rather than stored as a second source of truth;
+- governed Action lifecycle updates reuse the same Action ID: the current projection advances while every proposal/confirmation remains in immutable ledger history;
+- unresolved pending proposals are immutable and cannot be replaced by a later version before confirmation/rejection;
+- data-driven checklist templates are strict validated configuration, not another database/service; activation expands them into ordinary governed Action proposals with runbook/template/step provenance and owner/due defaults;
+- rebuildable incident timeline preserving occurrence, flagging, recording and named-human awareness times as distinct concepts, plus ledger time-trust status;
+- dedicated semantic Action and timeline renderers showing the fields operators need without introducing generic CRUD screens or an unauthenticated incident route;
+- explicit architecture test that Slice 4 introduces no workflow engine or Temporal-style dependency;
+- facts still cannot mutate governed state; rejected proposals still never become effective; live/exercise scope and existing Slice 2 security boundaries remain intact;
 - frozen PRD V0.2 / EDD V0.4 and companion build, test and UX/print notes retained beside source.
 
 Not yet claimed complete:
 
-- secure operator/presentation wiring for `crab setup`, browser login and the semantic incident UI; current Slice 3 is the application/data kernel, not the finished front end;
-- Slice 4 action lifecycle, checklists and timeline behaviour beyond the first confirmed Action projection;
-- obligations/clocks, RLS spike, evidence blobs, retrieval, model assistance, communications/notifier implementation, print, backup/restore and later slices.
+- secure operator/presentation wiring for `crab setup`, browser login and authenticated incident routes; Slice 4 includes dedicated semantic renderers but does not expose them through an improvised unauthenticated path;
+- Slice 5 obligations/clocks and the bounded timed-wait list;
+- RLS spike, evidence blobs, retrieval, model assistance, communications/notifier implementation, print, backup/restore and later slices.
 
 The checkpoint does not create a universal administrator, universal Major visibility, emergency read-in, per-object ACL estate, alternate store, workflow engine or generic CRUD incident model.
 
@@ -60,7 +59,9 @@ Record(...)                  observation/history: append now
 Propose(...) -> Decide(...)  governed state: maker proposes, different eligible human confirms or rejects
 ```
 
-A proposal is visible as pending but is not effective state. Confirmation must match the exact stored proposal version, maker, compartment and incident mode. A rejected proposal is retained in ledger history but never appears as effective operating state.
+A proposal is visible as pending but is not effective state. Confirmation must match the exact stored proposal version, maker, compartment and incident mode. An unresolved pending proposal cannot be overwritten. A rejected proposal is retained in ledger history but never appears as effective operating state.
+
+An Action is not a workflow object. A confirmed Action is simply governed state projected from its ledger history. A later owner/status/due/evidence change is another proposal against the same Action ID and requires the same maker-checker path.
 
 ## Security boundary
 
