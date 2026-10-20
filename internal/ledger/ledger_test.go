@@ -157,6 +157,21 @@ func TestSelfApprovalRequiresExplicitReason(t *testing.T) {
 	}
 }
 
+func TestSystemRecordMayOmitIncidentID(t *testing.T) {
+	r := governedRecord()
+	r.IncidentID = ""
+	r.IncidentMode = "system"
+	r.RecordType = "security.custodian_designation"
+	r.Compartment = "SYSTEM"
+	if err := ValidateRecord(r); err != nil {
+		t.Fatalf("system record rejected: %v", err)
+	}
+	r.IncidentMode = "live"
+	if err := ValidateRecord(r); err == nil {
+		t.Fatal("live record without incident id accepted")
+	}
+}
+
 func TestBuildEntryStoresCanonicalRecordData(t *testing.T) {
 	k := newFixtureKeys(t)
 	r := governedRecord()

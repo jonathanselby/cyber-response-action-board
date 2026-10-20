@@ -29,7 +29,7 @@ type Record struct {
 	SchemaVersion      int             `json:"schema_version"`
 	Timestamp          time.Time       `json:"timestamp"`
 	TimeStatus         string          `json:"time_status"`
-	IncidentID         string          `json:"incident_id"`
+	IncidentID         string          `json:"incident_id,omitempty"`
 	IncidentMode       string          `json:"incident_mode"`
 	WriteSemantic      string          `json:"write_semantic"`
 	RecordType         string          `json:"record_type"`
@@ -49,7 +49,7 @@ type recordCore struct {
 	SchemaVersion      int             `json:"schema_version"`
 	Timestamp          time.Time       `json:"timestamp"`
 	TimeStatus         string          `json:"time_status"`
-	IncidentID         string          `json:"incident_id"`
+	IncidentID         string          `json:"incident_id,omitempty"`
 	IncidentMode       string          `json:"incident_mode"`
 	WriteSemantic      string          `json:"write_semantic"`
 	RecordType         string          `json:"record_type"`
@@ -95,13 +95,20 @@ func ValidateRecord(r Record) error {
 	if r.SchemaVersion <= 0 {
 		return errors.New("schema_version must be positive")
 	}
-	if r.Timestamp.IsZero() || r.IncidentID == "" || r.RecordID == "" || r.Maker == "" {
-		return errors.New("timestamp, incident_id, record_id and maker are required")
+	if r.Timestamp.IsZero() || r.RecordID == "" || r.Maker == "" {
+		return errors.New("timestamp, record_id and maker are required")
 	}
 	if r.TimeStatus != "trusted" && r.TimeStatus != "drifting" && r.TimeStatus != "untrusted" {
 		return errors.New("invalid time_status")
 	}
-	if r.IncidentMode != "live" && r.IncidentMode != "exercise" {
+	switch r.IncidentMode {
+	case "live", "exercise":
+		if r.IncidentID == "" {
+			return errors.New("live/exercise record requires incident_id")
+		}
+	case "system":
+		// System/setup records may legitimately exist before any incident exists.
+	default:
 		return errors.New("invalid incident_mode")
 	}
 	if r.WriteSemantic != "record" && r.WriteSemantic != "governed" {
