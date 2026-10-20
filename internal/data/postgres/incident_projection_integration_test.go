@@ -75,7 +75,16 @@ func TestIncidentProjectionBuildsSemanticOperatingPicture(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	action, _ := domain.ProposeAction(scope, "ACT-1", "alice", base.Add(5*time.Minute), domain.Action{Title: "Isolate affected endpoints", OwnerHumanID: "carol"})
+	action, err := domain.ProposeAction(scope, "ACT-1", "alice", base.Add(5*time.Minute), domain.Action{
+		Title:        "Isolate affected endpoints",
+		OwnerHumanID: "carol",
+		Status:       domain.ActionStatusNotStarted,
+		Priority:     "P1",
+		SourceRef:    "DEC-CONTAIN",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
 	if _, err := kernel.Append(ctx, action, signer, projection); err != nil {
 		t.Fatal(err)
 	}
@@ -133,7 +142,13 @@ func TestRejectedProposalNeverBecomesEffective(t *testing.T) {
 	kernel, signer := slice3Kernel(t, db)
 	projection := IncidentProjection{}
 	scope := domain.Scope{IncidentID: "INC-REJECT", Mode: "exercise", Compartment: "GENERAL"}
-	proposal, err := domain.ProposeAction(scope, "ACT-REJECT", "alice", time.Now().UTC(), domain.Action{Title: "Shut down payroll"})
+	proposal, err := domain.ProposeAction(scope, "ACT-REJECT", "alice", time.Now().UTC(), domain.Action{
+		Title:        "Pause payroll processing",
+		OwnerHumanID: "alice",
+		Status:       domain.ActionStatusNotStarted,
+		Priority:     "P1",
+		SourceRef:    "EXERCISE-PLAN",
+	})
 	if err != nil {
 		t.Fatal(err)
 	}
