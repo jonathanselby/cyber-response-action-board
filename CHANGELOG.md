@@ -1,5 +1,28 @@
 # Changelog
 
+## Unreleased — 0.0.12-dev
+
+Slice 11 print and paper resilience.
+
+- Added a dedicated application print boundary using the existing separate `print` output permission; print is denied before incident content is read when output authority or compartment read-in is missing.
+- Added typed Incident Brief, Emergency Response Pack, evidence register, timeline and review/closure print models while keeping policy/composition out of the PDF presentation package.
+- Added a pure-Go gopdf renderer with embedded Go Regular font bytes, no runtime font/network dependency and no headless browser.
+- Added explicit A4 and US Letter page sizes plus colour and monochrome modes; status/meaning remains textual and exercise output is visibly marked on every page.
+- Added measured wrapping, long-token splitting, controlled page breaks and page/source footers so opaque IDs/hashes do not clip the printable area.
+- Kept the normal Incident Brief 1–2 page target without turning it into a hard refusal for larger legitimate incident content.
+- Added CRAB-generated source marking using current ledger sequence/hash, configuration version, generation time and time-trust state; caller-supplied Emergency Response Pack provenance is overwritten.
+- Added five blank contingency forms for incident, decision, action, communication and evidence recording.
+- Added atomic primary derived-copy refresh using same-directory temporary file, fsync and rename; failed refresh leaves the previous last-good file untouched.
+- Added optional independent secondary-copy refresh after primary success; secondary failure is surfaced while preserving the fresh primary and previous secondary copy.
+- Proved already-generated derived files remain readable without PostgreSQL.
+- Added paper-event reconciliation as an ordinary immutable ledger `Record(...)` rather than a new paper subsystem or table.
+- Preserved original paper occurrence time separately from later named-human CRAB transcription time and prevented digital-history backdating.
+- Added a tiny paper timeline projection and deterministic combined rebuild proof preserving paper time, transcription time and time-confidence state.
+- Recorded the accepted-but-replaceable gopdf spike in `docs/pdf-renderer-spike-decision.md` and source build evidence in `docs/build-evidence-0.0.12-dev.md`.
+- Added Slice 11 print/paper tests to the explicit core checkpoint gate.
+
+The `crab print` CLI command remains fail-closed until authenticated operator/session composition can provide a real principal and separate print permission. No unauthenticated shortcut, print database, print queue, daemon or second presentation architecture is introduced. No release tag should be created yet.
+
 ## Unreleased — 0.0.11-dev
 
 Slice 10 structured communications and notifier.
