@@ -3,6 +3,7 @@ package ceremony
 import (
 	"context"
 	"crypto/sha256"
+	"encoding/base64"
 	"testing"
 	"time"
 
@@ -117,7 +118,11 @@ func TestBreakGlassCreatesAuthenticationSessionWithoutAuthority(t *testing.T) {
 	if !result.Session.BreakGlass || result.Session.HumanID != "responder-1" || result.Audit.IncidentID != "" {
 		t.Fatalf("break-glass result=%+v audit=%+v", result.Session, result.Audit)
 	}
-	digest := sha256.Sum256([]byte(result.Token))
+	raw, err := base64.RawURLEncoding.DecodeString(result.Token)
+	if err != nil || len(raw) != authn.SessionTokenBytes {
+		t.Fatalf("invalid returned bearer token err=%v bytes=%d", err, len(raw))
+	}
+	digest := sha256.Sum256(raw)
 	stored, ok := store.values[digest]
 	if !ok || stored.HumanID != "responder-1" {
 		t.Fatal("break-glass bearer did not map to existing named human")
