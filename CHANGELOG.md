@@ -1,6 +1,26 @@
 # Changelog
 
-## Unreleased — 0.0.6-dev
+## Unreleased — 0.0.7-dev
+
+Slice 6 access governance and compartments.
+
+- Added governed Incident Sponsor and Compartment Controller designations without creating new universal application roles.
+- Added Sponsor-proposed incident membership and Controller-proposed restricted-compartment read-in/read-out, independently confirmed by a Custodian through the normal maker-checker path.
+- Kept Custodian authority metadata-only: administration views expose identity/access scopes, designations, grant windows and status without incident-content bodies.
+- Added effective-time, expiry and revocation to incident and compartment membership projections; query-time principal reconstruction removes expired access without deleting ledger history.
+- Kept `GENERAL` derived from active incident membership and required explicit restricted-compartment membership.
+- Added immutable exact-version pending access proposals and revalidation of mission authority at decision time.
+- Added external-responder expiry coverage and selective-release scope limited to compartments the current principal actually holds.
+- Ran the frozen PostgreSQL RLS spike using the real non-owner runtime role and pgx pooled-connection pattern.
+- Proved transaction-local RLS scope blocks broad/wrong-scope reads and clears across both commit and rollback on a reused pooled connection.
+- Proved the same RLS policy blocks unscoped projection-style runtime writes; retaining RLS would therefore require a second privileged projection/rebuild role/path or bypass mechanism plus transaction-pinned repository reads.
+- Rejected production RLS for V0.4 under the frozen EDD gate because that additional privilege/recovery complexity outweighs the defence-in-depth gain; the empirical test and decision record remain in source.
+- Preserved the existing runtime-role minimums: not table owner, not superuser and not `BYPASSRLS`.
+- Preserved the existing application-level cross-incident, cross-compartment and identifier-substitution negative controls.
+
+Authenticated browser access-administration UX and later product slices remain out of scope for this checkpoint. No release tag should be created yet.
+
+## 0.0.6-dev
 
 Slice 5 obligations and timed wait list.
 
@@ -19,7 +39,7 @@ Slice 5 obligations and timed wait list.
 - Proved replacement recalculation survives PostgreSQL `timestamptz` normalisation by treating stored trigger times as instants and applying the configured business timezone during calculation.
 - Added deterministic rebuild proof for definitions, simulated clocks and timed waits plus bounded due-wakeup retrieval.
 
-Authenticated browser obligation UX, external notification delivery, automatic legal applicability inference, the Slice 6 RLS decision gate and later product slices remain out of scope. No release tag should be created yet.
+Authenticated browser obligation UX, external notification delivery, automatic legal applicability inference and later product slices remain out of scope. No release tag should be created yet.
 
 ## 0.0.5-dev
 
