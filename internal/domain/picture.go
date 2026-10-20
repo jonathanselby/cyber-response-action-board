@@ -71,6 +71,7 @@ type OperatingPicture struct {
 	Hypotheses       []UncertaintyView
 	Decisions        []DecisionView
 	Actions          []ActionView
+	Obligations      []ObligationClockView
 	OperationalRoles []OperationalRoleView
 	Pending          []PendingProposal
 	Timeline         []TimelineEntry

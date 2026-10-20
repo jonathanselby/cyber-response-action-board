@@ -72,6 +72,14 @@ func (r *IncidentRuntime) CommonOperatingPicture(ctx context.Context, incidentID
 	return r.Store.CommonOperatingPicture(ctx, incidentID)
 }
 
+func (r *IncidentRuntime) ObligationClocks(ctx context.Context, incidentID, compartment string, now time.Time) ([]domain.ObligationClockView, error) {
+	store, err := NewObligationStore(r.Store.pool)
+	if err != nil {
+		return nil, err
+	}
+	return store.ClocksInCompartment(ctx, incidentID, compartment, now)
+}
+
 func (r *IncidentRuntime) DeclarationExists(ctx context.Context, incidentID string) (bool, error) {
 	var exists bool
 	err := r.Store.pool.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM crab.incidents WHERE incident_id=$1) OR EXISTS(SELECT 1 FROM crab.incident_proposals WHERE incident_id=$1 AND record_type=$2)`, incidentID, domain.TypeIncidentDeclaration).Scan(&exists)

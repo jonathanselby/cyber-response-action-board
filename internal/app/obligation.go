@@ -13,7 +13,7 @@ import (
 type ObligationBackend interface {
 	AppendObligation(context.Context, ledger.Record) error
 	PendingObligation(context.Context, string, string, string) (ledger.Record, bool, error)
-	ObligationClocks(context.Context, string, time.Time) ([]domain.ObligationClockView, error)
+	ObligationClocks(context.Context, string, string, time.Time) ([]domain.ObligationClockView, error)
 }
 
 type ObligationService struct{ Backend ObligationBackend }
@@ -95,7 +95,7 @@ func (s ObligationService) Clocks(ctx context.Context, principal authz.Principal
 	if d := authz.Authorise(principal, authz.ActionRead, authz.ObjectScope{IncidentID: incidentID, Compartment: compartment}); !d.Allowed {
 		return nil, ErrAuthorisationDenied
 	}
-	return s.Backend.ObligationClocks(ctx, incidentID, now)
+	return s.Backend.ObligationClocks(ctx, incidentID, compartment, now)
 }
 
 func (s ObligationService) ready() error {

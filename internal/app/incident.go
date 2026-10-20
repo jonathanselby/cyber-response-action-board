@@ -23,6 +23,10 @@ type IncidentBackend interface {
 	DeclarationExists(context.Context, string) (bool, error)
 }
 
+type incidentObligationBackend interface {
+	ObligationClocks(context.Context, string, string, time.Time) ([]domain.ObligationClockView, error)
+}
+
 type IncidentService struct {
 	Backend IncidentBackend
 }
@@ -186,7 +190,80 @@ func (s IncidentService) CommonOperatingPicture(ctx context.Context, principal a
 	if d := authz.Authorise(principal, authz.ActionRead, authz.ObjectScope{IncidentID: incidentID, Compartment: compartment}); !d.Allowed {
 		return domain.OperatingPicture{}, false, ErrAuthorisationDenied
 	}
-	return s.Backend.CommonOperatingPicture(ctx, incidentID)
+	picture, found, err := s.Backend.CommonOperatingPicture(ctx, incidentID)
+	if err != nil || !found {
+		return picture, found, err
+	}
+	picture = filterOperatingPicture(picture, compartment)
+	if backend, ok := s.Backend.(incidentObligationBackend); ok {
+		obligations, err := backend.ObligationClocks(ctx, incidentID, compartment, time.Now().UTC())
+		if err != nil {
+			return domain.OperatingPicture{}, false, err
+		}
+		picture.Obligations = obligations
+	}
+	return picture, true, nil
+}
+
+func filterOperatingPicture(picture domain.OperatingPicture, compartment string) domain.OperatingPicture {
+	allowed := func(value string) bool { return value == "GENERAL" || value == compartment }
+	facts := picture.Facts[:0]
+	for _, value := range picture.Facts {
+		if allowed(value.Compartment) {
+			facts = append(facts, value)
+		}
+	}
+	picture.Facts = facts
+	unknowns := picture.Unknowns[:0]
+	for _, value := range picture.Unknowns {
+		if allowed(value.Compartment) {
+			unknowns = append(unknowns, value)
+		}
+	}
+	picture.Unknowns = unknowns
+	hypotheses := picture.Hypotheses[:0]
+	for _, value := range picture.Hypotheses {
+		if allowed(value.Compartment) {
+			hypotheses = append(hypotheses, value)
+		}
+	}
+	picture.Hypotheses = hypotheses
+	decisions := picture.Decisions[:0]
+	for _, value := range picture.Decisions {
+		if allowed(value.Compartment) {
+			decisions = append(decisions, value)
+		}
+	}
+	picture.Decisions = decisions
+	actions := picture.Actions[:0]
+	for _, value := range picture.Actions {
+		if allowed(value.Compartment) {
+			actions = append(actions, value)
+		}
+	}
+	picture.Actions = actions
+	roles := picture.OperationalRoles[:0]
+	for _, value := range picture.OperationalRoles {
+		if allowed(value.Compartment) {
+			roles = append(roles, value)
+		}
+	}
+	picture.OperationalRoles = roles
+	pending := picture.Pending[:0]
+	for _, value := range picture.Pending {
+		if allowed(value.Compartment) {
+			pending = append(pending, value)
+		}
+	}
+	picture.Pending = pending
+	timeline := picture.Timeline[:0]
+	for _, value := range picture.Timeline {
+		if allowed(value.Compartment) {
+			timeline = append(timeline, value)
+		}
+	}
+	picture.Timeline = timeline
+	return picture
 }
 
 func (s IncidentService) authorise(principal authz.Principal, action authz.Action, scope domain.Scope) error {

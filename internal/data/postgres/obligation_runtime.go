@@ -54,6 +54,6 @@ func (r *ObligationRuntime) PendingObligation(ctx context.Context, scopeID, reco
 	return record, true, nil
 }
 
-func (r *ObligationRuntime) ObligationClocks(ctx context.Context, incidentID string, now time.Time) ([]domain.ObligationClockView, error) {
-	return r.Store.Clocks(ctx, incidentID, now)
+func (r *ObligationRuntime) ObligationClocks(ctx context.Context, incidentID, compartment string, now time.Time) ([]domain.ObligationClockView, error) {
+	return r.Store.ClocksInCompartment(ctx, incidentID, compartment, now)
 }
