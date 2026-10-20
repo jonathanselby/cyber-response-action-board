@@ -21,7 +21,7 @@ func TestRecordFactIsImmediateAndCannotCarryGovernedState(t *testing.T) {
 	if record.WriteSemantic != "record" || record.Status != "recorded" || record.Confirmer != "" {
 		t.Fatalf("immediate record envelope=%+v", record)
 	}
-	if record.RecordType != RecordFact {
+	if record.RecordType != TypeFact {
 		t.Fatalf("record type=%q", record.RecordType)
 	}
 	var raw map[string]any
