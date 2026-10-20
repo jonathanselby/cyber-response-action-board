@@ -9,14 +9,28 @@ import (
 	"github.com/jonathanselby/cyber-response-action-board/internal/domain"
 )
 
-// ClocksInCompartment returns only GENERAL plus the explicitly requested
-// compartment. It is the presentation/application read path; callers must
-// still pass the normal authorisation check before using it.
+// ClocksInCompartment returns GENERAL plus the explicitly requested compartment.
+// It is the application read path; callers must still pass normal authorisation.
 func (s *ObligationStore) ClocksInCompartment(ctx context.Context, incidentID, compartment string, now time.Time) ([]domain.ObligationClockView, error) {
+	return s.clocksInCompartment(ctx, incidentID, compartment, now, false)
+}
+
+// ActiveClocksInCompartment is the common-operating-picture view. Historical
+// waived clocks remain in the obligation view but do not appear as active COP work.
+func (s *ObligationStore) ActiveClocksInCompartment(ctx context.Context, incidentID, compartment string, now time.Time) ([]domain.ObligationClockView, error) {
+	return s.clocksInCompartment(ctx, incidentID, compartment, now, true)
+}
+
+func (s *ObligationStore) clocksInCompartment(ctx context.Context, incidentID, compartment string, now time.Time, activeOnly bool) ([]domain.ObligationClockView, error) {
 	if strings.TrimSpace(incidentID) == "" || strings.TrimSpace(compartment) == "" {
 		return nil, errors.New("incident and compartment are required")
 	}
-	rows, err := s.pool.Query(ctx, `SELECT clock_id,definition_id,name,lifecycle,status,trigger_at,source_record_id,source_field,original_definition_id,original_deadline,deadline,recipient,owner_text,authority_source,last_change_kind,last_change_reason,time_status,simulated FROM crab.obligation_clocks WHERE incident_id=$1 AND (compartment='GENERAL' OR compartment=$2) ORDER BY deadline,clock_id`, incidentID, compartment)
+	query := `SELECT clock_id,definition_id,name,lifecycle,status,trigger_at,source_record_id,source_field,original_definition_id,original_deadline,deadline,recipient,owner_text,authority_source,last_change_kind,last_change_reason,time_status,simulated FROM crab.obligation_clocks WHERE incident_id=$1 AND (compartment='GENERAL' OR compartment=$2)`
+	if activeOnly {
+		query += ` AND status='active'`
+	}
+	query += ` ORDER BY deadline,clock_id`
+	rows, err := s.pool.Query(ctx, query, incidentID, compartment)
 	if err != nil {
 		return nil, err
 	}
