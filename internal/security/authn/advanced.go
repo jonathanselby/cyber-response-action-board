@@ -109,17 +109,17 @@ func totp(secret []byte, counter uint64) string {
 }
 
 type PasskeyRecord struct {
-	HumanID                  string
-	CredentialID             string
-	RPID                     string
-	Origin                   string
-	PublicKeyPEM             string
-	RequireUserVerification  bool
-	SignCount                uint32
+	HumanID                 string
+	CredentialID            string
+	RPID                    string
+	Origin                  string
+	PublicKeyPEM            string
+	RequireUserVerification bool
+	SignCount               uint32
 }
 
 type PasskeyAssertion struct {
-	ClientDataJSON     string
+	ClientDataJSON    string
 	AuthenticatorData string
 	Signature         string
 	Challenge         string
@@ -226,13 +226,13 @@ func VerifyOIDC(token string, config OIDCConfig, expectedNonce string, now time.
 		return "", errors.New("unexpected OIDC algorithm")
 	}
 	var claims struct {
-		Issuer   string          `json:"iss"`
-		Audience json.RawMessage `json:"aud"`
-		Subject  string          `json:"sub"`
-		Expires  int64           `json:"exp"`
-		NotBefore int64          `json:"nbf,omitempty"`
-		Nonce    string          `json:"nonce,omitempty"`
-		AZP      string          `json:"azp,omitempty"`
+		Issuer    string          `json:"iss"`
+		Audience  json.RawMessage `json:"aud"`
+		Subject   string          `json:"sub"`
+		Expires   int64           `json:"exp"`
+		NotBefore int64           `json:"nbf,omitempty"`
+		Nonce     string          `json:"nonce,omitempty"`
+		AZP       string          `json:"azp,omitempty"`
 	}
 	if err := decodeJWTPart(parts[1], &claims); err != nil {
 		return "", err
