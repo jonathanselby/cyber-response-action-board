@@ -22,12 +22,12 @@ CREATE TABLE IF NOT EXISTS crab.incident_recovery_proposals (
     compartment text NOT NULL,
     version text NOT NULL,
     maker text NOT NULL,
-    payload jsonb NOT NULL,
+    payload bytea NOT NULL,
     proposed_at timestamptz NOT NULL,
     mode text NOT NULL CHECK (mode IN ('live','exercise')),
     PRIMARY KEY (incident_id, record_type, record_id)
 );
-COMMENT ON TABLE crab.incident_recovery_proposals IS 'Exact pending governed recovery proposal awaiting maker-checker decision.';
+COMMENT ON TABLE crab.incident_recovery_proposals IS 'Exact pending governed recovery proposal bytes awaiting maker-checker decision.';
 
 CREATE TABLE IF NOT EXISTS crab.incident_recovery_state (
     incident_id text PRIMARY KEY,
