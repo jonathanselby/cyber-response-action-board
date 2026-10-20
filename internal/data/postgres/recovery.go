@@ -131,13 +131,13 @@ func validateRecoveryPayload(record ledger.Record) error {
 			return err
 		}
 		if err := domain.ValidateClosure(value); err != nil {
-	return err
-}
-return domain.ValidateClosureScope(domain.Scope{
-	IncidentID:  record.IncidentID,
-	Mode:        record.IncidentMode,
-	Compartment: record.Compartment,
-}, value)
+			return err
+		}
+		return domain.ValidateClosureScope(domain.Scope{
+			IncidentID:  record.IncidentID,
+			Mode:        record.IncidentMode,
+			Compartment: record.Compartment,
+		}, value)
 	default:
 		return errors.New("unsupported recovery milestone")
 	}
