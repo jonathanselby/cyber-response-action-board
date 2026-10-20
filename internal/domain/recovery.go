@@ -49,11 +49,11 @@ type PIR struct {
 }
 
 type PIRDraft struct {
-	Incident          IncidentState
+	Incident         IncidentState
 	ExecutiveSummary string
-	Timeline          []TimelineEntry
-	Decisions         []DecisionView
-	Actions           []ActionView
+	Timeline         []TimelineEntry
+	Decisions        []DecisionView
+	Actions          []ActionView
 }
 
 type RetentionDisposition struct {
@@ -261,11 +261,11 @@ func GeneratePIRDraft(picture OperatingPicture) PIRDraft {
 		summary = fmt.Sprintf("%s Severity: %s.", strings.TrimSpace(summary), picture.Incident.Severity)
 	}
 	return PIRDraft{
-		Incident:          picture.Incident,
+		Incident:         picture.Incident,
 		ExecutiveSummary: strings.TrimSpace(summary),
-		Timeline:          append([]TimelineEntry(nil), picture.Timeline...),
-		Decisions:         append([]DecisionView(nil), picture.Decisions...),
-		Actions:           append([]ActionView(nil), picture.Actions...),
+		Timeline:         append([]TimelineEntry(nil), picture.Timeline...),
+		Decisions:        append([]DecisionView(nil), picture.Decisions...),
+		Actions:          append([]ActionView(nil), picture.Actions...),
 	}
 }
 

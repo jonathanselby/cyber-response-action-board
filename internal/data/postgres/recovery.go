@@ -96,7 +96,7 @@ func (RecoveryProjection) Apply(ctx context.Context, tx pgx.Tx, entry ledger.Ent
 			return err
 		}
 	}
-	if _, err := tx.Exec(ctx, `DELETE FROM crab.incident_recovery_proposals WHERE incident_id=$1 AND record_type=$2 AND record_id=$3`, record.IncidentID, record.RecordType, record.RecordID); err != nil {
+	if _, err = tx.Exec(ctx, `DELETE FROM crab.incident_recovery_proposals WHERE incident_id=$1 AND record_type=$2 AND record_id=$3`, record.IncidentID, record.RecordType, record.RecordID); err != nil {
 		return err
 	}
 	return applyRecoveryTimeline(ctx, tx, entry, recoverySummary(record))
@@ -280,7 +280,9 @@ func (s *RecoveryStore) State(ctx context.Context, incidentID string) (domain.Re
 	return domain.FinaliseRecoveryState(state), true, nil
 }
 
-func readRecoveryMilestones(ctx context.Context, q interface{ QueryRow(context.Context, string, ...any) pgx.Row }, state *domain.RecoveryState) error {
+func readRecoveryMilestones(ctx context.Context, q interface {
+	QueryRow(context.Context, string, ...any) pgx.Row
+}, state *domain.RecoveryState) error {
 	var standDownAt, pirAt, retentionAt, closedAt *time.Time
 	var standDownRaw, pirRaw, retentionRaw, closureRaw []byte
 	err := q.QueryRow(ctx, `SELECT stand_down_at,stand_down_payload,pir_at,pir_payload,retention_at,retention_payload,closed_at,closure_payload FROM crab.incident_recovery_state WHERE incident_id=$1`, state.IncidentID).Scan(&standDownAt, &standDownRaw, &pirAt, &pirRaw, &retentionAt, &retentionRaw, &closedAt, &closureRaw)
