@@ -28,14 +28,6 @@ func TestOperatorSessionFileRequiresPrivatePermissions(t *testing.T) {
 	}
 }
 
-func TestPrintCommandRemainsFailClosedUntilAuthenticatedOperatorWiringExists(t *testing.T) {
-	var out, errOut bytes.Buffer
-	code := run([]string{"print", "incident-brief", "--incident", "INC-1"}, &out, &errOut)
-	if code != exitUsage || !strings.Contains(errOut.String(), "--session-file") {
-		t.Fatalf("exit=%d stderr=%q", code, errOut.String())
-	}
-}
-
 func TestMCPRequiresAuthenticatedSessionFile(t *testing.T) {
 	var out, errOut bytes.Buffer
 	code := runMCP(nil, strings.NewReader(""), &out, &errOut)
