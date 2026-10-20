@@ -226,7 +226,9 @@ func tools() []tool {
 	object := func(required []string, properties map[string]any) map[string]any {
 		return map[string]any{"type": "object", "additionalProperties": false, "required": required, "properties": properties}
 	}
-	str := func(description string) map[string]any { return map[string]any{"type": "string", "description": description, "minLength": 1} }
+	str := func(description string) map[string]any {
+		return map[string]any{"type": "string", "description": description, "minLength": 1}
+	}
 	return []tool{
 		{Name: "incident_declare", Description: "Propose a CRAB incident declaration through the governed maker-checker path.", InputSchema: object([]string{"incident_id", "mode", "title", "summary", "severity"}, map[string]any{"incident_id": str("incident identifier"), "mode": map[string]any{"type": "string", "enum": []string{"live", "exercise"}}, "title": str("incident title"), "summary": str("current situation summary"), "severity": str("human-assessed severity")})},
 		{Name: "fact_record", Description: "Record an observed fact as immutable CRAB incident history.", InputSchema: object([]string{"incident_id", "statement", "source"}, map[string]any{"incident_id": str("incident identifier"), "statement": str("fact statement"), "source": str("source or provenance")})},
