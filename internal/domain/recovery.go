@@ -65,10 +65,10 @@ type RetentionDisposition struct {
 }
 
 type Closure struct {
-	Reason                 string `json:"reason"`
-	PrivilegedCompartment  string `json:"privileged_compartment,omitempty"`
-	PrivilegedSummary      string `json:"privileged_summary,omitempty"`
-	ShareableSummary       string `json:"shareable_summary"`
+	Reason                string `json:"reason"`
+	PrivilegedCompartment string `json:"privileged_compartment,omitempty"`
+	PrivilegedSummary     string `json:"privileged_summary,omitempty"`
+	ShareableSummary      string `json:"shareable_summary"`
 }
 
 type ClosureDocument struct {
