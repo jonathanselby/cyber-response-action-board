@@ -1,18 +1,13 @@
 package domain
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
 	"time"
-
-	"github.com/jonathanselby/cyber-response-action-board/internal/ledger"
 )
 
 const (
-	TypeChecklistTemplate = "system.checklist_template"
-
 	ActionStatusNotStarted = "not_started"
 	ActionStatusInProgress = "in_progress"
 	ActionStatusComplete   = "complete"
@@ -89,6 +84,17 @@ func ActionOverdue(action Action, now time.Time) bool {
 	return now.After(action.DueAt.UTC())
 }
 
+func DecodeChecklistTemplate(raw []byte) (ChecklistTemplate, error) {
+	var template ChecklistTemplate
+	if err := decodeStrict(raw, &template); err != nil {
+		return ChecklistTemplate{}, err
+	}
+	if err := ValidateChecklistTemplate(template); err != nil {
+		return ChecklistTemplate{}, err
+	}
+	return template, nil
+}
+
 func ValidateChecklistTemplate(template ChecklistTemplate) error {
 	if strings.TrimSpace(template.Name) == "" || strings.TrimSpace(template.SourceRef) == "" {
 		return errors.New("checklist template name and source reference are required")
@@ -115,45 +121,6 @@ func ValidateChecklistTemplate(template ChecklistTemplate) error {
 		}
 	}
 	return nil
-}
-
-func ProposeChecklistTemplate(recordID, maker string, now time.Time, template ChecklistTemplate) (ledger.Record, error) {
-	if err := ValidateChecklistTemplate(template); err != nil {
-		return ledger.Record{}, err
-	}
-	if strings.TrimSpace(recordID) == "" || strings.TrimSpace(maker) == "" || now.IsZero() {
-		return ledger.Record{}, errors.New("record id, maker and time are required")
-	}
-	payload, err := json.Marshal(template)
-	if err != nil {
-		return ledger.Record{}, err
-	}
-	version, err := payloadVersion(payload)
-	if err != nil {
-		return ledger.Record{}, err
-	}
-	wrapped, err := json.Marshal(GovernedData{Version: version, Payload: payload})
-	if err != nil {
-		return ledger.Record{}, err
-	}
-	record := ledger.Record{
-		SchemaVersion:  1,
-		Timestamp:      now.UTC(),
-		TimeStatus:     "trusted",
-		IncidentMode:   "system",
-		WriteSemantic:  "governed",
-		RecordType:     TypeChecklistTemplate,
-		RecordID:       recordID,
-		Status:         "proposed",
-		Maker:          maker,
-		Compartment:    "SYSTEM",
-		Data:           wrapped,
-		MakerSignature: ledger.Signature{MissingReason: "maker authenticated by CRAB session; no per-record signing key"},
-	}
-	if err := ledger.ValidateRecord(record); err != nil {
-		return ledger.Record{}, err
-	}
-	return record, nil
 }
 
 func InstantiateChecklist(templateID, activationID string, template ChecklistTemplate, ownerOverrides map[string]string, activatedAt time.Time) ([]ChecklistAction, error) {
