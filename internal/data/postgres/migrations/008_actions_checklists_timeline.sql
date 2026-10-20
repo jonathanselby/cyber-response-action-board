@@ -34,4 +34,16 @@ CREATE INDEX IF NOT EXISTS incident_timeline_incident_recorded_idx
     ON crab.incident_timeline(incident_id, recorded_at, sequence);
 COMMENT ON TABLE crab.incident_timeline IS 'Rebuildable timeline derived from authoritative ledger history and explicit domain event times.';
 
+CREATE OR REPLACE FUNCTION crab.reject_pending_proposal_update() RETURNS trigger
+LANGUAGE plpgsql AS $$
+BEGIN
+    RAISE EXCEPTION 'pending proposals are immutable until confirmed or rejected';
+END;
+$$;
+DROP TRIGGER IF EXISTS incident_proposals_immutable_pending ON crab.incident_proposals;
+CREATE TRIGGER incident_proposals_immutable_pending
+    BEFORE UPDATE ON crab.incident_proposals
+    FOR EACH ROW EXECUTE FUNCTION crab.reject_pending_proposal_update();
+COMMENT ON TRIGGER incident_proposals_immutable_pending ON crab.incident_proposals IS 'Prevents replacement of the exact proposal version awaiting maker-checker decision.';
+
 INSERT INTO crab.schema_migrations(version) VALUES (8) ON CONFLICT (version) DO NOTHING;
