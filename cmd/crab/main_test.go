@@ -28,11 +28,12 @@ func TestReadinessFailsClosedBeforeConfiguredDurableStore(t *testing.T) {
 	}
 }
 
-func TestUnbuiltControlPathRefusesRatherThanFakingCapability(t *testing.T) {
-	var out, errOut bytes.Buffer
-	code := run([]string{"setup"}, &out, &errOut)
-	if code != exitRefused || !strings.Contains(errOut.String(), "no alternate control path") {
-		t.Fatalf("exit=%d stderr=%q", code, errOut.String())
+func TestSetupIsPartOfTheImplementedCLISurface(t *testing.T) {
+	var out bytes.Buffer
+	usage(&out)
+	text := out.String()
+	if !strings.Contains(text, "crab setup") || !strings.Contains(text, "crab serve") {
+		t.Fatalf("usage does not expose setup through the shared operator server: %s", text)
 	}
 }
 
