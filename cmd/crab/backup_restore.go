@@ -12,10 +12,12 @@ import (
 )
 
 type restoreResult struct {
-	BackupVerified bool      `json:"backup_verified"`
-	LedgerValid    bool      `json:"ledger_valid"`
-	LedgerEntries  int       `json:"ledger_entries"`
-	RestoredAt     time.Time `json:"restored_at"`
+	BackupVerified   bool      `json:"backup_verified"`
+	LedgerValid      bool      `json:"ledger_valid"`
+	LedgerEntries    int       `json:"ledger_entries"`
+	RestoredAt       time.Time `json:"restored_at"`
+	EvidenceRecorded bool      `json:"evidence_recorded"`
+	EvidenceWarning  string    `json:"evidence_warning,omitempty"`
 }
 
 func runBackup(args []string, stdout, stderr io.Writer) int {
@@ -89,6 +91,11 @@ func runRestore(args []string, stdout, stderr io.Writer) int {
 		fmt.Fprintln(stderr, err)
 		return exitRefused
 	}
+	var backupMeta postgres.BackupMetadata
+	if err := readJSONFile(*input+".json", &backupMeta); err != nil {
+		fmt.Fprintln(stderr, err)
+		return exitRefused
+	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Minute)
 	defer cancel()
@@ -124,10 +131,14 @@ func runRestore(args []string, stdout, stderr io.Writer) int {
 		fmt.Fprintln(stderr, "post-rebuild ledger verification failed")
 		return exitRefused
 	}
-	return writeJSON(stdout, stderr, restoreResult{
-		BackupVerified: true,
-		LedgerValid:    true,
-		LedgerEntries:  verify.Entries,
-		RestoredAt:     time.Now().UTC(),
-	})
+
+	restoredAt := time.Now().UTC()
+	result := restoreResult{BackupVerified: true, LedgerValid: true, LedgerEntries: verify.Entries, RestoredAt: restoredAt}
+	evidence := restoreEvidence{Kind: "restore-rehearsal", RestoredAt: restoredAt, BackupSHA256: backupMeta.SHA256, LedgerEntries: verify.Entries, LedgerVerified: true}
+	if err := writeRestoreEvidence(cfg.ExportDir, evidence); err != nil {
+		result.EvidenceWarning = err.Error()
+	} else {
+		result.EvidenceRecorded = true
+	}
+	return writeJSON(stdout, stderr, result)
 }

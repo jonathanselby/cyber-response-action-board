@@ -107,6 +107,8 @@ func runReadiness(stdout, stderr io.Writer) int {
 			}
 		}
 	}
+	enrichReadiness(cfg, &r)
+	r = app.FinaliseReadiness(r)
 	enc := json.NewEncoder(stdout)
 	enc.SetIndent("", "  ")
 	if err := enc.Encode(r); err != nil {
