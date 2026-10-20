@@ -6,7 +6,7 @@ CRAB is a single Go application for running a cyber incident from first report t
 
 ## Build status
 
-**0.0.6-dev — Slice 5 obligations and timed wait list.**
+**0.0.7-dev — Slice 6 access governance and compartments.**
 
 Implemented and CI-proven now:
 
@@ -19,26 +19,27 @@ Implemented and CI-proven now:
 - Slice 3 immediate `Record(...)` observations and `Propose(...) -> Decide(...)` governed state, with exact proposal-version maker-checker confirmation;
 - rebuildable common-operating-picture projections for incident header, facts, unknowns, hypotheses, decisions, actions, active obligations, operational roles and pending proposals;
 - Slice 4 governed Action lifecycle, data-driven checklist activation and rebuildable incident timeline without a workflow engine;
-- Slice 5 organisation-defined obligation definitions as governed configuration: trigger field, duration/unit, timezone/calendar, adjustment, applicability condition, recipient, owner, authority source and warning offsets;
-- no automatic legal/reportability inference: a named human explicitly proposes that a configured rule applies, citing the source record/field, trigger time and applicability reason;
-- deterministic obligation calculation for elapsed hours, calendar days and business days, including configured holidays/weekends and visible refusal of invalid timezone/calendar or nonexistent DST wall-time arithmetic;
-- proposed obligation triggers create provisional clocks; maker-checker confirmation makes the same clock firm; rejection removes current effect while immutable ledger history remains;
-- governed amendment, extension, waiver and replacement of clocks while preserving the original definition and original deadline as historical reference;
-- overdue state derived from current deadline/status rather than stored as a second source of truth;
-- a bounded, rebuildable timed wait list containing deterministic warning/deadline wake-ups only — not a workflow runtime, delivery queue or notifier;
-- exercise incidents use the same controls but obligation clocks/wake-ups are marked simulated;
-- untrusted trigger-time status survives the complete pending→confirm path and remains visible on the firm clock;
-- active obligations are added to the authorised common operating picture; waived clocks remain available in the obligation history but leave active COP work;
-- common-operating-picture and obligation reads are filtered to `GENERAL` plus the explicitly authorised compartment, preventing cross-compartment leakage at the application boundary;
+- Slice 5 organisation-defined deterministic obligation clocks and bounded rebuildable timed wait list without a legal rules engine or delivery queue;
+- Slice 6 governed Incident Sponsor and Compartment Controller designations, kept separate from Major/Minor/Observer roles and from content visibility;
+- Sponsor-proposed incident membership and Controller-proposed restricted-compartment read-in/read-out, independently confirmed by a Custodian through the ordinary maker-checker path;
+- incident membership implies `GENERAL`; restricted compartments require explicit confirmed membership;
+- effective-time, expiry and revocation semantics for incident and compartment access, evaluated again at read time so expired external responders lose access without deleting history;
+- access-administration views expose identity/access metadata, designations, scopes and grant status without incident-content bodies;
+- selective-release scope is limited to compartments the current principal already possesses; ordinary read still does not imply export/download/print permission;
+- pending access proposals are immutable and exact-version matched before confirmation;
+- the runtime database role remains non-owner, non-superuser and without `BYPASSRLS`;
+- a real PostgreSQL RLS spike proved transaction-local incident/compartment policies can stop broad reads and do not leak across pooled-connection commit/rollback reuse;
+- RLS is deliberately **not retained** in V0.4 because the same safe runtime role also performs deterministic projection writes/rebuilds: retaining RLS would require a second privileged projection role/path or bypass mechanism plus transaction-pinned multi-query reads, increasing privilege and recovery complexity for a defence-in-depth layer;
+- the RLS decision and evidence are retained in `docs/rls-spike-decision.md` and automated integration tests;
 - frozen PRD V0.2 / EDD V0.4 and companion build, test and UX/print notes retained beside source.
 
 Not yet claimed complete:
 
-- secure operator/presentation wiring for `crab setup`, browser login and authenticated incident/obligation routes;
-- Slice 6 RLS decision gate and remaining access/compartment work;
-- evidence blobs, retrieval, model assistance, communications/notifier delivery, print, backup/restore and later slices.
+- secure operator/presentation wiring for `crab setup`, browser login and authenticated operational routes;
+- Slice 7 hostile evidence/blob storage and phone capture;
+- retrieval, model assistance, communications/notifier delivery, print, recovery/closure, backup/restore and final Bafflewick/Pi/visual acceptance.
 
-The checkpoint does not create a legal rules engine, automatic reportability decision-maker, universal administrator, universal Major visibility, emergency read-in, per-object ACL estate, alternate store, workflow engine, delivery queue or generic CRUD incident model.
+The checkpoint does not create a universal administrator, universal Major visibility, emergency read-in, separate external portal, per-object ACL estate, RLS bypass role, alternate store, workflow engine, delivery queue or generic CRUD incident model.
 
 ## Commands
 
@@ -64,7 +65,7 @@ Propose(...) -> Decide(...)  governed state: maker proposes, different eligible 
 
 A proposal is visible as pending but is not effective state. Confirmation must match the exact stored proposal version, maker, compartment and incident mode. An unresolved pending proposal cannot be overwritten. A rejected proposal is retained in ledger history but never appears as effective operating state.
 
-An Action is not a workflow object. A confirmed Action is simply governed state projected from its ledger history. An obligation clock is likewise a deterministic projection of governed configuration, an explicit human trigger claim and any later governed change.
+Access governance uses the same mechanism rather than introducing a separate workflow engine: mission authority proposes; Custodian independently verifies/confirms; the rebuildable access projection changes.
 
 ## Security boundary
 
@@ -81,11 +82,13 @@ ALLOW = authenticated principal
 otherwise DENY
 ```
 
-Role determines what a person may do. Incident membership determines where. Compartment membership determines what information they may know. Custodian authority administers identity/access metadata but grants no incident-content visibility by itself. Break-glass changes authentication only.
+Role determines what a person may do. Incident membership determines where. Compartment membership determines what information they may know. Custodian authority administers identity/access metadata but grants no incident-content visibility by itself. Sponsor and Controller designations create mission authority to propose access changes, not content visibility. Break-glass changes authentication only.
 
 ## Database boundary
 
 The schema-owner identity performs migrations. The ordinary runtime identity is not table owner, superuser or `BYPASSRLS`. Authoritative ledger rows cannot be updated/deleted by the runtime role. Credential/session state is durable supporting state; security, incident, obligation and timed-wait current state are rebuildable projections from ledger history.
+
+RLS was tested, not hand-waved. The spike showed it can stop accidental broad reads with transaction-local scope, but retaining it would require an additional privileged projection/rebuild channel in the current one-runtime-role architecture. The frozen EDD says to remove RLS when recovery/privilege ambiguity outweighs the backstop; V0.4 therefore keeps application authorisation primary and records the rejected RLS design in `docs/rls-spike-decision.md`.
 
 ## Governing documents
 
