@@ -28,6 +28,7 @@ func CurrentReadiness(cfg config.Config) Readiness {
 		{Name: "authentication_authorisation", Status: "implemented", Message: "Slice 2 security kernel, projections and ceremonies are built; live installation state still requires secure setup wiring"},
 		{Name: "incident_semantic_kernel", Status: "implemented", Message: "Slice 3 Record/Propose/Decide application kernel and rebuildable common-operating-picture projections are built"},
 		{Name: "actions_checklists_timeline", Status: "implemented", Message: "Slice 4 governed Action lifecycle, configured checklist activation, explicit incident timeline and dedicated Action/timeline renderers are built; authenticated browser routing remains later presentation work"},
+		{Name: "obligations_timed_waits", Status: "implemented", Message: "Slice 5 governed organisation-defined obligations, deterministic provisional/firm clocks, amendments and bounded rebuildable timed wait list are built; notifier delivery and authenticated browser UX remain later work"},
 	}
 	return Readiness{Ready: false, Checks: checks}
 }

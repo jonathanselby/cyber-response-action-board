@@ -1,6 +1,27 @@
 # Changelog
 
-## Unreleased — 0.0.5-dev
+## Unreleased — 0.0.6-dev
+
+Slice 5 obligations and timed wait list.
+
+- Added governed organisation-defined obligation configuration without embedding a legal/reportability rules engine.
+- Added deterministic elapsed-hour, calendar-day and business-day calculation using configured timezone, weekend, holiday and adjustment rules.
+- Added visible refusal for invalid timezone/calendar configuration and nonexistent local DST wall-time arithmetic.
+- Added explicit human applicability trigger claims carrying configured rule ID, source record/field, trigger time and applicability reason.
+- Added provisional clocks on proposal, firm clocks on maker-checker confirmation and removal of current effect on rejection while ledger history remains immutable.
+- Added governed amendment, extension, waiver and replacement while retaining original definition/deadline and the authority source/reason for change.
+- Added a bounded rebuildable timed wait list for warning/deadline wake-ups; no delivery queue, notifier or workflow engine was introduced.
+- Marked exercise clocks and wake-ups simulated so exercises cannot be mistaken for real external obligations.
+- Preserved untrusted trigger-time status through the pending proposal reconstruction and confirmation path.
+- Added active obligation clocks to the common operating picture and kept waived clocks out of active COP work while preserving history.
+- Tightened application-level common-operating-picture and obligation reads to `GENERAL` plus the explicitly authorised compartment after implementation evidence exposed a cross-compartment read risk.
+- Proved suggested obligation definitions remain inactive until confirmed through the ordinary human maker-checker path.
+- Proved replacement recalculation survives PostgreSQL `timestamptz` normalisation by treating stored trigger times as instants and applying the configured business timezone during calculation.
+- Added deterministic rebuild proof for definitions, simulated clocks and timed waits plus bounded due-wakeup retrieval.
+
+Authenticated browser obligation UX, external notification delivery, automatic legal applicability inference, the Slice 6 RLS decision gate and later product slices remain out of scope. No release tag should be created yet.
+
+## 0.0.5-dev
 
 Slice 4 actions, checklists and timeline.
 
@@ -17,7 +38,7 @@ Slice 4 actions, checklists and timeline.
 - Updated all Slice 3 Action fixtures to the stricter Slice 4 contract rather than weakening validation for compatibility.
 - Preserved existing maker-checker, incident/compartment authorisation, live/exercise separation and rollback-on-projection-failure behaviour.
 
-Authenticated browser routing, Slice 5 obligations/clocks and later product slices remain out of scope for this checkpoint. No release tag should be created yet.
+Authenticated browser routing and later product slices remain out of scope for this checkpoint. No release tag should be created yet.
 
 ## 0.0.4-dev
 
@@ -39,7 +60,7 @@ Slice 3 incident + semantic write kernel.
 - Added negative rollback tests proving controlled state cannot use immediate Record semantics and failed mode-swapped decisions do not enter the authoritative ledger.
 - Preserved the Slice 2 agent-binding security primitive after CI caught an accidental replacement during the Slice 3 authz extension.
 
-The semantic browser UI, full action lifecycle/checklists/timeline and later product slices remain out of scope for this checkpoint. No release tag should be created yet.
+The semantic browser UI and later product slices remain out of scope for this checkpoint. No release tag should be created yet.
 
 ## 0.0.3-dev
 

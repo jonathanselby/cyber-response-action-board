@@ -6,7 +6,7 @@ CRAB is a single Go application for running a cyber incident from first report t
 
 ## Build status
 
-**0.0.5-dev — Slice 4 actions, checklists and timeline.**
+**0.0.6-dev — Slice 5 obligations and timed wait list.**
 
 Implemented and CI-proven now:
 
@@ -17,25 +17,28 @@ Implemented and CI-proven now:
 - Slice 2 local/password, TOTP, passkey and pinned-key OIDC authentication, isolate mode, hashed sessions, break-glass, OOB verification and failure limiting;
 - one deny-by-default authorisation evaluator across role, incident, compartment, authoritative object scope and separately governed data exits;
 - Slice 3 immediate `Record(...)` observations and `Propose(...) -> Decide(...)` governed state, with exact proposal-version maker-checker confirmation;
-- rebuildable common-operating-picture projections for incident header, facts, unknowns, hypotheses, decisions, actions, operational roles and pending proposals;
-- Slice 4 Action semantics with mandatory owner, status, priority and source; optional due time, notes and evidence; skipped Actions require a reason;
-- Action overdue state derived from due time and current time rather than stored as a second source of truth;
-- governed Action lifecycle updates reuse the same Action ID: the current projection advances while every proposal/confirmation remains in immutable ledger history;
-- unresolved pending proposals are immutable and cannot be replaced by a later version before confirmation/rejection;
-- data-driven checklist templates are strict validated configuration, not another database/service; activation expands them into ordinary governed Action proposals with runbook/template/step provenance and owner/due defaults;
-- rebuildable incident timeline preserving occurrence, flagging, recording and named-human awareness times as distinct concepts, plus ledger time-trust status;
-- dedicated semantic Action and timeline renderers showing the fields operators need without introducing generic CRUD screens or an unauthenticated incident route;
-- explicit architecture test that Slice 4 introduces no workflow engine or Temporal-style dependency;
-- facts still cannot mutate governed state; rejected proposals still never become effective; live/exercise scope and existing Slice 2 security boundaries remain intact;
+- rebuildable common-operating-picture projections for incident header, facts, unknowns, hypotheses, decisions, actions, active obligations, operational roles and pending proposals;
+- Slice 4 governed Action lifecycle, data-driven checklist activation and rebuildable incident timeline without a workflow engine;
+- Slice 5 organisation-defined obligation definitions as governed configuration: trigger field, duration/unit, timezone/calendar, adjustment, applicability condition, recipient, owner, authority source and warning offsets;
+- no automatic legal/reportability inference: a named human explicitly proposes that a configured rule applies, citing the source record/field, trigger time and applicability reason;
+- deterministic obligation calculation for elapsed hours, calendar days and business days, including configured holidays/weekends and visible refusal of invalid timezone/calendar or nonexistent DST wall-time arithmetic;
+- proposed obligation triggers create provisional clocks; maker-checker confirmation makes the same clock firm; rejection removes current effect while immutable ledger history remains;
+- governed amendment, extension, waiver and replacement of clocks while preserving the original definition and original deadline as historical reference;
+- overdue state derived from current deadline/status rather than stored as a second source of truth;
+- a bounded, rebuildable timed wait list containing deterministic warning/deadline wake-ups only — not a workflow runtime, delivery queue or notifier;
+- exercise incidents use the same controls but obligation clocks/wake-ups are marked simulated;
+- untrusted trigger-time status survives the complete pending→confirm path and remains visible on the firm clock;
+- active obligations are added to the authorised common operating picture; waived clocks remain available in the obligation history but leave active COP work;
+- common-operating-picture and obligation reads are filtered to `GENERAL` plus the explicitly authorised compartment, preventing cross-compartment leakage at the application boundary;
 - frozen PRD V0.2 / EDD V0.4 and companion build, test and UX/print notes retained beside source.
 
 Not yet claimed complete:
 
-- secure operator/presentation wiring for `crab setup`, browser login and authenticated incident routes; Slice 4 includes dedicated semantic renderers but does not expose them through an improvised unauthenticated path;
-- Slice 5 obligations/clocks and the bounded timed-wait list;
-- RLS spike, evidence blobs, retrieval, model assistance, communications/notifier implementation, print, backup/restore and later slices.
+- secure operator/presentation wiring for `crab setup`, browser login and authenticated incident/obligation routes;
+- Slice 6 RLS decision gate and remaining access/compartment work;
+- evidence blobs, retrieval, model assistance, communications/notifier delivery, print, backup/restore and later slices.
 
-The checkpoint does not create a universal administrator, universal Major visibility, emergency read-in, per-object ACL estate, alternate store, workflow engine or generic CRUD incident model.
+The checkpoint does not create a legal rules engine, automatic reportability decision-maker, universal administrator, universal Major visibility, emergency read-in, per-object ACL estate, alternate store, workflow engine, delivery queue or generic CRUD incident model.
 
 ## Commands
 
@@ -61,7 +64,7 @@ Propose(...) -> Decide(...)  governed state: maker proposes, different eligible 
 
 A proposal is visible as pending but is not effective state. Confirmation must match the exact stored proposal version, maker, compartment and incident mode. An unresolved pending proposal cannot be overwritten. A rejected proposal is retained in ledger history but never appears as effective operating state.
 
-An Action is not a workflow object. A confirmed Action is simply governed state projected from its ledger history. A later owner/status/due/evidence change is another proposal against the same Action ID and requires the same maker-checker path.
+An Action is not a workflow object. A confirmed Action is simply governed state projected from its ledger history. An obligation clock is likewise a deterministic projection of governed configuration, an explicit human trigger claim and any later governed change.
 
 ## Security boundary
 
@@ -82,7 +85,7 @@ Role determines what a person may do. Incident membership determines where. Comp
 
 ## Database boundary
 
-The schema-owner identity performs migrations. The ordinary runtime identity is not table owner, superuser or `BYPASSRLS`. Authoritative ledger rows cannot be updated/deleted by the runtime role. Credential/session state is durable supporting state; security and incident current state are rebuildable projections from ledger history.
+The schema-owner identity performs migrations. The ordinary runtime identity is not table owner, superuser or `BYPASSRLS`. Authoritative ledger rows cannot be updated/deleted by the runtime role. Credential/session state is durable supporting state; security, incident, obligation and timed-wait current state are rebuildable projections from ledger history.
 
 ## Governing documents
 
