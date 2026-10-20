@@ -93,6 +93,30 @@ func (s IncidentService) ProposeAction(ctx context.Context, principal authz.Prin
 	return record, nil
 }
 
+func (s IncidentService) ActivateChecklist(ctx context.Context, principal authz.Principal, scope domain.Scope, templateID, activationID string, template domain.ChecklistTemplate, ownerOverrides map[string]string, now time.Time) ([]ledger.Record, error) {
+	if err := s.authorise(principal, authz.ActionPropose, scope); err != nil {
+		return nil, err
+	}
+	actions, err := domain.InstantiateChecklist(templateID, activationID, template, ownerOverrides, now)
+	if err != nil {
+		return nil, err
+	}
+	proposals := make([]ledger.Record, 0, len(actions))
+	for _, item := range actions {
+		record, err := domain.ProposeAction(scope, item.RecordID, principal.HumanID, now, item.Action)
+		if err != nil {
+			return nil, err
+		}
+		proposals = append(proposals, record)
+	}
+	for _, record := range proposals {
+		if err := s.Backend.AppendIncident(ctx, record); err != nil {
+			return nil, err
+		}
+	}
+	return proposals, nil
+}
+
 func (s IncidentService) ProposeDecision(ctx context.Context, principal authz.Principal, scope domain.Scope, recordID string, decision domain.Decision, now time.Time) (ledger.Record, error) {
 	if err := s.authorise(principal, authz.ActionPropose, scope); err != nil {
 		return ledger.Record{}, err
