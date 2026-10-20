@@ -51,9 +51,13 @@ func run(args []string, stdout, stderr io.Writer) int {
 		return runRebuild(stdout, stderr)
 	case "export-ledger":
 		return runExportLedger(args[1:], stdout, stderr)
+	case "backup":
+		return runBackup(args[1:], stdout, stderr)
+	case "restore":
+		return runRestore(args[1:], stdout, stderr)
 	case "serve":
 		return runServe(stdout, stderr)
-	case "setup", "mcp", "backup", "restore", "print", "recover":
+	case "setup", "mcp", "print", "recover":
 		fmt.Fprintf(stderr, "crab %s: not built in checkpoint %s; no alternate control path is enabled\n", args[0], buildinfo.Version)
 		return exitRefused
 	case "help", "-h", "--help":
@@ -245,6 +249,7 @@ func writeJSON(stdout, stderr io.Writer, v any) int {
 	}
 	return exitOK
 }
+
 func runVerify(args []string, stdout, stderr io.Writer) int {
 	fs := flag.NewFlagSet("verify", flag.ContinueOnError)
 	fs.SetOutput(stderr)
@@ -327,19 +332,19 @@ func readJSONFile(path string, v any) error {
 func usage(w io.Writer) {
 	fmt.Fprintln(w, `CRAB — Cyber Response Action Board
 
-Implemented through Slice 1:
+Implemented through the current verified checkpoint:
   crab serve
   crab readiness
   crab verify --ledger <file> --keyring <file>
   crab rebuild
   crab export-ledger --output <file>
-  crab version
-
-Frozen CLI surface, intentionally refused until its implementation slice lands:
-  crab setup
-  crab mcp
   crab backup --output <path>
   crab restore --input <path>
+  crab version
+
+Frozen CLI surface, intentionally refused until its implementation lands:
+  crab setup
+  crab mcp
   crab print incident-brief --incident <id> [--page-size A4|LETTER]
   crab print emergency-pack [--page-size A4|LETTER]`)
 }

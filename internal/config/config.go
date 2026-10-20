@@ -19,18 +19,19 @@ const (
 // Config contains deployment configuration only. Organisation business rules
 // belong in governed application data and must not be smuggled in here.
 type Config struct {
-	DatabaseURL           string `json:"database_url,omitempty"`
-	ListenAddr            string `json:"listen_addr,omitempty"`
-	PublicBaseURL         string `json:"public_base_url,omitempty"`
-	SessionKeyFile        string `json:"session_key_file,omitempty"`
-	ServerSigningKeyFile  string `json:"server_signing_key_file,omitempty"`
-	LedgerKeyringFile     string `json:"ledger_keyring_file,omitempty"`
-	CredentialWrapKeyFile string `json:"credential_wrap_key_file,omitempty"`
-	ExportDir             string `json:"export_dir,omitempty"`
-	SecondaryExportDir    string `json:"secondary_export_dir,omitempty"`
-	PageSizeDefault       string `json:"page_size_default,omitempty"`
-	EvidenceMaxBytes      int64  `json:"evidence_max_bytes,omitempty"`
-	OllamaURL             string `json:"ollama_url,omitempty"`
+	DatabaseURL            string `json:"database_url,omitempty"`
+	MaintenanceDatabaseURL string `json:"maintenance_database_url,omitempty"`
+	ListenAddr             string `json:"listen_addr,omitempty"`
+	PublicBaseURL          string `json:"public_base_url,omitempty"`
+	SessionKeyFile         string `json:"session_key_file,omitempty"`
+	ServerSigningKeyFile   string `json:"server_signing_key_file,omitempty"`
+	LedgerKeyringFile      string `json:"ledger_keyring_file,omitempty"`
+	CredentialWrapKeyFile  string `json:"credential_wrap_key_file,omitempty"`
+	ExportDir              string `json:"export_dir,omitempty"`
+	SecondaryExportDir     string `json:"secondary_export_dir,omitempty"`
+	PageSizeDefault        string `json:"page_size_default,omitempty"`
+	EvidenceMaxBytes       int64  `json:"evidence_max_bytes,omitempty"`
+	OllamaURL              string `json:"ollama_url,omitempty"`
 }
 
 func Defaults() Config {
@@ -57,6 +58,7 @@ func Load() (Config, error) {
 	}
 
 	applyString(&cfg.DatabaseURL, "CRAB_DATABASE_URL")
+	applyString(&cfg.MaintenanceDatabaseURL, "CRAB_MAINTENANCE_DATABASE_URL")
 	applyString(&cfg.ListenAddr, "CRAB_LISTEN_ADDR")
 	applyString(&cfg.PublicBaseURL, "CRAB_PUBLIC_BASE_URL")
 	applyString(&cfg.SessionKeyFile, "CRAB_SESSION_KEY_FILE")
