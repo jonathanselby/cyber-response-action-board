@@ -34,6 +34,12 @@ func TestTierImportBoundaries(t *testing.T) {
 		}
 	})
 
+	checkTree(t, filepath.Join(root, "internal", "security"), func(path, imp string) {
+		if strings.Contains(imp, "github.com/jackc/pgx") || strings.Contains(imp, "/internal/data/postgres") {
+			t.Errorf("security tier illegally imports concrete PostgreSQL: %s -> %s", path, imp)
+		}
+	})
+
 	domain := filepath.Join(root, "internal", "domain")
 	if _, err := os.Stat(domain); err == nil {
 		checkTree(t, domain, func(path, imp string) {
