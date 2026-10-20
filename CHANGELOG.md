@@ -1,6 +1,26 @@
 # Changelog
 
-## Unreleased — 0.0.8-dev
+## Unreleased — 0.0.9-dev
+
+Slice 8 governed corpus and deterministic retrieval.
+
+- Added governed Markdown/DOCX corpus admission using the existing maker-checker ledger semantics.
+- Reused immutable PostgreSQL blob storage for exact original source bytes; no filesystem, object store or second persistence engine was introduced.
+- Added a hard 16 MiB corpus source limit enforced while streaming, independent of the larger configurable evidence limit.
+- Added bounded passive DOCX ZIP/XML handling with entry, aggregate-expanded-content and document-XML limits; only `word/document.xml` text is indexed and embedded macro/active content is never executed.
+- Added deterministic Markdown line-range and DOCX paragraph locators with rebuildable lexical terms and source provenance.
+- Added database incident/compartment filtering before candidate passages reach the lexical ranker, including organisation-wide governed sources.
+- Added deterministic lexical ranking, stable tie-breaks and citations bound to source ID, immutable source SHA-256 and source locator.
+- Added explicit unsupported-query refusal when no authorised passage matches instead of fabricating support.
+- Proved retrieval operates without embeddings, a vector database, local LLM or network connection.
+- Added negative tests where a restricted-compartment passage and another incident's passage are deliberately stronger lexical matches; neither enters the authorised ranking set.
+- Proved authorised restricted-compartment retrieval still works after read-in and that corpus projection rebuild preserves citation identity while leaving immutable source bytes untouched.
+- Closed the frozen incident-declaration invariant: confirmation now derives the declaration maker's initial Sponsor, incident membership and `GENERAL` membership from the declaration ledger record, including combined rebuild proof.
+- Added Slice 8 retrieval/security tests to the explicit core checkpoint gate.
+
+Model drafting remains Slice 9. Authenticated browser ingestion/search routes are not faked at this checkpoint. No release tag should be created yet.
+
+## 0.0.8-dev
 
 Slice 7 hostile evidence and immutable blobs.
 
