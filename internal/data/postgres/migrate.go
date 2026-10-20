@@ -88,7 +88,6 @@ func Migrate(ctx context.Context, owner *pgxpool.Pool, runtimeRole string) error
 		`GRANT SELECT, INSERT, UPDATE, DELETE, TRUNCATE ON crab.incident_actions TO ` + role,
 		`GRANT SELECT, INSERT, UPDATE, DELETE, TRUNCATE ON crab.incident_operational_roles TO ` + role,
 		`GRANT SELECT, INSERT, UPDATE, DELETE, TRUNCATE ON crab.incident_proposals TO ` + role,
-		`GRANT SELECT, INSERT, UPDATE, DELETE, TRUNCATE ON crab.checklist_templates TO ` + role,
 		`GRANT SELECT, INSERT, UPDATE, DELETE, TRUNCATE ON crab.incident_timeline TO ` + role,
 	}
 	for _, statement := range grants {
