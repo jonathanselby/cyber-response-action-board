@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync/atomic"
 	"testing"
 
 	"github.com/jonathanselby/cyber-response-action-board/internal/app"
@@ -60,5 +61,25 @@ func TestWebhookRejectsPlainExternalHTTP(t *testing.T) {
 	channel := app.NotificationChannel{Name: "hook", Type: ChannelWebhook, Target: "http://example.com/hook", DestinationID: "external", External: true}
 	if err := ValidateChannel(channel); err == nil {
 		t.Fatal("plain external HTTP webhook accepted")
+	}
+}
+
+func TestWebhookDoesNotFollowRedirects(t *testing.T) {
+	var redirected atomic.Int32
+	target := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		redirected.Add(1)
+		w.WriteHeader(http.StatusAccepted)
+	}))
+	defer target.Close()
+
+	redirect := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, target.URL, http.StatusTemporaryRedirect)
+	}))
+	defer redirect.Close()
+
+	channel := app.NotificationChannel{Name: "hook", Type: ChannelWebhook, Target: redirect.URL, DestinationID: "configured-endpoint", External: true}
+	attempt := (Sender{Client: redirect.Client()}).Deliver(context.Background(), channel, app.NotificationMessage{CommunicationID: "COMM-REDIRECT", Mode: "live", Subject: "Notice", Body: "Approved notice", Audience: []string{"regulator"}})
+	if attempt.Status != domain.NotificationFailed || redirected.Load() != 0 || !strings.Contains(attempt.Detail, "HTTP 307") {
+		t.Fatalf("redirect was not refused attempt=%+v redirected=%d", attempt, redirected.Load())
 	}
 }
