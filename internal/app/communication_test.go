@@ -13,12 +13,12 @@ import (
 )
 
 type fakeCommunicationBackend struct {
-	drafts    map[string]domain.CommunicationDraftView
-	issued    map[string]domain.CommunicationView
-	cadences  map[string]domain.CommunicationCadenceView
-	pending   map[string]ledger.Record
-	appended  []ledger.Record
-	outcomes  []domain.NotificationOutcome
+	drafts   map[string]domain.CommunicationDraftView
+	issued   map[string]domain.CommunicationView
+	cadences map[string]domain.CommunicationCadenceView
+	pending  map[string]ledger.Record
+	appended []ledger.Record
+	outcomes []domain.NotificationOutcome
 }
 
 func (b *fakeCommunicationBackend) AppendCommunication(_ context.Context, record ledger.Record) error {
