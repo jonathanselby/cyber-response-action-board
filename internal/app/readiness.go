@@ -30,6 +30,7 @@ func CurrentReadiness(cfg config.Config) Readiness {
 		{Name: "actions_checklists_timeline", Status: "implemented", Message: "Slice 4 governed Action lifecycle, configured checklist activation, explicit incident timeline and dedicated Action/timeline renderers are built; authenticated browser routing remains later presentation work"},
 		{Name: "obligations_timed_waits", Status: "implemented", Message: "Slice 5 governed organisation-defined obligations, deterministic provisional/firm clocks, amendments and bounded rebuildable timed wait list are built; notifier delivery and authenticated browser UX remain later work"},
 		{Name: "access_governance_compartments", Status: "implemented", Message: "Slice 6 Sponsor/Controller -> Custodian governance, expiring incident/compartment access, metadata-only administration and selective-release scope are built; PostgreSQL RLS was spiked and deliberately not retained because it would require a second privileged projection/rebuild path"},
+		{Name: "evidence_immutable_blobs", Status: "implemented", Message: "Slice 7 bounded PostgreSQL hostile-byte storage, SHA-256 integrity verification, opaque per-upload IDs, no cross-incident dedupe, scoped evidence register/history and fail-closed attachment presentation are built; authenticated browser route composition remains later presentation work"},
 	}
 	return Readiness{Ready: false, Checks: checks}
 }
