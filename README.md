@@ -6,7 +6,7 @@ CRAB is a single Go application for running a cyber incident from first report t
 
 ## Build status
 
-**0.0.10-dev — Slice 9 model assistance.**
+**0.0.11-dev — Slice 10 structured communications and notifier.**
 
 Implemented and CI-proven now:
 
@@ -21,26 +21,29 @@ Implemented and CI-proven now:
 - Slice 6 Sponsor/Controller -> Custodian access governance, expiring incident/compartment membership, metadata-only administration and selective-release scope; PostgreSQL RLS was tested and deliberately not retained;
 - Slice 7 bounded hostile-byte streaming into immutable PostgreSQL blob rows, exact SHA-256 verification, evidence register/handling history and fail-closed attachment presentation;
 - Slice 8 governed Markdown/DOCX corpus admission, immutable source blobs, bounded passive extraction, scope filtering before deterministic lexical ranking, stable citations and explicit unsupported-query refusal;
-- Slice 9 five small prompt-versioned model draft specifications: retrieval summary, situation report, board update, notification language and PIR summary;
-- explicit `simple`, `standard` and `complex` model lanes: the caller classifies work and the harness routes exactly that lane; there is no hidden model selector or automatic fallback;
-- local Ollama plus managed Azure OpenAI/Foundry, Amazon Bedrock and Google Vertex adapters using standard-library HTTP and no new direct runtime dependency;
-- deterministic authorised retrieval always precedes model generation, so the model receives only the already-authorised source set;
-- managed model calls require both the sensitivity policy and the separate `model_send` output permission before provider I/O;
-- model traces carry request/spec/prompt version, selected provider/model, prompt SHA-256, stable citation IDs, duration and provider-reported token counts without routinely logging prompt bodies;
-- model output is always explicitly untrusted; `validated` means only that deterministic structural checks passed and never means human approval or effective governed state;
-- provider failures and invalid output retain authorised source provenance and fail visibly rather than coercing model text into incident truth;
-- no automatic provider reroute/failover: failure of the configured lane remains a visible failure;
-- bounded model capacity sheds new model generation first while deterministic retrieval and core incident work remain available;
-- provider adapter tests exercise wire contracts locally and managed-provider error handling does not echo provider response bodies;
+- Slice 9 five small prompt-versioned model draft specifications with explicit three-lane routing, local/managed provider adapters, sensitivity/model-send gates and untrusted traced output;
+- Slice 10 semantic drafts for situation reports, regulator/individual notices, executive/board updates, staff communications, holding statements and closure/PIR material;
+- communication issue is a governed `Propose(...) -> Decide(...)` action and is exact-bound to an immutable stored draft SHA-256; changed wording cannot travel under an old approval digest;
+- confirmed communication cadence reuses the existing deterministic timed wait list; recording the due situation-report draft advances the same cadence without adding a scheduler or workflow engine;
+- situation-report drafts are built deterministically from current authorised CRAB state and exercise reports are visibly marked;
+- notification requires the existing separate `notify` output permission and can only use channels approved in the issued communication;
+- local-file and generic HTTP webhook adapters are deliberately thin: they attempt delivery only and do not own recipients, content, authority or exercise policy;
+- exercise external notification is suppressed before adapter/network I/O while the immutable `suppressed` outcome remains in CRAB;
+- every configured attempt becomes an immutable `delivered`, `failed` or `suppressed` ledger record with channel, destination identifier, time, duration and bounded acknowledgement metadata;
+- a failed channel does not suppress the next configured attempt and there is no hidden retry/guaranteed-delivery queue;
+- webhook targets require HTTPS except loopback test endpoints, redirects are refused, response bodies are not copied into outcome/error metadata and local sinks remain available without internet;
+- material incoming enquiries can be recorded and assigned without introducing a chat/helpdesk subsystem, and assignment survives deterministic projection rebuild;
+- the communications/cadence/delivery/enquiry projections all rebuild from the authoritative ledger;
 - frozen PRD V0.2 / EDD V0.4 and companion build, test and UX/print notes remain beside source.
 
 Not yet claimed complete:
 
 - secure operator/presentation wiring for `crab setup`, browser login and authenticated operational routes;
-- deployment composition for live model credentials/provider configuration and operator-facing model routes; Slice 9 proves the application/provider boundary without pretending live cloud-account integration;
-- communications/notifier delivery, print/paper, recovery/PIR/retention/closure, backup/restore and final Bafflewick/Pi/visual acceptance.
+- deployment composition for live model credentials and notification channel configuration;
+- Slice 11 print/paper;
+- recovery/PIR/retention/closure, backup/restore and final Bafflewick/Pi/visual acceptance.
 
-The checkpoint does not create a universal administrator, universal Major visibility, emergency read-in, external portal, per-object ACL estate, production RLS, object store, media-processing service, malware scanner, workflow engine, delivery queue, vector database, autonomous agent framework, automatic model classifier or generic CRUD incident model.
+The checkpoint does not create a universal administrator, universal Major visibility, emergency read-in, external portal, per-object ACL estate, production RLS, object store, media-processing service, malware scanner, workflow engine, delivery queue, retry service, vector database, autonomous agent framework, automatic model classifier, chat/helpdesk platform or generic CRUD incident model.
 
 ## Commands
 
@@ -70,6 +73,8 @@ Corpus admission uses governed `Propose(...) -> Decide(...)`. Uploading bytes al
 
 Model drafts use neither write semantic. They are transient, untrusted assistance. A human must still perform the ordinary CRAB Record or Propose/Decide action if any model-derived wording is to become incident history or governed state.
 
+Communication drafts, incoming enquiries and delivery outcomes use `Record(...)`: they preserve what was drafted, received or attempted. **Issuing a communication and changing its cadence use `Propose(...) -> Decide(...)`.** An unconfirmed draft cannot be notified.
+
 ## Security boundary
 
 CRAB's application decision remains deliberately small:
@@ -91,11 +96,13 @@ For retrieval, ranking is not a security boundary. PostgreSQL first returns only
 
 For managed model use, retrieval authorisation is not permission to disclose externally. The sensitivity rule and separate `model_send` permission must both pass before provider I/O. A local lane does not create governed authority either: all model output remains untrusted.
 
+For notification, ordinary read or communication drafting is not permission to send. The communication must first exist as confirmed governed state and `notify` remains a separate output action. Exercise suppression occurs before external adapter I/O.
+
 ## Database boundary
 
-The schema-owner identity performs migrations. The ordinary runtime identity is not table owner, superuser or `BYPASSRLS`. Authoritative ledger rows cannot be updated/deleted by the runtime role. Blob metadata/chunks are durable supporting state and are insert/read-only to runtime. Security, incident, obligation, access, evidence and corpus current state are rebuildable projections from ledger history.
+The schema-owner identity performs migrations. The ordinary runtime identity is not table owner, superuser or `BYPASSRLS`. Authoritative ledger rows cannot be updated/deleted by the runtime role. Blob metadata/chunks are durable supporting state and are insert/read-only to runtime. Security, incident, obligation, access, evidence, corpus and communications current state are rebuildable projections from ledger history.
 
-Slice 9 adds no model database, model queue or prompt store. Model assistance consumes already-authorised retrieval results and returns transient drafts/traces; core incident operation does not depend on a provider being available.
+Slice 9 adds no model database, model queue or prompt store. Slice 10 adds no message bus, delivery queue, retry service or third scheduler. Communication cadence reuses the same bounded deterministic timed wait-list already used for obligation wake-ups.
 
 RLS was tested, not hand-waved. The Slice 6 spike showed it can stop accidental broad reads with transaction-local scope, but retaining it would require an additional privileged projection/rebuild channel in the current one-runtime-role architecture. V0.4 therefore keeps application authorisation primary and records the rejected RLS design in `docs/rls-spike-decision.md`.
 
