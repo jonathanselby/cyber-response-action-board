@@ -77,7 +77,7 @@ func (r *IncidentRuntime) ObligationClocks(ctx context.Context, incidentID, comp
 	if err != nil {
 		return nil, err
 	}
-	return store.ClocksInCompartment(ctx, incidentID, compartment, now)
+	return store.ActiveClocksInCompartment(ctx, incidentID, compartment, now)
 }
 
 func (r *IncidentRuntime) DeclarationExists(ctx context.Context, incidentID string) (bool, error) {
