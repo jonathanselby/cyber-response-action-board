@@ -37,7 +37,7 @@ func (m memoryBreakGlass) ActiveBreakGlassRecords(context.Context) ([]authn.Brea
 
 func validBootstrap() BootstrapPlan {
 	return BootstrapPlan{
-		PreparedBy: "alice",
+		PreparedBy:  "alice",
 		ConfirmedBy: "bob",
 		Identities: []BootstrapIdentity{
 			{HumanID: "alice", Custodian: true, MajorEligible: true, LocalAuthConfigured: true},
@@ -83,9 +83,9 @@ func TestCustodianRecoveryRestoresCustodiansOnly(t *testing.T) {
 	a, _ := authn.NewBreakGlassRecord("key-a", "offline-a", authn.MinPBKDF2Iterations)
 	b, _ := authn.NewBreakGlassRecord("key-b", "offline-b", authn.MinPBKDF2Iterations)
 	records, err := CustodianRecoveryRecords(RecoveryPlan{
-		PreparedBy: "alice",
-		ConfirmedBy: "bob",
-		Reason: "Custodian quorum lost",
+		PreparedBy:          "alice",
+		ConfirmedBy:         "bob",
+		Reason:              "Custodian quorum lost",
 		RestoreCustodianIDs: []string{"alice", "bob"},
 		PresentedBreakGlass: map[string]string{"key-a": "offline-a", "key-b": "offline-b"},
 	}, []authn.BreakGlassRecord{a, b}, time.Date(2026, 10, 20, 4, 0, 0, 0, time.UTC))
