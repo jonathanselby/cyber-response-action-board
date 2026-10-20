@@ -12,7 +12,7 @@ func TestVersionCommand(t *testing.T) {
 	if code != exitOK {
 		t.Fatalf("exit = %d stderr=%s", code, errOut.String())
 	}
-	if !strings.HasPrefix(out.String(), "crab 0.0.10-dev") {
+	if !strings.HasPrefix(out.String(), "crab 0.0.11-dev") {
 		t.Fatalf("version output = %q", out.String())
 	}
 }
@@ -23,7 +23,7 @@ func TestReadinessFailsClosedBeforeConfiguredDurableStore(t *testing.T) {
 	if code != exitRefused {
 		t.Fatalf("exit = %d stdout=%s stderr=%s", code, out.String(), errOut.String())
 	}
-	if !strings.Contains(out.String(), `"ready": false`) || !strings.Contains(out.String(), `"postgresql"`) || !strings.Contains(out.String(), `"authentication_authorisation"`) || !strings.Contains(out.String(), `"incident_semantic_kernel"`) || !strings.Contains(out.String(), `"actions_checklists_timeline"`) || !strings.Contains(out.String(), `"obligations_timed_waits"`) || !strings.Contains(out.String(), `"access_governance_compartments"`) || !strings.Contains(out.String(), `"evidence_immutable_blobs"`) || !strings.Contains(out.String(), `"corpus_deterministic_retrieval"`) || !strings.Contains(out.String(), `"model_assistance"`) {
+	if !strings.Contains(out.String(), `"ready": false`) || !strings.Contains(out.String(), `"postgresql"`) || !strings.Contains(out.String(), `"authentication_authorisation"`) || !strings.Contains(out.String(), `"incident_semantic_kernel"`) || !strings.Contains(out.String(), `"actions_checklists_timeline"`) || !strings.Contains(out.String(), `"obligations_timed_waits"`) || !strings.Contains(out.String(), `"access_governance_compartments"`) || !strings.Contains(out.String(), `"evidence_immutable_blobs"`) || !strings.Contains(out.String(), `"corpus_deterministic_retrieval"`) || !strings.Contains(out.String(), `"model_assistance"`) || !strings.Contains(out.String(), `"communications_notifier"`) {
 		t.Fatalf("readiness output = %s", out.String())
 	}
 }
