@@ -19,7 +19,7 @@ import (
 )
 
 const (
-	TypeCorpusSource      = "corpus.source"
+	TypeCorpusSource     = "corpus.source"
 	CorpusFormatMarkdown = "markdown"
 	CorpusFormatDOCX     = "docx"
 	MaxCorpusSourceBytes = int64(16 << 20)
