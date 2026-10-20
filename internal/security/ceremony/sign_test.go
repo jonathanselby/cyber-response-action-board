@@ -5,6 +5,7 @@ import (
 	"crypto/ed25519"
 	"crypto/rand"
 	"encoding/base64"
+	"encoding/json"
 	"testing"
 	"time"
 
@@ -47,11 +48,12 @@ func TestBootstrapRecordsCanBeHumanSignedAndLedgered(t *testing.T) {
 		if err != nil {
 			t.Fatalf("build ceremony ledger entry %d: %v", i+1, err)
 		}
-		encoded, err := encodeLedgerEntry(entry)
+		encoded, err := json.Marshal(entry)
 		if err != nil {
 			t.Fatal(err)
 		}
 		stream.Write(encoded)
+		stream.WriteByte('\n')
 		previous = entry.Hash
 	}
 	result := ledger.Verify(&stream, keyring)
@@ -73,8 +75,4 @@ func TestCeremonySignerRefusesPrincipalMismatch(t *testing.T) {
 	); err == nil {
 		t.Fatal("ceremony signer accepted mismatched maker identity")
 	}
-}
-
-func encodeLedgerEntry(entry ledger.Entry) ([]byte, error) {
-	return appendJSONLine(entry)
 }
