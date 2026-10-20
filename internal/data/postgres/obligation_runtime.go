@@ -18,7 +18,9 @@ type ObligationRuntime struct {
 }
 
 func NewObligationRuntime(kernel *Kernel, signer Signer, store *ObligationStore) (*ObligationRuntime, error) {
-	if kernel == nil || store == nil || signer.KeyID == "" { return nil, errors.New("obligation runtime requires kernel, signer and store") }
+	if kernel == nil || store == nil || signer.KeyID == "" {
+		return nil, errors.New("obligation runtime requires kernel, signer and store")
+	}
 	return &ObligationRuntime{Kernel: kernel, Signer: signer, Store: store}, nil
 }
 
@@ -32,13 +34,23 @@ func (r *ObligationRuntime) PendingObligation(ctx context.Context, scopeID, reco
 	var payload []byte
 	var proposedAt time.Time
 	err := r.Store.pool.QueryRow(ctx, `SELECT version,maker,compartment,mode,payload,proposed_at FROM crab.obligation_proposals WHERE scope_id=$1 AND record_type=$2 AND record_id=$3`, scopeID, recordType, recordID).Scan(&version, &maker, &compartment, &mode, &payload, &proposedAt)
-	if errors.Is(err, pgx.ErrNoRows) { return ledger.Record{}, false, nil }
-	if err != nil { return ledger.Record{}, false, err }
+	if errors.Is(err, pgx.ErrNoRows) {
+		return ledger.Record{}, false, nil
+	}
+	if err != nil {
+		return ledger.Record{}, false, err
+	}
 	wrapped, err := json.Marshal(domain.GovernedData{Version: version, Payload: json.RawMessage(payload)})
-	if err != nil { return ledger.Record{}, false, err }
-	record := ledger.Record{SchemaVersion:1, Timestamp:proposedAt.UTC(), TimeStatus:"trusted", IncidentID:scopeID, IncidentMode:mode, WriteSemantic:"governed", RecordType:recordType, RecordID:recordID, Status:"proposed", Maker:maker, Compartment:compartment, Data:wrapped, MakerSignature:ledger.Signature{MissingReason:"maker authenticated on immutable proposal entry"}}
-	if mode == "system" { record.IncidentID = "" }
-	if _, err := domain.ProposalVersion(record); err != nil { return ledger.Record{}, false, err }
+	if err != nil {
+		return ledger.Record{}, false, err
+	}
+	record := ledger.Record{SchemaVersion: 1, Timestamp: proposedAt.UTC(), TimeStatus: "trusted", IncidentID: scopeID, IncidentMode: mode, WriteSemantic: "governed", RecordType: recordType, RecordID: recordID, Status: "proposed", Maker: maker, Compartment: compartment, Data: wrapped, MakerSignature: ledger.Signature{MissingReason: "maker authenticated on immutable proposal entry"}}
+	if mode == "system" {
+		record.IncidentID = ""
+	}
+	if _, err := domain.ProposalVersion(record); err != nil {
+		return ledger.Record{}, false, err
+	}
 	return record, true, nil
 }
 
