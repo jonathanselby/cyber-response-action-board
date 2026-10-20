@@ -14,11 +14,11 @@ import (
 )
 
 const (
-	TypeIncidentDeclaration        = "incident.declaration"
-	TypeFact                       = "incident.fact"
-	TypeUncertainty                = "incident.uncertainty"
-	TypeDecision                   = "incident.decision"
-	TypeAction                     = "incident.action"
+	TypeIncidentDeclaration       = "incident.declaration"
+	TypeFact                      = "incident.fact"
+	TypeUncertainty               = "incident.uncertainty"
+	TypeDecision                  = "incident.decision"
+	TypeAction                    = "incident.action"
 	TypeOperationalRoleAssignment = "incident.operational_role_assignment"
 )
 
