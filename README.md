@@ -6,39 +6,54 @@ CRAB is a single Go application for running a cyber incident from first report t
 
 ## Build status
 
-**0.0.1-dev — first executable vertical slice.**
+**0.0.2-dev — Slice 1 ledger + projection kernel.**
 
 Implemented now:
 
 - one `crab` executable;
 - file-first deployment configuration with environment overrides;
-- `crab version`;
-- `crab readiness` for the implemented local runtime surface;
-- `crab serve` with an embedded, offline-only CRAB shell and security headers;
-- standalone signed/hash-chained portable ledger verification via `crab verify`;
-- deterministic ledger canonicalisation/signature lineage from the Garage `decision-ledger` component;
-- amd64/arm64 CI build gates, gofmt, vet, race tests and tier-boundary checks;
+- embedded offline-only web shell with security headers;
+- standalone portable signed/hash-chained ledger verification;
+- bounded PostgreSQL pool using pinned `pgx`;
+- migration harness with separate schema-owner and ordinary runtime roles;
+- authoritative append-only `ledger_entries` storage;
+- ledger-tail transaction lock and verified-tail check;
+- atomic ledger append plus projection hook;
+- full verification and sticky integrity-failed read-only gate;
+- projection rebuild/replay path;
+- portable JSONL ledger export;
+- amd64/arm64, formatting, vet, race, integration and tier-boundary CI gates;
 - frozen PRD V0.2 / EDD V0.4 and companion build, test and UX/print notes retained beside source.
 
 Not yet claimed complete:
 
-- PostgreSQL durable store and replay transaction;
-- authentication/authorisation and bootstrap ceremonies;
-- incident/domain mutations;
-- evidence blobs, retrieval, models, communications, print, backup/restore and later slices.
+- authentication/authorisation and bootstrap ceremonies (Slice 2);
+- incident/domain write semantics and operating picture (Slice 3);
+- RLS spike, evidence blobs, retrieval, models, communications, print, backup/restore and later slices.
 
-Those are built in the frozen sequence in `BUILD-NOTES.md`. The current checkpoint does not simulate them with alternate stores or bypasses.
+The checkpoint does not create alternate stores, fake identity, generic workflows or placeholder incident mutation paths.
 
-## Run
+## Commands
 
 ```text
 crab version
 crab readiness
 crab serve
 crab verify --ledger <file> --keyring <file>
+crab rebuild
+crab export-ledger --output <file>
 ```
 
-`crab serve` defaults to `127.0.0.1:8080`. Production HTTPS termination is not claimed by this checkpoint; the browser surface is a local build shell only until the security/authentication slice lands.
+`crab verify` is the offline portable verifier. Database-backed commands require `CRAB_DATABASE_URL` and `CRAB_LEDGER_KEYRING_FILE`. `crab serve` remains loopback-only until the security/authentication slice lands.
+
+## Database boundary
+
+Slice 1 deliberately separates:
+
+- a schema-owner identity used for migrations; and
+- a runtime identity that is not owner, superuser or `BYPASSRLS`.
+
+The runtime role can read/append the authoritative ledger but cannot update or delete it. Projection changes occur inside the same transaction as an append; a projection failure rolls the ledger append back.
 
 ## Governing documents
 
@@ -52,4 +67,4 @@ The implementation may simplify code. It may not silently weaken the product or 
 
 ## Toolchain
 
-The checkpoint CI toolchain is pinned to Go 1.27.2. This source was also exercised locally under Go 1.23.2 before the toolchain pin was added; the GitHub workflow is the publication gate once the repository exists.
+CI is pinned to Go 1.27.2. The module baseline is Go 1.25 because the pinned PostgreSQL driver requires Go 1.25 or newer.

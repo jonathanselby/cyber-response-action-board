@@ -230,6 +230,12 @@ func BuildEntry(seq uint64, prevHash string, r Record, serverKeyID string, serve
 	if err := ValidateRecord(r); err != nil {
 		return Entry{}, err
 	}
+	canonical, err := canonicalJSON(r.Data)
+	if err != nil {
+		return Entry{}, err
+	}
+	r.Data = canonical
+	r.Timestamp = r.Timestamp.UTC()
 	digest, err := RecordDigest(r)
 	if err != nil {
 		return Entry{}, err

@@ -12,12 +12,12 @@ func TestVersionCommand(t *testing.T) {
 	if code != exitOK {
 		t.Fatalf("exit = %d stderr=%s", code, errOut.String())
 	}
-	if !strings.HasPrefix(out.String(), "crab 0.0.1-dev") {
+	if !strings.HasPrefix(out.String(), "crab 0.0.2-dev") {
 		t.Fatalf("version output = %q", out.String())
 	}
 }
 
-func TestReadinessFailsClosedBeforeDurableStoreAndSecurityBoundary(t *testing.T) {
+func TestReadinessFailsClosedBeforeConfiguredDurableStoreAndSecurityBoundary(t *testing.T) {
 	var out, errOut bytes.Buffer
 	code := run([]string{"readiness"}, &out, &errOut)
 	if code != exitRefused {

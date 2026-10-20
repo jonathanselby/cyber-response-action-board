@@ -1,0 +1,65 @@
+package postgres
+
+import (
+	"context"
+	_ "embed"
+	"errors"
+	"fmt"
+	"strings"
+
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
+)
+
+const (
+	currentMigrationVersion = 1
+	migrationLockKey        = int64(0x435241424d494752) // "CRABMIGR"
+)
+
+//go:embed migrations/001_slice1.sql
+var migration001 string
+
+// Migrate runs the small explicit CRAB migration set using the schema-owner
+// connection. runtimeRole receives only the privileges needed by the ordinary
+// application process.
+func Migrate(ctx context.Context, owner *pgxpool.Pool, runtimeRole string) error {
+	runtimeRole = strings.TrimSpace(runtimeRole)
+	if runtimeRole == "" {
+		return errors.New("runtime role is required")
+	}
+	var exists bool
+	if err := owner.QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = $1)`, runtimeRole).Scan(&exists); err != nil {
+		return fmt.Errorf("check runtime role: %w", err)
+	}
+	if !exists {
+		return fmt.Errorf("runtime role %q does not exist", runtimeRole)
+	}
+
+	tx, err := owner.Begin(ctx)
+	if err != nil {
+		return fmt.Errorf("begin migration: %w", err)
+	}
+	defer tx.Rollback(ctx)
+	if _, err := tx.Exec(ctx, `SELECT pg_advisory_xact_lock($1)`, migrationLockKey); err != nil {
+		return fmt.Errorf("lock migration: %w", err)
+	}
+	if _, err := tx.Exec(ctx, migration001); err != nil {
+		return fmt.Errorf("migration 001: %w", err)
+	}
+
+	role := pgx.Identifier{runtimeRole}.Sanitize()
+	grants := []string{
+		`GRANT USAGE ON SCHEMA crab TO ` + role,
+		`GRANT SELECT ON crab.schema_migrations TO ` + role,
+		`GRANT SELECT, INSERT ON crab.ledger_entries TO ` + role,
+	}
+	for _, statement := range grants {
+		if _, err := tx.Exec(ctx, statement); err != nil {
+			return fmt.Errorf("grant runtime privilege: %w", err)
+		}
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return fmt.Errorf("commit migration: %w", err)
+	}
+	return nil
+}

@@ -24,6 +24,7 @@ type Config struct {
 	PublicBaseURL         string `json:"public_base_url,omitempty"`
 	SessionKeyFile        string `json:"session_key_file,omitempty"`
 	ServerSigningKeyFile  string `json:"server_signing_key_file,omitempty"`
+	LedgerKeyringFile     string `json:"ledger_keyring_file,omitempty"`
 	CredentialWrapKeyFile string `json:"credential_wrap_key_file,omitempty"`
 	ExportDir             string `json:"export_dir,omitempty"`
 	SecondaryExportDir    string `json:"secondary_export_dir,omitempty"`
@@ -60,6 +61,7 @@ func Load() (Config, error) {
 	applyString(&cfg.PublicBaseURL, "CRAB_PUBLIC_BASE_URL")
 	applyString(&cfg.SessionKeyFile, "CRAB_SESSION_KEY_FILE")
 	applyString(&cfg.ServerSigningKeyFile, "CRAB_SERVER_SIGNING_KEY_FILE")
+	applyString(&cfg.LedgerKeyringFile, "CRAB_LEDGER_KEYRING_FILE")
 	applyString(&cfg.CredentialWrapKeyFile, "CRAB_CREDENTIAL_WRAP_KEY_FILE")
 	applyString(&cfg.ExportDir, "CRAB_EXPORT_DIR")
 	applyString(&cfg.SecondaryExportDir, "CRAB_SECONDARY_EXPORT_DIR")
@@ -96,7 +98,7 @@ func (c Config) Validate() error {
 	if host != "localhost" {
 		ip := net.ParseIP(host)
 		if ip == nil || !ip.IsLoopback() {
-			return errors.New("0.0.1-dev serve is local-only until HTTPS/authentication land")
+			return errors.New("serve is local-only until HTTPS/authentication land")
 		}
 	}
 	if c.PageSizeDefault != "A4" && c.PageSizeDefault != "LETTER" {

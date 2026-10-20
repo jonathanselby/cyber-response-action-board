@@ -157,6 +157,20 @@ func TestSelfApprovalRequiresExplicitReason(t *testing.T) {
 	}
 }
 
+func TestBuildEntryStoresCanonicalRecordData(t *testing.T) {
+	k := newFixtureKeys(t)
+	r := governedRecord()
+	r.Data = json.RawMessage("{\n  \"z\": 2, \"a\": 1\n}")
+	r = signGoverned(t, r, k)
+	e, err := BuildEntry(1, "", r, "server", k.serverPriv, k.keyring)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got, want := string(e.Record.Data), `{"a":1,"z":2}`; got != want {
+		t.Fatalf("stored data=%s want=%s", got, want)
+	}
+}
+
 func TestCanonicalDataMakesWhitespaceIrrelevant(t *testing.T) {
 	a := governedRecord()
 	b := governedRecord()

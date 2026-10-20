@@ -61,7 +61,7 @@ func (s *Server) health(w http.ResponseWriter, _ *http.Request) {
 		"status":        "build-checkpoint",
 		"version":       buildinfo.Version,
 		"ledger":        "portable-verifier-available",
-		"database":      "not-built",
+		"database":      "slice1-ledger-kernel-built",
 		"authorisation": "not-built",
 		"time":          time.Now().UTC().Format(time.RFC3339),
 	})

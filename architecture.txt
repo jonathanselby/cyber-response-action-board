@@ -24,6 +24,6 @@ RESPONDERS / EXECUTIVES / ADVISERS / AUTHORISED AGENTS
 | rebuildable projections                                  |
 +-----------------------------------------------------------+
 
-Current build checkpoint (0.0.1-dev): executable shell + standalone portable
-ledger verification kernel. PostgreSQL and incident mutation are deliberately
-not faked before their implementation slices.
+Current build checkpoint (0.0.2-dev): executable shell plus Slice 1
+PostgreSQL ledger/projection kernel. Authentication, incident semantics and
+later product slices remain deliberately unimplemented rather than simulated.

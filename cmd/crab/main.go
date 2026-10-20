@@ -10,12 +10,15 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"syscall"
 	"time"
 
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/jonathanselby/cyber-response-action-board/internal/app"
 	"github.com/jonathanselby/cyber-response-action-board/internal/buildinfo"
 	"github.com/jonathanselby/cyber-response-action-board/internal/config"
+	"github.com/jonathanselby/cyber-response-action-board/internal/data/postgres"
 	"github.com/jonathanselby/cyber-response-action-board/internal/ledger"
 	"github.com/jonathanselby/cyber-response-action-board/internal/presentation/web"
 )
@@ -44,9 +47,13 @@ func run(args []string, stdout, stderr io.Writer) int {
 		return runReadiness(stdout, stderr)
 	case "verify":
 		return runVerify(args[1:], stdout, stderr)
+	case "rebuild":
+		return runRebuild(stdout, stderr)
+	case "export-ledger":
+		return runExportLedger(args[1:], stdout, stderr)
 	case "serve":
 		return runServe(stdout, stderr)
-	case "setup", "mcp", "backup", "restore", "rebuild", "export-ledger", "print", "recover":
+	case "setup", "mcp", "backup", "restore", "print", "recover":
 		fmt.Fprintf(stderr, "crab %s: not built in checkpoint %s; no alternate control path is enabled\n", args[0], buildinfo.Version)
 		return exitRefused
 	case "help", "-h", "--help":
@@ -66,6 +73,36 @@ func runReadiness(stdout, stderr io.Writer) int {
 		return exitOperational
 	}
 	r := app.CurrentReadiness(cfg)
+	if cfg.DatabaseURL != "" && cfg.LedgerKeyringFile != "" {
+		check := app.Check{Name: "postgresql", Status: "fail"}
+		keys, err := loadKeyring(cfg.LedgerKeyringFile)
+		if err != nil {
+			check.Message = err.Error()
+		} else {
+			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+			pool, openErr := postgres.OpenPool(ctx, cfg.DatabaseURL)
+			if openErr != nil {
+				check.Message = openErr.Error()
+			} else {
+				kernel, kernelErr := postgres.OpenKernel(ctx, pool, keys)
+				if kernelErr != nil {
+					check.Message = kernelErr.Error()
+				} else if kernel.IntegrityFailed() {
+					check.Message = "ledger verification failed; read-only integrity mode"
+				} else {
+					check.Status = "pass"
+					check.Message = "schema, runtime role and full ledger verification passed"
+				}
+				pool.Close()
+			}
+			cancel()
+		}
+		for i := range r.Checks {
+			if r.Checks[i].Name == "postgresql" {
+				r.Checks[i] = check
+			}
+		}
+	}
 	enc := json.NewEncoder(stdout)
 	enc.SetIndent("", "  ")
 	if err := enc.Encode(r); err != nil {
@@ -78,6 +115,136 @@ func runReadiness(stdout, stderr io.Writer) int {
 	return exitOK
 }
 
+func runRebuild(stdout, stderr io.Writer) int {
+	keys, pool, code := openLedgerDatabase(stderr)
+	if code != exitOK {
+		return code
+	}
+	defer pool.Close()
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	kernel, err := postgres.OpenKernel(ctx, pool, keys)
+	if err != nil {
+		fmt.Fprintln(stderr, err)
+		return exitOperational
+	}
+	res, err := kernel.Rebuild(ctx)
+	if err != nil {
+		fmt.Fprintln(stderr, err)
+		return exitRefused
+	}
+	return writeJSON(stdout, stderr, res)
+}
+
+func runExportLedger(args []string, stdout, stderr io.Writer) int {
+	fs := flag.NewFlagSet("export-ledger", flag.ContinueOnError)
+	fs.SetOutput(stderr)
+	output := fs.String("output", "", "portable ledger JSONL output path")
+	if err := fs.Parse(args); err != nil || *output == "" || fs.NArg() != 0 {
+		fmt.Fprintln(stderr, "usage: crab export-ledger --output <file>")
+		return exitUsage
+	}
+	keys, pool, code := openLedgerDatabase(stderr)
+	if code != exitOK {
+		return code
+	}
+	defer pool.Close()
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	kernel, err := postgres.OpenKernel(ctx, pool, keys)
+	if err != nil {
+		fmt.Fprintln(stderr, err)
+		return exitOperational
+	}
+	dir := filepath.Dir(*output)
+	tmp, err := os.CreateTemp(dir, ".crab-ledger-*.tmp")
+	if err != nil {
+		fmt.Fprintln(stderr, err)
+		return exitOperational
+	}
+	tmpName := tmp.Name()
+	committed := false
+	defer func() {
+		_ = tmp.Close()
+		if !committed {
+			_ = os.Remove(tmpName)
+		}
+	}()
+	if err := tmp.Chmod(0o600); err != nil {
+		fmt.Fprintln(stderr, err)
+		return exitOperational
+	}
+	res, err := kernel.Export(ctx, tmp)
+	if err != nil {
+		fmt.Fprintln(stderr, err)
+		return exitRefused
+	}
+	if err := tmp.Sync(); err != nil {
+		fmt.Fprintln(stderr, err)
+		return exitOperational
+	}
+	if err := tmp.Close(); err != nil {
+		fmt.Fprintln(stderr, err)
+		return exitOperational
+	}
+	if err := os.Rename(tmpName, *output); err != nil {
+		fmt.Fprintln(stderr, err)
+		return exitOperational
+	}
+	committed = true
+	if !res.Valid {
+		fmt.Fprintf(stderr, "exported %d ledger entries to %s with integrity verification FAILURE\n", res.Entries, *output)
+		return exitRefused
+	}
+	fmt.Fprintf(stdout, "exported %d verified ledger entries to %s\n", res.Entries, *output)
+	return exitOK
+}
+
+func openLedgerDatabase(stderr io.Writer) (ledger.Keyring, *pgxpool.Pool, int) {
+	cfg, err := config.Load()
+	if err != nil {
+		fmt.Fprintln(stderr, err)
+		return nil, nil, exitOperational
+	}
+	if cfg.DatabaseURL == "" || cfg.LedgerKeyringFile == "" {
+		fmt.Fprintln(stderr, "CRAB_DATABASE_URL and CRAB_LEDGER_KEYRING_FILE are required")
+		return nil, nil, exitRefused
+	}
+	keys, err := loadKeyring(cfg.LedgerKeyringFile)
+	if err != nil {
+		fmt.Fprintln(stderr, err)
+		return nil, nil, exitOperational
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	pool, err := postgres.OpenPool(ctx, cfg.DatabaseURL)
+	if err != nil {
+		fmt.Fprintln(stderr, err)
+		return nil, nil, exitOperational
+	}
+	return keys, pool, exitOK
+}
+
+func loadKeyring(path string) (ledger.Keyring, error) {
+	var keys ledger.Keyring
+	if err := readJSONFile(path, &keys); err != nil {
+		return nil, err
+	}
+	if len(keys) == 0 {
+		return nil, errors.New("ledger keyring is empty")
+	}
+	return keys, nil
+}
+
+func writeJSON(stdout, stderr io.Writer, v any) int {
+	enc := json.NewEncoder(stdout)
+	enc.SetIndent("", "  ")
+	if err := enc.Encode(v); err != nil {
+		fmt.Fprintln(stderr, err)
+		return exitOperational
+	}
+	return exitOK
+}
 func runVerify(args []string, stdout, stderr io.Writer) int {
 	fs := flag.NewFlagSet("verify", flag.ContinueOnError)
 	fs.SetOutput(stderr)
@@ -160,10 +327,12 @@ func readJSONFile(path string, v any) error {
 func usage(w io.Writer) {
 	fmt.Fprintln(w, `CRAB — Cyber Response Action Board
 
-Implemented in 0.0.1-dev:
+Implemented through Slice 1:
   crab serve
   crab readiness
   crab verify --ledger <file> --keyring <file>
+  crab rebuild
+  crab export-ledger --output <file>
   crab version
 
 Frozen CLI surface, intentionally refused until its implementation slice lands:
@@ -171,8 +340,6 @@ Frozen CLI surface, intentionally refused until its implementation slice lands:
   crab mcp
   crab backup --output <path>
   crab restore --input <path>
-  crab rebuild
-  crab export-ledger --output <file>
   crab print incident-brief --incident <id> [--page-size A4|LETTER]
   crab print emergency-pack [--page-size A4|LETTER]`)
 }
