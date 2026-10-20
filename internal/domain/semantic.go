@@ -14,12 +14,12 @@ import (
 )
 
 const (
-	RecordIncidentDeclaration       = "incident.declaration"
-	RecordFact                      = "incident.fact"
-	RecordUncertainty               = "incident.uncertainty"
-	RecordDecision                  = "incident.decision"
-	RecordAction                    = "incident.action"
-	RecordOperationalRoleAssignment = "incident.operational_role_assignment"
+	TypeIncidentDeclaration       = "incident.declaration"
+	TypeFact                      = "incident.fact"
+	TypeUncertainty               = "incident.uncertainty"
+	TypeDecision                  = "incident.decision"
+	TypeAction                    = "incident.action"
+	TypeOperationalRoleAssignment = "incident.operational_role_assignment"
 )
 
 type Scope struct {
@@ -72,7 +72,7 @@ func RecordFact(scope Scope, recordID, maker string, now time.Time, fact Fact) (
 	if strings.TrimSpace(fact.Statement) == "" {
 		return ledger.Record{}, errors.New("fact statement is required")
 	}
-	return immediateRecord(scope, RecordFact, recordID, maker, now, fact)
+	return immediateRecord(scope, TypeFact, recordID, maker, now, fact)
 }
 
 func RecordUncertaintyItem(scope Scope, recordID, maker string, now time.Time, item Uncertainty) (ledger.Record, error) {
@@ -85,7 +85,7 @@ func RecordUncertaintyItem(scope Scope, recordID, maker string, now time.Time, i
 	if strings.TrimSpace(item.Statement) == "" {
 		return ledger.Record{}, errors.New("uncertainty statement is required")
 	}
-	return immediateRecord(scope, RecordUncertainty, recordID, maker, now, item)
+	return immediateRecord(scope, TypeUncertainty, recordID, maker, now, item)
 }
 
 func ProposeIncidentDeclaration(scope Scope, recordID, maker string, now time.Time, declaration IncidentDeclaration) (ledger.Record, error) {
@@ -95,7 +95,7 @@ func ProposeIncidentDeclaration(scope Scope, recordID, maker string, now time.Ti
 	if strings.TrimSpace(declaration.Title) == "" || strings.TrimSpace(declaration.Summary) == "" || strings.TrimSpace(declaration.Severity) == "" {
 		return ledger.Record{}, errors.New("incident title, summary and severity are required")
 	}
-	return proposedRecord(scope, RecordIncidentDeclaration, recordID, maker, now, declaration)
+	return proposedRecord(scope, TypeIncidentDeclaration, recordID, maker, now, declaration)
 }
 
 func ProposeDecision(scope Scope, recordID, maker string, now time.Time, decision Decision) (ledger.Record, error) {
@@ -105,7 +105,7 @@ func ProposeDecision(scope Scope, recordID, maker string, now time.Time, decisio
 	if strings.TrimSpace(decision.Decision) == "" {
 		return ledger.Record{}, errors.New("decision text is required")
 	}
-	return proposedRecord(scope, RecordDecision, recordID, maker, now, decision)
+	return proposedRecord(scope, TypeDecision, recordID, maker, now, decision)
 }
 
 func ProposeAction(scope Scope, recordID, maker string, now time.Time, action Action) (ledger.Record, error) {
@@ -115,7 +115,7 @@ func ProposeAction(scope Scope, recordID, maker string, now time.Time, action Ac
 	if strings.TrimSpace(action.Title) == "" {
 		return ledger.Record{}, errors.New("action title is required")
 	}
-	return proposedRecord(scope, RecordAction, recordID, maker, now, action)
+	return proposedRecord(scope, TypeAction, recordID, maker, now, action)
 }
 
 func ProposeOperationalRoleAssignment(scope Scope, recordID, maker string, now time.Time, assignment OperationalRoleAssignment) (ledger.Record, error) {
@@ -125,7 +125,7 @@ func ProposeOperationalRoleAssignment(scope Scope, recordID, maker string, now t
 	if strings.TrimSpace(assignment.RoleName) == "" || strings.TrimSpace(assignment.HumanID) == "" {
 		return ledger.Record{}, errors.New("operational role name and human id are required")
 	}
-	return proposedRecord(scope, RecordOperationalRoleAssignment, recordID, maker, now, assignment)
+	return proposedRecord(scope, TypeOperationalRoleAssignment, recordID, maker, now, assignment)
 }
 
 func Decide(proposal ledger.Record, expectedVersion, confirmer, outcome string, now time.Time) (ledger.Record, error) {
