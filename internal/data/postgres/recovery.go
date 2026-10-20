@@ -130,14 +130,21 @@ func validateRecoveryPayload(record ledger.Record) error {
 		if err != nil {
 			return err
 		}
-		return domain.ValidateClosure(value)
+		if err := domain.ValidateClosure(value); err != nil {
+	return err
+}
+return domain.ValidateClosureScope(domain.Scope{
+	IncidentID:  record.IncidentID,
+	Mode:        record.IncidentMode,
+	Compartment: record.Compartment,
+}, value)
 	default:
 		return errors.New("unsupported recovery milestone")
 	}
 }
 
 func applyConfirmedRecovery(ctx context.Context, tx pgx.Tx, record ledger.Record) error {
-	if record.Compartment != "GENERAL" {
+	if record.RecordType != domain.TypeClosure && record.Compartment != "GENERAL" {
 		return errors.New("incident recovery milestones must use GENERAL compartment")
 	}
 	if _, err := tx.Exec(ctx, `INSERT INTO crab.incident_recovery_state(incident_id) VALUES ($1) ON CONFLICT (incident_id) DO NOTHING`, record.IncidentID); err != nil {
