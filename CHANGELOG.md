@@ -1,5 +1,25 @@
 # Changelog
 
+## Unreleased — 0.0.10-dev
+
+Slice 9 model assistance.
+
+- Added five small static, prompt-versioned CRAB draft specifications for retrieval summary, situation report, board update, notification language and PIR summary.
+- Reused the Garage three-lane harness contract with explicit `simple`, `standard` and `complex` lanes selected by the caller; no hidden classifier or automatic model selection was introduced.
+- Added local Ollama plus managed Azure OpenAI/Foundry, Amazon Bedrock and Google Vertex provider adapters using standard-library HTTP only.
+- Kept deterministic authorised retrieval ahead of model generation so only the already-authorised citation set can enter a prompt.
+- Added a managed-provider sensitivity policy gate and the existing separate `model_send` output permission before any managed-provider I/O.
+- Added prompt/spec/provider/model/source provenance, prompt SHA-256, duration and provider-reported token traces without routinely logging prompt bodies.
+- Marked all model output explicitly untrusted. Deterministic `validated` output means structural validation only and is not human approval or effective governed state.
+- Added visible failure behaviour for unavailable providers and invalid output while retaining authorised source provenance and any returned untrusted text.
+- Added a hard no-reroute rule: a failed configured lane/provider is not silently replaced by another provider.
+- Added bounded, non-blocking model capacity so new model work is shed first while deterministic retrieval and core incident work remain available.
+- Added local HTTP wire-contract tests for all four provider adapters and prevented managed-provider error strings from echoing provider response bodies.
+- Added live/exercise mode explicitly to the managed-model policy boundary.
+- Added Slice 9 model/security/provider tests to the explicit core checkpoint gate and recorded build evidence in `docs/build-evidence-0.0.10-dev.md`.
+
+Live provider credentials/configuration and authenticated operator model routes are not faked at this checkpoint. No release tag should be created yet.
+
 ## Unreleased — 0.0.9-dev
 
 Slice 8 governed corpus and deterministic retrieval.
@@ -38,7 +58,7 @@ Slice 7 hostile evidence and immutable blobs.
 - Added filename sanitisation for attachment response headers.
 - Preserved collector/source/time/location/current-handler/related-reference metadata without claiming forensic acquisition, malware analysis or certified chain of custody.
 - Kept the evidence capture service reader-based so phone/browser streams do not need whole-file buffering; secure authenticated browser route composition remains later presentation work rather than an unauthenticated shortcut.
-- Added the Slice 7 evidence/security tests to the explicit core checkpoint gate and retained the safe-inline spike decision in `docs/safe-inline-media-spike.md`.
+- Added the Slice 7 evidence/security tests to the explicit core checkpoint gate and retained the safe-inline spike decision in `docs/safe-inline-media-spike-decision.md`.
 
 No release tag should be created yet.
 
