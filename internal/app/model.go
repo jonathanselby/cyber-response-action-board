@@ -15,7 +15,7 @@ var (
 	ErrManagedModelSensitivity = errors.New("managed model lane is not approved for this input")
 	ErrModelQueueFull          = errors.New("model capacity is full; generation shed")
 	ErrModelSourceUnsupported  = errors.New("authorised sources do not support model drafting request")
-	ErrModelOutputInvalid      = errors.New("model output failed deterministic acceptance")
+	ErrModelOutputInvalid      = errors.New("model output failed deterministic validation")
 )
 
 var modelRequestCounter uint64
@@ -149,7 +149,7 @@ func (s *ModelService) Draft(ctx context.Context, principal authz.Principal, req
 		return draft, fmt.Errorf("%w: %v", ErrModelOutputInvalid, err)
 	}
 	draft.Trace.Success = true
-	draft.Accepted = true
+	draft.Validated = true
 	return draft, nil
 }
 

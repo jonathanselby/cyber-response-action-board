@@ -134,7 +134,7 @@ func TestModelUnavailableKeepsSourcesAndDoesNotReroute(t *testing.T) {
 		t.Fatal(err)
 	}
 	draft, err := service.Draft(context.Background(), modelTestPrincipal(false), modelDraftRequest())
-	if err == nil || backend.callCount() != 1 || len(draft.Citations) != 1 || draft.Failure == "" || draft.Trace.Provider != "ollama" || draft.Accepted {
+	if err == nil || backend.callCount() != 1 || len(draft.Citations) != 1 || draft.Failure == "" || draft.Trace.Provider != "ollama" || draft.Validated {
 		t.Fatalf("unavailable model calls=%d err=%v draft=%+v", backend.callCount(), err, draft)
 	}
 }
@@ -146,7 +146,7 @@ func TestModelOutputValidationKeepsUntrustedTextAndSources(t *testing.T) {
 		t.Fatal(err)
 	}
 	draft, err := service.Draft(context.Background(), modelTestPrincipal(false), modelDraftRequest())
-	if !errors.Is(err, ErrModelOutputInvalid) || draft.Content != "   " || len(draft.Citations) != 1 || !draft.Untrusted || draft.Accepted || draft.Trace.InputTokens != 12 {
+	if !errors.Is(err, ErrModelOutputInvalid) || draft.Content != "   " || len(draft.Citations) != 1 || !draft.Untrusted || draft.Validated || draft.Trace.InputTokens != 12 {
 		t.Fatalf("invalid output err=%v draft=%+v", err, draft)
 	}
 }
@@ -191,7 +191,7 @@ func TestModelDraftIsAlwaysUntrustedAndDoesNotBecomeGovernedState(t *testing.T) 
 		t.Fatal(err)
 	}
 	draft, err := service.Draft(context.Background(), modelTestPrincipal(false), modelDraftRequest())
-	if err != nil || !draft.Untrusted || !draft.Accepted || draft.Trace.PromptSHA256 == "" || len(draft.Trace.CitationIDs) != 1 || draft.Trace.Provider != "ollama" || draft.Trace.Success != true {
+	if err != nil || !draft.Untrusted || !draft.Validated || draft.Trace.PromptSHA256 == "" || len(draft.Trace.CitationIDs) != 1 || draft.Trace.Provider != "ollama" || draft.Trace.Success != true {
 		t.Fatalf("draft=%+v err=%v", draft, err)
 	}
 	if draft.OutputType != "untrusted_summary" {

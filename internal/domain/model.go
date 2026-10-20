@@ -71,7 +71,7 @@ type ModelDraft struct {
 	OutputType    string              `json:"output_type"`
 	Content       string              `json:"content,omitempty"`
 	Untrusted     bool                `json:"untrusted"`
-	Accepted      bool                `json:"accepted"`
+	Validated     bool                `json:"validated"`
 	Failure       string              `json:"failure,omitempty"`
 	Citations     []RetrievalCitation `json:"citations,omitempty"`
 	Trace         ModelTrace          `json:"trace"`
