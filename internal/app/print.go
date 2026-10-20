@@ -3,7 +3,6 @@ package app
 import (
 	"context"
 	"errors"
-	"fmt"
 	"strings"
 	"time"
 
@@ -91,9 +90,6 @@ func (s PrintService) GenerateIncidentBrief(ctx context.Context, principal authz
 	if err != nil {
 		return PrintResult{}, err
 	}
-	if pages < 1 || pages > 2 {
-		return PrintResult{}, fmt.Errorf("incident brief exceeded 1-2 page contract: %d pages", pages)
-	}
 	return s.write("incident-brief-"+incidentID+".pdf", bytes, pages, source)
 }
 
@@ -156,13 +152,18 @@ func (s PrintService) GenerateTimeline(ctx context.Context, principal authz.Prin
 	return s.write("timeline-"+incidentID+".pdf", bytes, pages, source)
 }
 
-func (s PrintService) GenerateEmergencyResponsePack(ctx context.Context, principal authz.Principal, pack domain.EmergencyResponsePack, pageSize, printMode string) (PrintResult, error) {
+func (s PrintService) GenerateEmergencyResponsePack(ctx context.Context, principal authz.Principal, pack domain.EmergencyResponsePack, pageSize, printMode string, now time.Time) (PrintResult, error) {
 	if err := s.ready(); err != nil {
 		return PrintResult{}, err
 	}
 	if !principal.Authenticated || strings.TrimSpace(principal.HumanID) == "" || principal.Role != authz.RoleMajor || !principal.Outputs[authz.ActionPrint] {
 		return PrintResult{}, ErrAuthorisationDenied
 	}
+	source, err := s.Source.LedgerSource(ctx, now, s.ConfigurationVersion)
+	if err != nil {
+		return PrintResult{}, err
+	}
+	pack.Source = source
 	if err := domain.ValidateEmergencyResponsePack(pack); err != nil {
 		return PrintResult{}, err
 	}
@@ -170,7 +171,7 @@ func (s PrintService) GenerateEmergencyResponsePack(ctx context.Context, princip
 	if err != nil {
 		return PrintResult{}, err
 	}
-	return s.write("emergency-response-pack.pdf", bytes, pages, pack.Source)
+	return s.write("emergency-response-pack.pdf", bytes, pages, source)
 }
 
 func (s PrintService) GenerateReviewClosure(ctx context.Context, principal authz.Principal, incidentID, compartment, title, status string, sections []domain.PackSection, pageSize, printMode string, now time.Time) (PrintResult, error) {
