@@ -1,6 +1,7 @@
 package authn
 
 import (
+	"context"
 	"crypto/pbkdf2"
 	"crypto/rand"
 	"crypto/sha256"
@@ -20,6 +21,25 @@ type PasswordRecord struct {
 	Salt       string
 	Iterations int
 	Hash       string
+}
+
+type PasswordStore interface {
+	GetPasswordRecord(context.Context, string) (PasswordRecord, bool, error)
+}
+
+type Local struct {
+	Store PasswordStore
+}
+
+func (l Local) Authenticate(ctx context.Context, humanID, password string) (bool, error) {
+	if l.Store == nil || humanID == "" || password == "" {
+		return false, nil
+	}
+	record, ok, err := l.Store.GetPasswordRecord(ctx, humanID)
+	if err != nil || !ok {
+		return false, err
+	}
+	return VerifyPassword(record, password), nil
 }
 
 func NewPasswordRecord(humanID, password string, iterations int) (PasswordRecord, error) {
@@ -42,18 +62,27 @@ func NewPasswordRecord(humanID, password string, iterations int) (PasswordRecord
 	}, nil
 }
 
-func VerifyPassword(r PasswordRecord, password string) bool {
-	if r.HumanID == "" || r.Iterations < MinPBKDF2Iterations || password == "" {
-		return false
+func ValidatePasswordRecord(r PasswordRecord) error {
+	if r.HumanID == "" || r.Iterations < MinPBKDF2Iterations {
+		return errors.New("password record parameters below minimum")
 	}
 	salt, err := base64.StdEncoding.DecodeString(r.Salt)
 	if err != nil || len(salt) < MinSaltBytes {
+		return errors.New("password record has invalid salt")
+	}
+	hash, err := base64.StdEncoding.DecodeString(r.Hash)
+	if err != nil || len(hash) != PasswordHashBytes {
+		return errors.New("password record has invalid hash")
+	}
+	return nil
+}
+
+func VerifyPassword(r PasswordRecord, password string) bool {
+	if password == "" || ValidatePasswordRecord(r) != nil {
 		return false
 	}
-	want, err := base64.StdEncoding.DecodeString(r.Hash)
-	if err != nil || len(want) != PasswordHashBytes {
-		return false
-	}
+	salt, _ := base64.StdEncoding.DecodeString(r.Salt)
+	want, _ := base64.StdEncoding.DecodeString(r.Hash)
 	got, err := pbkdf2.Key(sha256.New, password, salt, r.Iterations, len(want))
 	if err != nil {
 		return false

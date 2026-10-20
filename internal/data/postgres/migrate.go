@@ -12,12 +12,15 @@ import (
 )
 
 const (
-	currentMigrationVersion = 1
+	currentMigrationVersion = 2
 	migrationLockKey        = int64(0x435241424d494752) // "CRABMIGR"
 )
 
 //go:embed migrations/001_slice1.sql
 var migration001 string
+
+//go:embed migrations/002_security_support.sql
+var migration002 string
 
 // Migrate runs the small explicit CRAB migration set using the schema-owner
 // connection. runtimeRole receives only the privileges needed by the ordinary
@@ -46,12 +49,17 @@ func Migrate(ctx context.Context, owner *pgxpool.Pool, runtimeRole string) error
 	if _, err := tx.Exec(ctx, migration001); err != nil {
 		return fmt.Errorf("migration 001: %w", err)
 	}
+	if _, err := tx.Exec(ctx, migration002); err != nil {
+		return fmt.Errorf("migration 002: %w", err)
+	}
 
 	role := pgx.Identifier{runtimeRole}.Sanitize()
 	grants := []string{
 		`GRANT USAGE ON SCHEMA crab TO ` + role,
 		`GRANT SELECT ON crab.schema_migrations TO ` + role,
 		`GRANT SELECT, INSERT ON crab.ledger_entries TO ` + role,
+		`GRANT SELECT, INSERT, UPDATE ON crab.local_credentials TO ` + role,
+		`GRANT SELECT, INSERT, DELETE ON crab.sessions TO ` + role,
 	}
 	for _, statement := range grants {
 		if _, err := tx.Exec(ctx, statement); err != nil {
