@@ -44,7 +44,15 @@ func (r *ObligationRuntime) PendingObligation(ctx context.Context, scopeID, reco
 	if err != nil {
 		return ledger.Record{}, false, err
 	}
-	record := ledger.Record{SchemaVersion: 1, Timestamp: proposedAt.UTC(), TimeStatus: "trusted", IncidentID: scopeID, IncidentMode: mode, WriteSemantic: "governed", RecordType: recordType, RecordID: recordID, Status: "proposed", Maker: maker, Compartment: compartment, Data: wrapped, MakerSignature: ledger.Signature{MissingReason: "maker authenticated on immutable proposal entry"}}
+	timeStatus := "trusted"
+	if recordType == domain.TypeObligationTrigger && scopeID != "" {
+		if err := r.Store.pool.QueryRow(ctx, `SELECT time_status FROM crab.obligation_clocks WHERE incident_id=$1 AND clock_id=$2 AND lifecycle='provisional'`, scopeID, recordID).Scan(&timeStatus); err != nil {
+			if !errors.Is(err, pgx.ErrNoRows) {
+				return ledger.Record{}, false, err
+			}
+		}
+	}
+	record := ledger.Record{SchemaVersion: 1, Timestamp: proposedAt.UTC(), TimeStatus: timeStatus, IncidentID: scopeID, IncidentMode: mode, WriteSemantic: "governed", RecordType: recordType, RecordID: recordID, Status: "proposed", Maker: maker, Compartment: compartment, Data: wrapped, MakerSignature: ledger.Signature{MissingReason: "maker authenticated on immutable proposal entry"}}
 	if mode == "system" {
 		record.IncidentID = ""
 	}
