@@ -49,16 +49,16 @@ type CommunicationDraft struct {
 }
 
 type CommunicationIssue struct {
-	DraftRecordID     string   `json:"draft_record_id"`
-	DraftSHA256       string   `json:"draft_sha256"`
-	Kind              string   `json:"kind"`
-	Subject           string   `json:"subject"`
-	Body              string   `json:"body"`
-	Audience          []string `json:"audience"`
-	Channels          []string `json:"channels,omitempty"`
-	SourceRefs        []string `json:"source_refs,omitempty"`
-	RelatedRecordIDs  []string `json:"related_record_ids,omitempty"`
-	CadenceID         string   `json:"cadence_id,omitempty"`
+	DraftRecordID    string   `json:"draft_record_id"`
+	DraftSHA256      string   `json:"draft_sha256"`
+	Kind             string   `json:"kind"`
+	Subject          string   `json:"subject"`
+	Body             string   `json:"body"`
+	Audience         []string `json:"audience"`
+	Channels         []string `json:"channels,omitempty"`
+	SourceRefs       []string `json:"source_refs,omitempty"`
+	RelatedRecordIDs []string `json:"related_record_ids,omitempty"`
+	CadenceID        string   `json:"cadence_id,omitempty"`
 }
 
 type CommunicationCadence struct {
@@ -71,14 +71,14 @@ type CommunicationCadence struct {
 }
 
 type NotificationOutcome struct {
-	CommunicationID      string    `json:"communication_id"`
-	Channel              string    `json:"channel"`
-	DestinationID        string    `json:"destination_id,omitempty"`
-	AttemptedAt          time.Time `json:"attempted_at"`
-	Status               string    `json:"status"`
-	Detail               string    `json:"detail,omitempty"`
-	Acknowledgement      string    `json:"acknowledgement,omitempty"`
-	DurationMS           int64     `json:"duration_ms"`
+	CommunicationID string    `json:"communication_id"`
+	Channel         string    `json:"channel"`
+	DestinationID   string    `json:"destination_id,omitempty"`
+	AttemptedAt     time.Time `json:"attempted_at"`
+	Status          string    `json:"status"`
+	Detail          string    `json:"detail,omitempty"`
+	Acknowledgement string    `json:"acknowledgement,omitempty"`
+	DurationMS      int64     `json:"duration_ms"`
 }
 
 type IncomingEnquiry struct {
@@ -92,25 +92,25 @@ type IncomingEnquiry struct {
 }
 
 type CommunicationDraftView struct {
-	RecordID     string
-	IncidentID   string
-	Mode         string
-	Compartment  string
-	Draft        CommunicationDraft
-	SHA256       string
-	Maker        string
-	RecordedAt   time.Time
+	RecordID    string
+	IncidentID  string
+	Mode        string
+	Compartment string
+	Draft       CommunicationDraft
+	SHA256      string
+	Maker       string
+	RecordedAt  time.Time
 }
 
 type CommunicationView struct {
-	RecordID     string
-	IncidentID   string
-	Mode         string
-	Compartment  string
-	Issue        CommunicationIssue
-	Maker        string
-	Confirmer    string
-	IssuedAt     time.Time
+	RecordID    string
+	IncidentID  string
+	Mode        string
+	Compartment string
+	Issue       CommunicationIssue
+	Maker       string
+	Confirmer   string
+	IssuedAt    time.Time
 }
 
 type CommunicationCadenceView struct {
@@ -186,8 +186,12 @@ func CommunicationIssueFromDraft(recordID, digest string, draft CommunicationDra
 	if _, err := hex.DecodeString(digest); err != nil {
 		return CommunicationIssue{}, errors.New("communication draft sha256 is invalid")
 	}
-	if err := ValidateCommunicationDraft(draft); err != nil {
+	actual, err := CommunicationDraftDigest(draft)
+	if err != nil {
 		return CommunicationIssue{}, err
+	}
+	if actual != digest {
+		return CommunicationIssue{}, errors.New("communication draft digest does not match supplied sha256")
 	}
 	return CommunicationIssue{
 		DraftRecordID:    recordID,
@@ -204,15 +208,19 @@ func CommunicationIssueFromDraft(recordID, digest string, draft CommunicationDra
 }
 
 func ValidateCommunicationIssue(value CommunicationIssue) error {
-	draft := CommunicationDraft{Kind: value.Kind, Subject: value.Subject, Body: value.Body, Audience: value.Audience, Channels: value.Channels, SourceRefs: value.SourceRefs, RelatedRecordIDs: value.RelatedRecordIDs, CadenceID: value.CadenceID}
-	if err := ValidateCommunicationDraft(draft); err != nil {
-		return err
-	}
 	if strings.TrimSpace(value.DraftRecordID) == "" || len(value.DraftSHA256) != 64 {
 		return errors.New("communication issue requires bound draft id and sha256")
 	}
 	if _, err := hex.DecodeString(value.DraftSHA256); err != nil {
 		return errors.New("communication issue draft sha256 is invalid")
+	}
+	draft := CommunicationDraft{Kind: value.Kind, Subject: value.Subject, Body: value.Body, Audience: value.Audience, Channels: value.Channels, SourceRefs: value.SourceRefs, RelatedRecordIDs: value.RelatedRecordIDs, CadenceID: value.CadenceID}
+	digest, err := CommunicationDraftDigest(draft)
+	if err != nil {
+		return err
+	}
+	if digest != value.DraftSHA256 {
+		return errors.New("communication issue content does not match bound draft sha256")
 	}
 	return nil
 }
