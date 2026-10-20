@@ -1,0 +1,44 @@
+name: test
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  go-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.27.2'
+      - name: Module contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          go mod tidy
+          git diff --exit-code -- go.mod go.sum
+      - name: Format contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          files=$(gofmt -l ./cmd ./internal)
+          if [ -n "$files" ]; then
+            echo "Go files requiring gofmt:"
+            echo "$files"
+            gofmt -d $files
+            exit 1
+          fi
+      - name: Vet
+        run: go vet ./...
+      - name: Unit tests with race detector
+        run: go test -race -count=1 ./...
+      - name: Linux amd64 build
+        run: go build -trimpath -ldflags="-s -w" -o ./bin/crab ./cmd/crab
+      - name: Linux arm64 build
+        run: GOOS=linux GOARCH=arm64 go build -trimpath -ldflags="-s -w" -o ./bin/crab-linux-arm64 ./cmd/crab
+      - name: Core checkpoint acceptance
+        run: >-
+          go test ./internal/ledger ./internal/presentation/web ./internal/architecture ./cmd/crab
+          -run 'TestVerifyValidLedger|TestVerifyDetectsTamper|TestVerifyDetectsBrokenChain|TestRecordCannotCarryGovernedDecision|TestSelfApprovalRequiresExplicitReason|TestShellIsOfflineAndSecurityHeadersArePresent|TestTierImportBoundaries|TestReadinessFailsClosedBeforeDurableStoreAndSecurityBoundary'
+          -count=1
