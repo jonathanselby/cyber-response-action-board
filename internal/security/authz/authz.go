@@ -1,6 +1,9 @@
 package authz
 
-import "strings"
+import (
+	"context"
+	"strings"
+)
 
 type Role string
 
@@ -51,6 +54,14 @@ type Decision struct {
 	Reason  string
 }
 
+type ScopeResolver interface {
+	ResolveObjectScope(context.Context, string) (ObjectScope, bool, error)
+}
+
+func ValidRole(role Role) bool {
+	return role == RoleMajor || role == RoleMinor || role == RoleObserver
+}
+
 // Authorise is CRAB's single application authorisation decision. The caller
 // must resolve an object's authoritative incident/compartment before calling it.
 func Authorise(p Principal, action Action, scope ObjectScope) Decision {
@@ -82,10 +93,26 @@ func Authorise(p Principal, action Action, scope ObjectScope) Decision {
 	if !rolePermits(p.Role, action) {
 		return deny("role does not permit action")
 	}
-	if isSeparateOutput(action) && !p.Outputs[action] {
+	if IsSeparateOutput(action) && !p.Outputs[action] {
 		return deny("output/action permission required")
 	}
 	return Decision{Allowed: true}
+}
+
+// AuthoriseObject resolves authoritative scope before evaluating access. An
+// opaque identifier is never accepted as proof of authority.
+func AuthoriseObject(ctx context.Context, p Principal, action Action, objectID string, resolver ScopeResolver) (Decision, error) {
+	if strings.TrimSpace(objectID) == "" || resolver == nil {
+		return Decision{Reason: "object unavailable"}, nil
+	}
+	scope, found, err := resolver.ResolveObjectScope(ctx, objectID)
+	if err != nil {
+		return Decision{}, err
+	}
+	if !found {
+		return Decision{Reason: "object unavailable"}, nil
+	}
+	return Authorise(p, action, scope), nil
 }
 
 func hasCompartment(p Principal, incidentID, compartment string) bool {
@@ -106,7 +133,7 @@ func rolePermits(role Role, action Action) bool {
 	}
 }
 
-func isSeparateOutput(action Action) bool {
+func IsSeparateOutput(action Action) bool {
 	switch action {
 	case ActionDownload, ActionPrint, ActionExport, ActionAPI, ActionMCP, ActionModelSend, ActionNotify, ActionBackup:
 		return true

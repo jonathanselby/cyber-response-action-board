@@ -12,7 +12,7 @@ import (
 )
 
 const (
-	currentMigrationVersion = 2
+	currentMigrationVersion = 3
 	migrationLockKey        = int64(0x435241424d494752) // "CRABMIGR"
 )
 
@@ -21,6 +21,9 @@ var migration001 string
 
 //go:embed migrations/002_security_support.sql
 var migration002 string
+
+//go:embed migrations/003_access_projection.sql
+var migration003 string
 
 // Migrate runs the small explicit CRAB migration set using the schema-owner
 // connection. runtimeRole receives only the privileges needed by the ordinary
@@ -46,11 +49,10 @@ func Migrate(ctx context.Context, owner *pgxpool.Pool, runtimeRole string) error
 	if _, err := tx.Exec(ctx, `SELECT pg_advisory_xact_lock($1)`, migrationLockKey); err != nil {
 		return fmt.Errorf("lock migration: %w", err)
 	}
-	if _, err := tx.Exec(ctx, migration001); err != nil {
-		return fmt.Errorf("migration 001: %w", err)
-	}
-	if _, err := tx.Exec(ctx, migration002); err != nil {
-		return fmt.Errorf("migration 002: %w", err)
+	for version, migration := range []string{migration001, migration002, migration003} {
+		if _, err := tx.Exec(ctx, migration); err != nil {
+			return fmt.Errorf("migration %03d: %w", version+1, err)
+		}
 	}
 
 	role := pgx.Identifier{runtimeRole}.Sanitize()
@@ -60,6 +62,11 @@ func Migrate(ctx context.Context, owner *pgxpool.Pool, runtimeRole string) error
 		`GRANT SELECT, INSERT ON crab.ledger_entries TO ` + role,
 		`GRANT SELECT, INSERT, UPDATE ON crab.local_credentials TO ` + role,
 		`GRANT SELECT, INSERT, DELETE ON crab.sessions TO ` + role,
+		`GRANT SELECT, INSERT, UPDATE, DELETE, TRUNCATE ON crab.role_eligibility TO ` + role,
+		`GRANT SELECT, INSERT, UPDATE, DELETE, TRUNCATE ON crab.custodian_designations TO ` + role,
+		`GRANT SELECT, INSERT, UPDATE, DELETE, TRUNCATE ON crab.incident_memberships TO ` + role,
+		`GRANT SELECT, INSERT, UPDATE, DELETE, TRUNCATE ON crab.compartment_memberships TO ` + role,
+		`GRANT SELECT, INSERT, UPDATE, DELETE, TRUNCATE ON crab.output_permissions TO ` + role,
 	}
 	for _, statement := range grants {
 		if _, err := tx.Exec(ctx, statement); err != nil {

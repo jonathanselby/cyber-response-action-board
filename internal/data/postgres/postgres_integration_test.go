@@ -179,7 +179,7 @@ func TestMigrationSeparatesOwnerAndRuntime(t *testing.T) {
 	if _, err := db.runtime.Exec(ctx, `UPDATE crab.ledger_entries SET hash = hash`); err == nil {
 		t.Fatal("runtime unexpectedly has UPDATE on authoritative ledger")
 	}
-	if _, err := db.owner.Exec(ctx, `INSERT INTO crab.schema_migrations(version) VALUES (3)`); err != nil {
+	if _, err := db.owner.Exec(ctx, `INSERT INTO crab.schema_migrations(version) VALUES (4)`); err != nil {
 		t.Fatal(err)
 	}
 	if err := ValidateSchema(ctx, db.runtime); err == nil {
@@ -254,8 +254,6 @@ func TestAppendReplayRollbackTamperAndExport(t *testing.T) {
 		t.Fatalf("portable verify=%+v", verified)
 	}
 
-	// Simulate a restore fixture: preserve authoritative JSONL, clear the test
-	// database as owner, reinsert exact entry bytes, then rebuild projections.
 	lines := bytes.Split(bytes.TrimSpace(exported.Bytes()), []byte{'\n'})
 	if _, err := db.owner.Exec(ctx, `TRUNCATE crab.test_projection, crab.ledger_entries`); err != nil {
 		t.Fatal(err)
@@ -293,9 +291,6 @@ func TestAppendReplayRollbackTamperAndExport(t *testing.T) {
 		t.Fatalf("restored projection=%v", got)
 	}
 
-	// Tamper exact authoritative bytes and prove full verification detects it,
-	// then mutation remains refused even if the bytes are put back until the
-	// explicit rebuild/recovery path succeeds.
 	var original []byte
 	if err := db.owner.QueryRow(ctx, `SELECT entry_bytes FROM crab.ledger_entries WHERE seq=2`).Scan(&original); err != nil {
 		t.Fatal(err)
