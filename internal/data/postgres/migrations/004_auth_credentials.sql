@@ -7,7 +7,7 @@ CREATE TABLE IF NOT EXISTS crab.totp_credentials (
     human_id text PRIMARY KEY CHECK (btrim(human_id) <> ''),
     secret_nonce bytea NOT NULL,
     secret_ciphertext bytea NOT NULL,
-    window integer NOT NULL DEFAULT 1 CHECK (window >= 0 AND window <= 2),
+    totp_window integer NOT NULL DEFAULT 1 CHECK (totp_window >= 0 AND totp_window <= 2),
     updated_at timestamptz NOT NULL DEFAULT now()
 );
 COMMENT ON TABLE crab.totp_credentials IS
