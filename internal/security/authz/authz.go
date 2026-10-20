@@ -62,6 +62,23 @@ func ValidRole(role Role) bool {
 	return role == RoleMajor || role == RoleMinor || role == RoleObserver
 }
 
+// BindAgent attributes an authenticated agent operation to exactly one named
+// human. The returned principal inherits only that human's existing authority.
+func BindAgent(agentID, claimedHumanID, configuredHumanID string, human Principal) (Principal, Decision) {
+	if strings.TrimSpace(agentID) == "" || strings.TrimSpace(claimedHumanID) == "" || strings.TrimSpace(configuredHumanID) == "" {
+		return Principal{}, Decision{Reason: "agent and named human binding required"}
+	}
+	if claimedHumanID != configuredHumanID || human.HumanID != configuredHumanID {
+		return Principal{}, Decision{Reason: "agent is not bound to named human"}
+	}
+	if !human.Authenticated {
+		return Principal{}, Decision{Reason: "named human authentication required"}
+	}
+	bound := human
+	bound.AgentID = agentID
+	return bound, Decision{Allowed: true}
+}
+
 // Authorise is CRAB's single application authorisation decision. The caller
 // must resolve an object's authoritative incident/compartment before calling it.
 func Authorise(p Principal, action Action, scope ObjectScope) Decision {
