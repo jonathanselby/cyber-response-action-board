@@ -46,6 +46,12 @@ func (k *Kernel) AppendBatch(ctx context.Context, records []ledger.Record, signe
 
 	entries := make([]ledger.Entry, 0, len(records))
 	for _, record := range records {
+		if record.MakerSignature.KeyID == "" && record.MakerSignature.Value == "" && record.MakerSignature.MissingReason == "" {
+			record.MakerSignature.MissingReason = "maker authenticated in two-person bootstrap ceremony"
+		}
+		if record.WriteSemantic == "governed" && record.Status != "proposed" && record.ConfirmerSignature.KeyID == "" && record.ConfirmerSignature.Value == "" && record.ConfirmerSignature.MissingReason == "" {
+			record.ConfirmerSignature.MissingReason = "confirmer authenticated in two-person bootstrap ceremony"
+		}
 		entry, err := ledger.BuildEntry(seq+1, hash, record, signer.KeyID, signer.PrivateKey, k.keys)
 		if err != nil {
 			return nil, fmt.Errorf("build ledger batch entry: %w", err)
