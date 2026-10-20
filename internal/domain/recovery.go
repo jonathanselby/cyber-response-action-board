@@ -65,9 +65,10 @@ type RetentionDisposition struct {
 }
 
 type Closure struct {
-	Reason            string `json:"reason"`
-	PrivilegedSummary string `json:"privileged_summary,omitempty"`
-	ShareableSummary  string `json:"shareable_summary"`
+	Reason                 string `json:"reason"`
+	PrivilegedCompartment  string `json:"privileged_compartment,omitempty"`
+	PrivilegedSummary      string `json:"privileged_summary,omitempty"`
+	ShareableSummary       string `json:"shareable_summary"`
 }
 
 type ClosureDocument struct {
@@ -149,10 +150,10 @@ func ProposeRetention(scope Scope, recordID, maker string, now time.Time, value 
 }
 
 func ProposeClosure(scope Scope, recordID, maker string, now time.Time, value Closure) (ledger.Record, error) {
-	if err := validateMilestoneScope(scope); err != nil {
+	if err := ValidateClosure(value); err != nil {
 		return ledger.Record{}, err
 	}
-	if err := ValidateClosure(value); err != nil {
+	if err := ValidateClosureScope(scope, value); err != nil {
 		return ledger.Record{}, err
 	}
 	return proposedRecord(scope, TypeClosure, recordID, maker, now, value)
@@ -196,6 +197,30 @@ func ValidateRetention(value RetentionDisposition) error {
 func ValidateClosure(value Closure) error {
 	if strings.TrimSpace(value.Reason) == "" || strings.TrimSpace(value.ShareableSummary) == "" {
 		return errors.New("closure reason and shareable summary are required")
+	}
+	privileged := strings.TrimSpace(value.PrivilegedSummary)
+	compartment := strings.TrimSpace(value.PrivilegedCompartment)
+	if (privileged == "") != (compartment == "") {
+		return errors.New("privileged closure summary and compartment must be supplied together")
+	}
+	if compartment == "GENERAL" {
+		return errors.New("privileged closure material cannot use GENERAL compartment")
+	}
+	return nil
+}
+
+func ValidateClosureScope(scope Scope, value Closure) error {
+	if err := validateScope(scope); err != nil {
+		return err
+	}
+	if strings.TrimSpace(value.PrivilegedSummary) == "" {
+		if scope.Compartment != "GENERAL" {
+			return errors.New("shareable-only closure must use GENERAL compartment")
+		}
+		return nil
+	}
+	if scope.Compartment != value.PrivilegedCompartment {
+		return errors.New("closure record must use its privileged compartment")
 	}
 	return nil
 }
