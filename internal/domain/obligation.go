@@ -47,11 +47,11 @@ type ObligationDefinition struct {
 }
 
 type ObligationTrigger struct {
-	DefinitionID       string    `json:"definition_id"`
-	SourceRecordID     string    `json:"source_record_id"`
-	SourceField        string    `json:"source_field"`
-	TriggerAt          time.Time `json:"trigger_at"`
-	ApplicabilityReason string   `json:"applicability_reason"`
+	DefinitionID         string    `json:"definition_id"`
+	SourceRecordID       string    `json:"source_record_id"`
+	SourceField          string    `json:"source_field"`
+	TriggerAt            time.Time `json:"trigger_at"`
+	ApplicabilityReason  string    `json:"applicability_reason"`
 }
 
 type ObligationChange struct {
@@ -69,6 +69,7 @@ type ObligationDeadline struct {
 }
 
 type ObligationClockView struct {
+	IncidentID           string
 	ClockID              string
 	DefinitionID         string
 	Name                 string
