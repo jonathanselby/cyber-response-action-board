@@ -19,18 +19,18 @@ func TestControlledActionCannotUseImmediateRecordSemantic(t *testing.T) {
 		t.Fatal(err)
 	}
 	forged := ledger.Record{
-		SchemaVersion: 1,
-		Timestamp: time.Date(2026, 10, 20, 3, 45, 0, 0, time.UTC),
-		TimeStatus: "trusted",
-		IncidentID: "INC-FORGE",
-		IncidentMode: "live",
-		WriteSemantic: "record",
-		RecordType: domain.TypeAction,
-		RecordID: "ACT-FORGE",
-		Status: "recorded",
-		Maker: "alice",
-		Compartment: "GENERAL",
-		Data: payload,
+		SchemaVersion:  1,
+		Timestamp:      time.Date(2026, 10, 20, 3, 45, 0, 0, time.UTC),
+		TimeStatus:     "trusted",
+		IncidentID:     "INC-FORGE",
+		IncidentMode:   "live",
+		WriteSemantic:  "record",
+		RecordType:     domain.TypeAction,
+		RecordID:       "ACT-FORGE",
+		Status:         "recorded",
+		Maker:          "alice",
+		Compartment:    "GENERAL",
+		Data:           payload,
 		MakerSignature: ledger.Signature{MissingReason: "maker authenticated by CRAB session; no per-record signing key"},
 	}
 	if _, err := kernel.Append(ctx, forged, signer, IncidentProjection{}); err == nil {
