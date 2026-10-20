@@ -128,7 +128,7 @@ func runRebuild(stdout, stderr io.Writer) int {
 		fmt.Fprintln(stderr, err)
 		return exitOperational
 	}
-	res, err := kernel.Rebuild(ctx)
+	res, err := kernel.Rebuild(ctx, postgres.RebuildProjections()...)
 	if err != nil {
 		fmt.Fprintln(stderr, err)
 		return exitRefused
