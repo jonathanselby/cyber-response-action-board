@@ -14,11 +14,11 @@ import (
 )
 
 const (
-	RecordIncidentDeclaration      = "incident.declaration"
-	RecordFact                     = "incident.fact"
-	RecordUncertainty              = "incident.uncertainty"
-	RecordDecision                 = "incident.decision"
-	RecordAction                   = "incident.action"
+	RecordIncidentDeclaration       = "incident.declaration"
+	RecordFact                      = "incident.fact"
+	RecordUncertainty               = "incident.uncertainty"
+	RecordDecision                  = "incident.decision"
+	RecordAction                    = "incident.action"
 	RecordOperationalRoleAssignment = "incident.operational_role_assignment"
 )
 
