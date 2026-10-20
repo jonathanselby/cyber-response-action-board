@@ -48,21 +48,21 @@ type ModelProviderResult struct {
 }
 
 type ModelTrace struct {
-	Timestamp    time.Time `json:"timestamp"`
-	RequestID    string    `json:"request_id"`
-	SpecID       string    `json:"spec_id"`
-	PromptVersion string   `json:"prompt_version"`
-	Lane         ModelLane `json:"lane"`
-	Provider     string    `json:"provider"`
-	Model        string    `json:"model"`
-	Managed      bool      `json:"managed"`
-	PromptSHA256 string    `json:"prompt_sha256"`
-	CitationIDs  []string  `json:"citation_ids,omitempty"`
-	DurationMS   int64     `json:"duration_ms"`
-	Success      bool      `json:"success"`
-	Error        string    `json:"error,omitempty"`
-	InputTokens  int       `json:"input_tokens,omitempty"`
-	OutputTokens int       `json:"output_tokens,omitempty"`
+	Timestamp     time.Time `json:"timestamp"`
+	RequestID     string    `json:"request_id"`
+	SpecID        string    `json:"spec_id"`
+	PromptVersion string    `json:"prompt_version"`
+	Lane          ModelLane `json:"lane"`
+	Provider      string    `json:"provider"`
+	Model         string    `json:"model"`
+	Managed       bool      `json:"managed"`
+	PromptSHA256  string    `json:"prompt_sha256"`
+	CitationIDs   []string  `json:"citation_ids,omitempty"`
+	DurationMS    int64     `json:"duration_ms"`
+	Success       bool      `json:"success"`
+	Error         string    `json:"error,omitempty"`
+	InputTokens   int       `json:"input_tokens,omitempty"`
+	OutputTokens  int       `json:"output_tokens,omitempty"`
 }
 
 type ModelDraft struct {

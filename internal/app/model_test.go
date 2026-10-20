@@ -20,8 +20,12 @@ type modelRetrievalBackend struct {
 func (b *modelRetrievalBackend) PutCorpusBlob(context.Context, domain.CorpusScope, string, string, io.Reader) (domain.BlobReceipt, error) {
 	return domain.BlobReceipt{}, errors.New("not used")
 }
-func (b *modelRetrievalBackend) ValidateCorpusBlob(context.Context, string, string) error { return errors.New("not used") }
-func (b *modelRetrievalBackend) AppendCorpus(context.Context, ledger.Record) error { return errors.New("not used") }
+func (b *modelRetrievalBackend) ValidateCorpusBlob(context.Context, string, string) error {
+	return errors.New("not used")
+}
+func (b *modelRetrievalBackend) AppendCorpus(context.Context, ledger.Record) error {
+	return errors.New("not used")
+}
 func (b *modelRetrievalBackend) PendingCorpusSource(context.Context, string) (ledger.Record, bool, error) {
 	return ledger.Record{}, false, errors.New("not used")
 }
