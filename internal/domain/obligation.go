@@ -141,6 +141,9 @@ func ValidateObligationDefinition(def ObligationDefinition) error {
 	return nil
 }
 
+// CalculateObligationDeadline treats trigger as an instant and applies the
+// configured business timezone to calendar arithmetic. This remains stable
+// after PostgreSQL timestamptz normalises the same instant to UTC.
 func CalculateObligationDeadline(def ObligationDefinition, trigger time.Time) (ObligationDeadline, error) {
 	if err := ValidateObligationDefinition(def); err != nil {
 		return ObligationDeadline{}, err
@@ -149,11 +152,6 @@ func CalculateObligationDeadline(def ObligationDefinition, trigger time.Time) (O
 		return ObligationDeadline{}, errors.New("obligation trigger time is required")
 	}
 	loc, _ := time.LoadLocation(def.Calendar.Timezone)
-	_, suppliedOffset := trigger.Zone()
-	_, expectedOffset := trigger.In(loc).Zone()
-	if suppliedOffset != expectedOffset {
-		return ObligationDeadline{}, errors.New("trigger offset does not match configured timezone at that instant")
-	}
 	current := trigger.In(loc)
 	weekend, _ := obligationWeekend(def.Calendar.Weekend)
 	holidays, _ := obligationHolidays(def.Calendar.Holidays, loc)
