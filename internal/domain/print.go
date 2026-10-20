@@ -27,16 +27,16 @@ type PrintSourceMark struct {
 }
 
 type PrintContact struct {
-	Role       string
-	Name       string
-	Primary    string
-	Alternate  string
+	Role      string
+	Name      string
+	Primary   string
+	Alternate string
 }
 
 type IncidentBrief struct {
-	Source                   PrintSourceMark
-	Incident                 IncidentState
-	Compartment              string
+	Source                    PrintSourceMark
+	Incident                  IncidentState
+	Compartment               string
 	Facts                     []FactView
 	Unknowns                  []UncertaintyView
 	Hypotheses                []UncertaintyView
@@ -81,11 +81,11 @@ type TimelineDocument struct {
 }
 
 type ReviewClosureDocument struct {
-	Source      PrintSourceMark
-	Incident    IncidentState
-	Title       string
-	Status      string
-	Sections    []PackSection
+	Source   PrintSourceMark
+	Incident IncidentState
+	Title    string
+	Status   string
+	Sections []PackSection
 }
 
 type PaperTranscription struct {
