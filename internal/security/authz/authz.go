@@ -18,6 +18,7 @@ type Action string
 const (
 	ActionRead                  Action = "read"
 	ActionSearch                Action = "search"
+	ActionRecord                Action = "record"
 	ActionComment               Action = "comment"
 	ActionPropose               Action = "propose"
 	ActionConfirm               Action = "confirm"
@@ -60,23 +61,6 @@ type ScopeResolver interface {
 
 func ValidRole(role Role) bool {
 	return role == RoleMajor || role == RoleMinor || role == RoleObserver
-}
-
-// BindAgent attributes an authenticated agent operation to exactly one named
-// human. The returned principal inherits only that human's existing authority.
-func BindAgent(agentID, claimedHumanID, configuredHumanID string, human Principal) (Principal, Decision) {
-	if strings.TrimSpace(agentID) == "" || strings.TrimSpace(claimedHumanID) == "" || strings.TrimSpace(configuredHumanID) == "" {
-		return Principal{}, Decision{Reason: "agent and named human binding required"}
-	}
-	if claimedHumanID != configuredHumanID || human.HumanID != configuredHumanID {
-		return Principal{}, Decision{Reason: "agent is not bound to named human"}
-	}
-	if !human.Authenticated {
-		return Principal{}, Decision{Reason: "named human authentication required"}
-	}
-	bound := human
-	bound.AgentID = agentID
-	return bound, Decision{Allowed: true}
 }
 
 // Authorise is CRAB's single application authorisation decision. The caller
@@ -141,7 +125,7 @@ func rolePermits(role Role, action Action) bool {
 	switch action {
 	case ActionRead, ActionSearch, ActionDownload, ActionPrint, ActionExport, ActionAPI, ActionMCP, ActionModelSend:
 		return role == RoleMajor || role == RoleMinor || role == RoleObserver
-	case ActionComment, ActionNotify:
+	case ActionRecord, ActionComment, ActionNotify:
 		return role == RoleMajor || role == RoleMinor
 	case ActionPropose, ActionConfirm, ActionBackup:
 		return role == RoleMajor

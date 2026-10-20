@@ -12,7 +12,7 @@ import (
 )
 
 const (
-	currentMigrationVersion = 6
+	currentMigrationVersion = 7
 	migrationLockKey        = int64(0x435241424d494752) // "CRABMIGR"
 )
 
@@ -34,6 +34,9 @@ var migration005 string
 //go:embed migrations/006_incident_projection.sql
 var migration006 string
 
+//go:embed migrations/007_proposal_scope.sql
+var migration007 string
+
 func Migrate(ctx context.Context, owner *pgxpool.Pool, runtimeRole string) error {
 	runtimeRole = strings.TrimSpace(runtimeRole)
 	if runtimeRole == "" {
@@ -54,7 +57,7 @@ func Migrate(ctx context.Context, owner *pgxpool.Pool, runtimeRole string) error
 	if _, err := tx.Exec(ctx, `SELECT pg_advisory_xact_lock($1)`, migrationLockKey); err != nil {
 		return fmt.Errorf("lock migration: %w", err)
 	}
-	for version, migration := range []string{migration001, migration002, migration003, migration004, migration005, migration006} {
+	for version, migration := range []string{migration001, migration002, migration003, migration004, migration005, migration006, migration007} {
 		if _, err := tx.Exec(ctx, migration); err != nil {
 			return fmt.Errorf("migration %03d: %w", version+1, err)
 		}

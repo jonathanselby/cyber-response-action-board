@@ -60,23 +60,23 @@ func (IncidentProjection) Apply(ctx context.Context, tx pgx.Tx, entry ledger.Ent
 		if err := validateControlledPayload(record); err != nil {
 			return err
 		}
-		_, err := tx.Exec(ctx, `INSERT INTO crab.incident_proposals(incident_id,record_id,record_type,compartment,version,maker,payload,proposed_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`, record.IncidentID, record.RecordID, record.RecordType, record.Compartment, data.Version, record.Maker, []byte(data.Payload), record.Timestamp)
+		_, err := tx.Exec(ctx, `INSERT INTO crab.incident_proposals(incident_id,record_id,record_type,compartment,version,maker,payload,proposed_at,mode) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`, record.IncidentID, record.RecordID, record.RecordType, record.Compartment, data.Version, record.Maker, []byte(data.Payload), record.Timestamp, record.IncidentMode)
 		return err
 	}
 	if record.Status != "confirmed" && record.Status != "rejected" {
 		return errors.New("invalid governed incident status")
 	}
 
-	var version, maker, compartment string
+	var version, maker, compartment, mode string
 	var payload []byte
-	err = tx.QueryRow(ctx, `SELECT version,maker,compartment,payload FROM crab.incident_proposals WHERE incident_id=$1 AND record_type=$2 AND record_id=$3`, record.IncidentID, record.RecordType, record.RecordID).Scan(&version, &maker, &compartment, &payload)
+	err = tx.QueryRow(ctx, `SELECT version,maker,compartment,mode,payload FROM crab.incident_proposals WHERE incident_id=$1 AND record_type=$2 AND record_id=$3`, record.IncidentID, record.RecordType, record.RecordID).Scan(&version, &maker, &compartment, &mode, &payload)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return errors.New("decision has no matching pending proposal")
 	}
 	if err != nil {
 		return err
 	}
-	if version != data.Version || maker != record.Maker || compartment != record.Compartment || !bytes.Equal(payload, []byte(data.Payload)) {
+	if version != data.Version || maker != record.Maker || compartment != record.Compartment || mode != record.IncidentMode || !bytes.Equal(payload, []byte(data.Payload)) {
 		return errors.New("decision does not match exact pending proposal")
 	}
 	if record.Status == "confirmed" {
