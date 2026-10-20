@@ -124,3 +124,32 @@ func TestDecideReloadsStoredProposalAndEnforcesMakerChecker(t *testing.T) {
 		t.Fatalf("decided=%+v pending=%d", decided, len(backend.proposals))
 	}
 }
+
+func TestConfiguredChecklistActivatesAsOrdinaryActionProposals(t *testing.T) {
+	backend := &memoryIncidentBackend{}
+	service := IncidentService{Backend: backend}
+	scope := domain.Scope{IncidentID: "INC-1", Mode: "live", Compartment: "GENERAL"}
+	template, err := domain.DecodeChecklistTemplate([]byte(`{"name":"Ransomware first hour","source_ref":"RUNBOOK-RANSOMWARE-4.2","steps":[{"step_id":"isolate","title":"Isolate affected endpoints","priority":"P1","due_after_minutes":15},{"step_id":"preserve","title":"Preserve endpoint images","default_owner_human_id":"forensics","priority":"P2"}]}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	proposals, err := service.ActivateChecklist(context.Background(), principal(authz.RoleMajor, true), scope, "TPL-RANSOMWARE", "RUN-7", template, map[string]string{"isolate": "alice"}, time.Date(2026, 10, 20, 4, 0, 0, 0, time.UTC))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(proposals) != 2 || len(backend.appended) != 2 {
+		t.Fatalf("proposals=%d appended=%d", len(proposals), len(backend.appended))
+	}
+	for _, proposal := range proposals {
+		if proposal.RecordType != domain.TypeAction || proposal.Status != "proposed" {
+			t.Fatalf("checklist emitted non-Action proposal: %+v", proposal)
+		}
+	}
+	first, err := domain.DecodePayload[domain.Action](proposals[0])
+	if err != nil {
+		t.Fatal(err)
+	}
+	if first.SourceRef != template.SourceRef || first.ChecklistTemplateID != "TPL-RANSOMWARE" || first.ChecklistStepID != "isolate" {
+		t.Fatalf("checklist provenance lost: %+v", first)
+	}
+}
