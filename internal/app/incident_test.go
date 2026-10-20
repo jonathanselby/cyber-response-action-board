@@ -56,6 +56,10 @@ func principal(role authz.Role, member bool) authz.Principal {
 	return p
 }
 
+func testAction(title string) domain.Action {
+	return domain.Action{Title: title, OwnerHumanID: "bob", Status: domain.ActionStatusNotStarted, Priority: "P1", SourceRef: "TEST"}
+}
+
 func TestIncidentServiceRecordAndProposeRoleBoundaries(t *testing.T) {
 	backend := &memoryIncidentBackend{}
 	service := IncidentService{Backend: backend}
@@ -66,7 +70,7 @@ func TestIncidentServiceRecordAndProposeRoleBoundaries(t *testing.T) {
 	if _, err := service.RecordFact(context.Background(), minor, scope, "F-1", domain.Fact{Statement: "Endpoint encrypted"}, now); err != nil {
 		t.Fatalf("Minor record denied: %v", err)
 	}
-	if _, err := service.ProposeAction(context.Background(), minor, scope, "A-1", domain.Action{Title: "Isolate endpoint"}, now); !errors.Is(err, ErrAuthorisationDenied) {
+	if _, err := service.ProposeAction(context.Background(), minor, scope, "A-1", testAction("Isolate endpoint"), now); !errors.Is(err, ErrAuthorisationDenied) {
 		t.Fatalf("Minor propose err=%v", err)
 	}
 	observer := principal(authz.RoleObserver, true)
@@ -102,7 +106,7 @@ func TestDecideReloadsStoredProposalAndEnforcesMakerChecker(t *testing.T) {
 	service := IncidentService{Backend: backend}
 	scope := domain.Scope{IncidentID: "INC-1", Mode: "live", Compartment: "GENERAL"}
 	major := principal(authz.RoleMajor, true)
-	proposal, err := service.ProposeAction(context.Background(), major, scope, "A-1", domain.Action{Title: "Isolate endpoint"}, time.Now().UTC())
+	proposal, err := service.ProposeAction(context.Background(), major, scope, "A-1", testAction("Isolate endpoint"), time.Now().UTC())
 	if err != nil {
 		t.Fatal(err)
 	}
