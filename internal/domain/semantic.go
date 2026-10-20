@@ -148,20 +148,13 @@ func Decide(proposal ledger.Record, expectedVersion, confirmer, outcome string, 
 	if expectedVersion == "" || data.Version != expectedVersion {
 		return ledger.Record{}, errors.New("proposal version changed")
 	}
-	actual, err := payloadVersion(data.Payload)
-	if err != nil {
-		return ledger.Record{}, err
-	}
-	if actual != data.Version {
-		return ledger.Record{}, errors.New("proposal payload does not match captured version")
-	}
 
 	decided := proposal
 	decided.Timestamp = now.UTC()
 	decided.Status = outcome
 	decided.Confirmer = confirmer
-	decided.MakerSignature = ledger.Signature{MissingReason: "maker signature retained on immutable proposal entry"}
-	decided.ConfirmerSignature = ledger.Signature{}
+	decided.MakerSignature = ledger.Signature{MissingReason: "maker authenticated on immutable proposal entry"}
+	decided.ConfirmerSignature = ledger.Signature{MissingReason: "confirmer authenticated by CRAB session"}
 	if err := ledger.ValidateRecord(decided); err != nil {
 		return ledger.Record{}, err
 	}
@@ -186,6 +179,13 @@ func DecodeGovernedData(raw []byte) (GovernedData, error) {
 	}
 	if data.Version == "" || len(data.Payload) == 0 || !json.Valid(data.Payload) {
 		return GovernedData{}, errors.New("invalid governed payload")
+	}
+	actual, err := payloadVersion(data.Payload)
+	if err != nil {
+		return GovernedData{}, err
+	}
+	if actual != data.Version {
+		return GovernedData{}, errors.New("governed payload version mismatch")
 	}
 	return data, nil
 }
@@ -228,7 +228,7 @@ func immediateRecord(scope Scope, recordType, recordID, maker string, now time.T
 		Maker:          maker,
 		Compartment:    scope.Compartment,
 		Data:           raw,
-		MakerSignature: ledger.Signature{MissingReason: "human signing transport not yet composed"},
+		MakerSignature: ledger.Signature{MissingReason: "maker authenticated by CRAB session; no per-record signing key"},
 	}
 	if err := ledger.ValidateRecord(record); err != nil {
 		return ledger.Record{}, err
@@ -265,7 +265,7 @@ func proposedRecord(scope Scope, recordType, recordID, maker string, now time.Ti
 		Maker:          maker,
 		Compartment:    scope.Compartment,
 		Data:           wrapped,
-		MakerSignature: ledger.Signature{MissingReason: "human signing transport not yet composed"},
+		MakerSignature: ledger.Signature{MissingReason: "maker authenticated by CRAB session; no per-record signing key"},
 	}
 	if err := ledger.ValidateRecord(record); err != nil {
 		return ledger.Record{}, err
