@@ -1,6 +1,28 @@
 # Changelog
 
-## Unreleased — 0.0.7-dev
+## Unreleased — 0.0.8-dev
+
+Slice 7 hostile evidence and immutable blobs.
+
+- Added bounded streaming of untrusted evidence bytes into ordinary PostgreSQL metadata/chunk rows without introducing an object store or media service.
+- Added SHA-256 calculation while streaming, opaque random per-upload blob IDs and exact-byte retrieval.
+- Explicitly disabled content-addressed/cross-incident deduplication: identical uploads in different incidents receive different blob IDs.
+- Added staged transaction semantics so partial read failures and configured-size-limit failures leave no committed blob/chunks, evidence projection or ledger entry.
+- Restricted runtime blob privileges to `SELECT, INSERT`; runtime cannot update/delete committed blob metadata or chunks.
+- Added immutable evidence records that exactly bind blob hash/size/filename/media metadata to incident, mode and compartment before the blob is usable as evidence.
+- Added scoped evidence register plus handling history/current-handler projection and deterministic projection rebuild without rewriting durable blob bytes.
+- Added current authorisation on evidence detail/register/history and authoritative-scope re-resolution on attachment access; guessed evidence IDs outside scope are denied.
+- Kept attachment download as a separate output permission from ordinary read.
+- Added integrity verification before attachment bytes are emitted, including corruption detection after privileged database tampering.
+- Added safe-inline media policy and response headers: passive allowlisted image/audio/video may render inline only when detected type is safe and declared/detected types agree; HTML, SVG, PDF, active/ambiguous types and mismatches fall back to `application/octet-stream` attachment download with `nosniff` and `no-store`.
+- Added filename sanitisation for attachment response headers.
+- Preserved collector/source/time/location/current-handler/related-reference metadata without claiming forensic acquisition, malware analysis or certified chain of custody.
+- Kept the evidence capture service reader-based so phone/browser streams do not need whole-file buffering; secure authenticated browser route composition remains later presentation work rather than an unauthenticated shortcut.
+- Added the Slice 7 evidence/security tests to the explicit core checkpoint gate and retained the safe-inline spike decision in `docs/safe-inline-media-spike.md`.
+
+No release tag should be created yet.
+
+## 0.0.7-dev
 
 Slice 6 access governance and compartments.
 

@@ -6,7 +6,7 @@ CRAB is a single Go application for running a cyber incident from first report t
 
 ## Build status
 
-**0.0.7-dev — Slice 6 access governance and compartments.**
+**0.0.8-dev — Slice 7 hostile evidence and immutable blobs.**
 
 Implemented and CI-proven now:
 
@@ -14,32 +14,34 @@ Implemented and CI-proven now:
 - file-first deployment configuration and embedded offline web shell;
 - PostgreSQL as the single durable live store with separate schema-owner/runtime identities;
 - authoritative signed/hash-chained ledger, atomic projections, full verification, integrity-failed read-only mode, deterministic projection rebuild and portable JSONL export;
-- Slice 2 local/password, TOTP, passkey and pinned-key OIDC authentication, isolate mode, hashed sessions, break-glass, OOB verification and failure limiting;
-- one deny-by-default authorisation evaluator across role, incident, compartment, authoritative object scope and separately governed data exits;
-- Slice 3 immediate `Record(...)` observations and `Propose(...) -> Decide(...)` governed state, with exact proposal-version maker-checker confirmation;
-- rebuildable common-operating-picture projections for incident header, facts, unknowns, hypotheses, decisions, actions, active obligations, operational roles and pending proposals;
-- Slice 4 governed Action lifecycle, data-driven checklist activation and rebuildable incident timeline without a workflow engine;
+- Slice 2 authentication/security boundary with local credentials, TOTP, passkeys, pinned-key OIDC, isolate mode, break-glass, OOB verification and deny-by-default authorisation;
+- Slice 3 immediate `Record(...)` observations and `Propose(...) -> Decide(...)` governed state with exact proposal-version maker-checker confirmation;
+- Slice 4 governed Action lifecycle, configured checklist activation and rebuildable timeline without a workflow engine;
 - Slice 5 organisation-defined deterministic obligation clocks and bounded rebuildable timed wait list without a legal rules engine or delivery queue;
-- Slice 6 governed Incident Sponsor and Compartment Controller designations, kept separate from Major/Minor/Observer roles and from content visibility;
-- Sponsor-proposed incident membership and Controller-proposed restricted-compartment read-in/read-out, independently confirmed by a Custodian through the ordinary maker-checker path;
-- incident membership implies `GENERAL`; restricted compartments require explicit confirmed membership;
-- effective-time, expiry and revocation semantics for incident and compartment access, evaluated again at read time so expired external responders lose access without deleting history;
-- access-administration views expose identity/access metadata, designations, scopes and grant status without incident-content bodies;
-- selective-release scope is limited to compartments the current principal already possesses; ordinary read still does not imply export/download/print permission;
-- pending access proposals are immutable and exact-version matched before confirmation;
-- the runtime database role remains non-owner, non-superuser and without `BYPASSRLS`;
-- a real PostgreSQL RLS spike proved transaction-local incident/compartment policies can stop broad reads and do not leak across pooled-connection commit/rollback reuse;
-- RLS is deliberately **not retained** in V0.4 because the same safe runtime role also performs deterministic projection writes/rebuilds: retaining RLS would require a second privileged projection role/path or bypass mechanism plus transaction-pinned multi-query reads, increasing privilege and recovery complexity for a defence-in-depth layer;
-- the RLS decision and evidence are retained in `docs/rls-spike-decision.md` and automated integration tests;
-- frozen PRD V0.2 / EDD V0.4 and companion build, test and UX/print notes retained beside source.
+- Slice 6 Sponsor/Controller -> Custodian access governance, expiring incident/compartment membership, metadata-only administration and selective-release scope; the PostgreSQL RLS spike is preserved but RLS is deliberately not retained;
+- Slice 7 bounded hostile-byte streaming into ordinary PostgreSQL metadata/chunk rows with SHA-256 calculated while streaming;
+- opaque random per-upload blob IDs and explicit **no cross-incident deduplication**, even when two uploads contain identical bytes;
+- incomplete, disconnected or oversized uploads roll back and create no usable blob, evidence record or ledger entry;
+- runtime can insert/read immutable blob rows but cannot update/delete blob metadata or chunks;
+- an evidence record is immutable incident history and must exactly bind incident, mode, compartment, hash, size, filename and media metadata to the stored blob before it becomes usable evidence;
+- evidence register/history records collector, source, collection/event times, location, current handler, related reference and later handling events without claiming certified forensic chain of custody;
+- every detail/register/attachment access is re-authorised against the evidence record's stored incident/compartment scope; guessed IDs do not confer access;
+- attachment download remains a separately governed output permission rather than following ordinary read permission;
+- integrity verification re-hashes stored chunks before any attachment bytes are written to the response destination;
+- safe-inline media is deliberately small: supported passive image/audio/video may be inline only when detected type is allowlisted and declared/detected types agree; HTML, SVG, PDF, active/ambiguous types and MIME mismatches fall back to download;
+- safe attachment headers include `nosniff`, `no-store`, fixed download MIME for unsafe content and sanitised filenames;
+- evidence projections rebuild from ledger history while durable blob bytes remain untouched;
+- `CRAB_EVIDENCE_MAX_BYTES` remains the configurable product limit rather than a Pi-fixture ceiling;
+- safe-inline spike evidence is retained in `docs/safe-inline-media-spike.md`;
+- frozen PRD V0.2 / EDD V0.4 and companion build, test and UX/print notes remain beside source.
 
 Not yet claimed complete:
 
-- secure operator/presentation wiring for `crab setup`, browser login and authenticated operational routes;
-- Slice 7 hostile evidence/blob storage and phone capture;
-- retrieval, model assistance, communications/notifier delivery, print, recovery/closure, backup/restore and final Bafflewick/Pi/visual acceptance.
+- secure operator/presentation wiring for `crab setup`, browser login and authenticated operational routes; the Slice 7 capture application path accepts non-seekable browser/phone byte streams but no unauthenticated shortcut route is introduced;
+- Slice 8 governed corpus/retrieval;
+- model assistance, communications/notifier delivery, print, recovery/closure, backup/restore and final Bafflewick/Pi/visual acceptance.
 
-The checkpoint does not create a universal administrator, universal Major visibility, emergency read-in, separate external portal, per-object ACL estate, RLS bypass role, alternate store, workflow engine, delivery queue or generic CRUD incident model.
+The checkpoint does not create a universal administrator, universal Major visibility, emergency read-in, external portal, per-object ACL estate, RLS bypass role, object store, media-processing service, malware scanner, workflow engine, delivery queue or generic CRUD incident model.
 
 ## Commands
 
@@ -63,9 +65,7 @@ Record(...)                  observation/history: append now
 Propose(...) -> Decide(...)  governed state: maker proposes, different eligible human confirms or rejects
 ```
 
-A proposal is visible as pending but is not effective state. Confirmation must match the exact stored proposal version, maker, compartment and incident mode. An unresolved pending proposal cannot be overwritten. A rejected proposal is retained in ledger history but never appears as effective operating state.
-
-Access governance uses the same mechanism rather than introducing a separate workflow engine: mission authority proposes; Custodian independently verifies/confirms; the rebuildable access projection changes.
+Evidence capture metadata and evidence-handling events use `Record(...)`: they preserve what was received/handled without becoming a controlled decision. A blob becomes incident evidence only when an authorised evidence record binds that opaque blob to its incident and compartment. The byte store itself is durable supporting state and is not a second source of incident truth.
 
 ## Security boundary
 
@@ -84,11 +84,13 @@ otherwise DENY
 
 Role determines what a person may do. Incident membership determines where. Compartment membership determines what information they may know. Custodian authority administers identity/access metadata but grants no incident-content visibility by itself. Sponsor and Controller designations create mission authority to propose access changes, not content visibility. Break-glass changes authentication only.
 
+For evidence, storage identifiers are not authority. Evidence lookup resolves the authoritative stored scope first; attachment retrieval then requires the current principal to hold that scope and the separate download permission. Blob bytes are integrity-verified before output.
+
 ## Database boundary
 
-The schema-owner identity performs migrations. The ordinary runtime identity is not table owner, superuser or `BYPASSRLS`. Authoritative ledger rows cannot be updated/deleted by the runtime role. Credential/session state is durable supporting state; security, incident, obligation and timed-wait current state are rebuildable projections from ledger history.
+The schema-owner identity performs migrations. The ordinary runtime identity is not table owner, superuser or `BYPASSRLS`. Authoritative ledger rows cannot be updated/deleted by the runtime role. Blob metadata/chunks are durable supporting state and are insert/read-only to runtime. Security, incident, obligation, access and evidence-register current state are rebuildable projections from ledger history.
 
-RLS was tested, not hand-waved. The spike showed it can stop accidental broad reads with transaction-local scope, but retaining it would require an additional privileged projection/rebuild channel in the current one-runtime-role architecture. The frozen EDD says to remove RLS when recovery/privilege ambiguity outweighs the backstop; V0.4 therefore keeps application authorisation primary and records the rejected RLS design in `docs/rls-spike-decision.md`.
+RLS was tested, not hand-waved. The Slice 6 spike showed it can stop accidental broad reads with transaction-local scope, but retaining it would require an additional privileged projection/rebuild channel in the current one-runtime-role architecture. V0.4 therefore keeps application authorisation primary and records the rejected RLS design in `docs/rls-spike-decision.md`.
 
 ## Governing documents
 
