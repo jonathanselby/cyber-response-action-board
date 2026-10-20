@@ -38,10 +38,32 @@ func TestLoadRejectsUnknownDeploymentKey(t *testing.T) {
 	}
 }
 
-func TestCheckpointRefusesNonLoopbackHTTPBind(t *testing.T) {
+func TestNonLoopbackRequiresHTTPSAndTLS(t *testing.T) {
 	cfg := Defaults()
 	cfg.ListenAddr = "0.0.0.0:8080"
 	if err := cfg.Validate(); err == nil {
-		t.Fatal("expected non-loopback bind to be refused before HTTPS/authentication slice")
+		t.Fatal("expected non-loopback bind without TLS to be refused")
+	}
+	cfg.PublicBaseURL = "https://crab.example.test"
+	cfg.TLSCertFile = "/etc/crab/tls.crt"
+	cfg.TLSKeyFile = "/etc/crab/tls.key"
+	if err := cfg.Validate(); err != nil {
+		t.Fatalf("secure non-loopback config refused: %v", err)
+	}
+}
+
+func TestTLSFilesMustBeConfiguredTogether(t *testing.T) {
+	cfg := Defaults()
+	cfg.TLSCertFile = "/etc/crab/tls.crt"
+	if err := cfg.Validate(); err == nil {
+		t.Fatal("expected certificate without key to be refused")
+	}
+}
+
+func TestLoopbackHTTPRemainsAvailableForLocalBootstrap(t *testing.T) {
+	cfg := Defaults()
+	cfg.ListenAddr = "127.0.0.1:8080"
+	if err := cfg.Validate(); err != nil {
+		t.Fatalf("loopback bootstrap should remain available: %v", err)
 	}
 }

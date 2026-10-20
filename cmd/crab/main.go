@@ -55,9 +55,11 @@ func run(args []string, stdout, stderr io.Writer) int {
 		return runBackup(args[1:], stdout, stderr)
 	case "restore":
 		return runRestore(args[1:], stdout, stderr)
+	case "setup":
+		return runSetup(stdout, stderr)
 	case "serve":
 		return runServe(stdout, stderr)
-	case "setup", "mcp", "print", "recover":
+	case "mcp", "print", "recover":
 		fmt.Fprintf(stderr, "crab %s: not built in checkpoint %s; no alternate control path is enabled\n", args[0], buildinfo.Version)
 		return exitRefused
 	case "help", "-h", "--help":
@@ -285,6 +287,20 @@ func runVerify(args []string, stdout, stderr io.Writer) int {
 	return exitOK
 }
 
+func runSetup(stdout, stderr io.Writer) int {
+	cfg, err := config.Load()
+	if err != nil {
+		fmt.Fprintln(stderr, err)
+		return exitOperational
+	}
+	if !cfg.IsLoopbackListen() {
+		fmt.Fprintln(stderr, "crab setup is local-only; configure a loopback listen address")
+		return exitRefused
+	}
+	fmt.Fprintln(stdout, "CRAB setup uses the local two-person browser ceremony; no credentials are accepted on the command line.")
+	return runServe(stdout, stderr)
+}
+
 func runServe(stdout, stderr io.Writer) int {
 	cfg, err := config.Load()
 	if err != nil {
@@ -312,7 +328,16 @@ func runServe(stdout, stderr io.Writer) int {
 		defer cancel()
 		_ = srv.Shutdown(shutdownCtx)
 	}()
-	fmt.Fprintf(stdout, "CRAB build checkpoint %s listening on %s\n", buildinfo.Version, cfg.ListenAddr)
+
+	if cfg.TLSCertFile != "" {
+		fmt.Fprintf(stdout, "CRAB build checkpoint %s listening with HTTPS on %s\n", buildinfo.Version, cfg.ListenAddr)
+		if err := srv.ListenAndServeTLS(cfg.TLSCertFile, cfg.TLSKeyFile); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			fmt.Fprintln(stderr, err)
+			return exitOperational
+		}
+		return exitOK
+	}
+	fmt.Fprintf(stdout, "CRAB build checkpoint %s listening locally on %s\n", buildinfo.Version, cfg.ListenAddr)
 	if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 		fmt.Fprintln(stderr, err)
 		return exitOperational
@@ -335,6 +360,7 @@ func usage(w io.Writer) {
 	fmt.Fprintln(w, `CRAB — Cyber Response Action Board
 
 Implemented through the current verified checkpoint:
+  crab setup
   crab serve
   crab readiness
   crab verify --ledger <file> --keyring <file>
@@ -345,7 +371,6 @@ Implemented through the current verified checkpoint:
   crab version
 
 Frozen CLI surface, intentionally refused until its implementation lands:
-  crab setup
   crab mcp
   crab print incident-brief --incident <id> [--page-size A4|LETTER]
   crab print emergency-pack [--page-size A4|LETTER]`)

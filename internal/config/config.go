@@ -23,6 +23,8 @@ type Config struct {
 	MaintenanceDatabaseURL string `json:"maintenance_database_url,omitempty"`
 	ListenAddr             string `json:"listen_addr,omitempty"`
 	PublicBaseURL          string `json:"public_base_url,omitempty"`
+	TLSCertFile            string `json:"tls_cert_file,omitempty"`
+	TLSKeyFile             string `json:"tls_key_file,omitempty"`
 	SessionKeyFile         string `json:"session_key_file,omitempty"`
 	ServerSigningKeyFile   string `json:"server_signing_key_file,omitempty"`
 	LedgerKeyringFile      string `json:"ledger_keyring_file,omitempty"`
@@ -61,6 +63,8 @@ func Load() (Config, error) {
 	applyString(&cfg.MaintenanceDatabaseURL, "CRAB_MAINTENANCE_DATABASE_URL")
 	applyString(&cfg.ListenAddr, "CRAB_LISTEN_ADDR")
 	applyString(&cfg.PublicBaseURL, "CRAB_PUBLIC_BASE_URL")
+	applyString(&cfg.TLSCertFile, "CRAB_TLS_CERT_FILE")
+	applyString(&cfg.TLSKeyFile, "CRAB_TLS_KEY_FILE")
 	applyString(&cfg.SessionKeyFile, "CRAB_SESSION_KEY_FILE")
 	applyString(&cfg.ServerSigningKeyFile, "CRAB_SERVER_SIGNING_KEY_FILE")
 	applyString(&cfg.LedgerKeyringFile, "CRAB_LEDGER_KEYRING_FILE")
@@ -89,18 +93,33 @@ func applyString(dst *string, key string) {
 	}
 }
 
+func (c Config) IsLoopbackListen() bool {
+	host, _, err := net.SplitHostPort(c.ListenAddr)
+	if err != nil {
+		return false
+	}
+	if host == "localhost" {
+		return true
+	}
+	ip := net.ParseIP(host)
+	return ip != nil && ip.IsLoopback()
+}
+
 func (c Config) Validate() error {
 	if strings.TrimSpace(c.ListenAddr) == "" {
 		return errors.New("listen_addr must not be empty")
 	}
-	host, _, err := net.SplitHostPort(c.ListenAddr)
-	if err != nil {
+	if _, _, err := net.SplitHostPort(c.ListenAddr); err != nil {
 		return fmt.Errorf("listen_addr: %w", err)
 	}
-	if host != "localhost" {
-		ip := net.ParseIP(host)
-		if ip == nil || !ip.IsLoopback() {
-			return errors.New("serve is local-only until HTTPS/authentication land")
+	hasCert := strings.TrimSpace(c.TLSCertFile) != ""
+	hasKey := strings.TrimSpace(c.TLSKeyFile) != ""
+	if hasCert != hasKey {
+		return errors.New("tls_cert_file and tls_key_file must be configured together")
+	}
+	if !c.IsLoopbackListen() {
+		if !hasCert || !strings.HasPrefix(strings.ToLower(strings.TrimSpace(c.PublicBaseURL)), "https://") {
+			return errors.New("non-loopback serve requires TLS certificate/key and an https public_base_url")
 		}
 	}
 	if c.PageSizeDefault != "A4" && c.PageSizeDefault != "LETTER" {
