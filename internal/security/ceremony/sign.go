@@ -8,8 +8,8 @@ import (
 )
 
 type HumanSigner struct {
-	HumanID   string
-	KeyID     string
+	HumanID    string
+	KeyID      string
 	PrivateKey ed25519.PrivateKey
 }
 
