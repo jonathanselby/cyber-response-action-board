@@ -158,15 +158,15 @@ func mediaBase(value string) string {
 }
 
 var safeInlineMedia = map[string]bool{
-	"image/jpeg": true,
-	"image/png":  true,
-	"image/gif":  true,
-	"image/webp": true,
-	"audio/mpeg": true,
-	"audio/wav":  true,
-	"audio/wave": true,
+	"image/jpeg":  true,
+	"image/png":   true,
+	"image/gif":   true,
+	"image/webp":  true,
+	"audio/mpeg":  true,
+	"audio/wav":   true,
+	"audio/wave":  true,
 	"audio/x-wav": true,
-	"audio/ogg":  true,
-	"video/mp4":  true,
-	"video/webm": true,
+	"audio/ogg":   true,
+	"video/mp4":   true,
+	"video/webm":  true,
 }
