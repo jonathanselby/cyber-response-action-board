@@ -1,0 +1,29 @@
+CRAB V0.4 — frozen architecture
+
+RESPONDERS / EXECUTIVES / ADVISERS / AUTHORISED AGENTS
+                         |
+                         v
++-----------------------------------------------------------+
+| PRESENTATION                                              |
+| Web | JSON API | CLI | MCP | local PDF renderer          |
+| Parse syntax; render authorised models. No policy or SQL. |
++----------------------------+------------------------------+
+                             |
+                             v
++-----------------------------------------------------------+
+| APPLICATION / DOMAIN                                      |
+| Authn/authz | Record | Propose -> Decide | projections    |
+| incident/actions/obligations/access/evidence/retrieval    |
++----------------------------+------------------------------+
+                             |
+                             v
++-----------------------------------------------------------+
+| DATA                                                      |
+| PostgreSQL                                                |
+| signed append-only ledger | blobs | security support      |
+| rebuildable projections                                  |
++-----------------------------------------------------------+
+
+Current build checkpoint (0.0.1-dev): executable shell + standalone portable
+ledger verification kernel. PostgreSQL and incident mutation are deliberately
+not faked before their implementation slices.
