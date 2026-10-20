@@ -6,7 +6,7 @@ CRAB is a single Go application for running a cyber incident from first report t
 
 ## Build status
 
-**0.0.11-dev — Slice 10 structured communications and notifier.**
+**0.0.12-dev — Slice 11 print and paper resilience.**
 
 Implemented and CI-proven now:
 
@@ -22,28 +22,30 @@ Implemented and CI-proven now:
 - Slice 7 bounded hostile-byte streaming into immutable PostgreSQL blob rows, exact SHA-256 verification, evidence register/handling history and fail-closed attachment presentation;
 - Slice 8 governed Markdown/DOCX corpus admission, immutable source blobs, bounded passive extraction, scope filtering before deterministic lexical ranking, stable citations and explicit unsupported-query refusal;
 - Slice 9 five small prompt-versioned model draft specifications with explicit three-lane routing, local/managed provider adapters, sensitivity/model-send gates and untrusted traced output;
-- Slice 10 semantic drafts for situation reports, regulator/individual notices, executive/board updates, staff communications, holding statements and closure/PIR material;
-- communication issue is a governed `Propose(...) -> Decide(...)` action and is exact-bound to an immutable stored draft SHA-256; changed wording cannot travel under an old approval digest;
-- confirmed communication cadence reuses the existing deterministic timed wait list; recording the due situation-report draft advances the same cadence without adding a scheduler or workflow engine;
-- situation-report drafts are built deterministically from current authorised CRAB state and exercise reports are visibly marked;
-- notification requires the existing separate `notify` output permission and can only use channels approved in the issued communication;
-- local-file and generic HTTP webhook adapters are deliberately thin: they attempt delivery only and do not own recipients, content, authority or exercise policy;
-- exercise external notification is suppressed before adapter/network I/O while the immutable `suppressed` outcome remains in CRAB;
-- every configured attempt becomes an immutable `delivered`, `failed` or `suppressed` ledger record with channel, destination identifier, time, duration and bounded acknowledgement metadata;
-- a failed channel does not suppress the next configured attempt and there is no hidden retry/guaranteed-delivery queue;
-- webhook targets require HTTPS except loopback test endpoints, redirects are refused, response bodies are not copied into outcome/error metadata and local sinks remain available without internet;
-- material incoming enquiries can be recorded and assigned without introducing a chat/helpdesk subsystem, and assignment survives deterministic projection rebuild;
-- the communications/cadence/delivery/enquiry projections all rebuild from the authoritative ledger;
+- Slice 10 structured communications, governed issue, situation-report cadence, incoming-enquiry assignment and thin local/webhook notification with immutable delivery outcomes;
+- Slice 11 application-level print composition protected by the existing separate `print` output permission; ordinary read access does not imply print/export authority;
+- local pure-Go PDF rendering for Incident Brief, Emergency Response Pack, evidence register, timeline and review/closure material;
+- A4 and US Letter layouts, colour and monochrome modes, deterministic width-measured wrapping, bounded page breaks, page/source footers and embedded Go font data with no runtime font/network/browser dependency;
+- live Incident Brief composition from the current authorised operating picture, including situation/impact, roles, decisions, actions, obligations, next communications deadline, contacts and source/time provenance;
+- Emergency Response Pack rendering from approved material plus five blank contingency forms: incident, decision, action, communication and evidence;
+- all generated operational PDFs are source-marked from CRAB's current ledger sequence/hash, configuration version, generation time and time-trust state; caller-supplied provenance is not trusted;
+- exercise output is visibly marked in text on every page so meaning is not colour-dependent;
+- primary derived copies use same-directory temp/write/fsync/rename semantics; failed refresh leaves the previous last-good copy untouched;
+- optional secondary copies refresh independently after primary success; secondary failure is surfaced without destroying either the fresh primary or the last-good secondary;
+- already-generated derived files are ordinary local PDFs and remain readable without PostgreSQL;
+- paper-era events reconcile through the existing immutable ledger and timeline rather than a new paper database: original paper occurrence time remains separate from the later named-human transcription time and digital history cannot be backdated;
+- the renderer remains replaceable: `docs/pdf-renderer-spike-decision.md` records why gopdf currently passes the frozen gate and requires replacement rather than scope reduction if later Pi/visual acceptance exposes a quality problem;
 - frozen PRD V0.2 / EDD V0.4 and companion build, test and UX/print notes remain beside source.
 
 Not yet claimed complete:
 
 - secure operator/presentation wiring for `crab setup`, browser login and authenticated operational routes;
 - deployment composition for live model credentials and notification channel configuration;
-- Slice 11 print/paper;
-- recovery/PIR/retention/closure, backup/restore and final Bafflewick/Pi/visual acceptance.
+- authenticated operator/session wiring for the `crab print` command; it intentionally remains fail-closed rather than bypassing the print authorisation boundary;
+- recovery/PIR/retention/closure;
+- backup/restore and final Bafflewick/Pi/visual acceptance.
 
-The checkpoint does not create a universal administrator, universal Major visibility, emergency read-in, external portal, per-object ACL estate, production RLS, object store, media-processing service, malware scanner, workflow engine, delivery queue, retry service, vector database, autonomous agent framework, automatic model classifier, chat/helpdesk platform or generic CRUD incident model.
+The checkpoint does not create a universal administrator, universal Major visibility, emergency read-in, external portal, per-object ACL estate, production RLS, object store, media-processing service, malware scanner, workflow engine, delivery queue, retry service, vector database, autonomous agent framework, automatic model classifier, chat/helpdesk platform, print service, print database, headless-browser renderer or generic CRUD incident model.
 
 ## Commands
 
@@ -56,7 +58,7 @@ crab rebuild
 crab export-ledger --output <file>
 ```
 
-`crab verify` is the offline portable verifier. Database-backed commands require `CRAB_DATABASE_URL` and `CRAB_LEDGER_KEYRING_FILE`. `crab serve` remains loopback-only until the authenticated presentation path is wired. `crab setup` continues to fail closed until a secure operator input path is implemented; passwords, recovery proofs and signing private material are not accepted through ordinary command arguments.
+`crab verify` is the offline portable verifier. Database-backed commands require `CRAB_DATABASE_URL` and `CRAB_LEDGER_KEYRING_FILE`. `crab serve` remains loopback-only until the authenticated presentation path is wired. `crab setup` continues to fail closed until a secure operator input path is implemented; passwords, recovery proofs and signing private material are not accepted through ordinary command arguments. `crab print` likewise remains fail-closed until the authenticated operator/session path can supply a real principal; the implemented print service itself already enforces incident/compartment scope and separate print permission.
 
 ## Write semantics
 
@@ -74,6 +76,8 @@ Corpus admission uses governed `Propose(...) -> Decide(...)`. Uploading bytes al
 Model drafts use neither write semantic. They are transient, untrusted assistance. A human must still perform the ordinary CRAB Record or Propose/Decide action if any model-derived wording is to become incident history or governed state.
 
 Communication drafts, incoming enquiries and delivery outcomes use `Record(...)`: they preserve what was drafted, received or attempted. **Issuing a communication and changing its cadence use `Propose(...) -> Decide(...)`.** An unconfirmed draft cannot be notified.
+
+Paper reconciliation uses `Record(...)`. The paper occurrence time is preserved in the transcription payload and timeline occurrence field; the authoritative ledger timestamp is the actual later CRAB transcription time. CRAB never rewrites the digital record as though it existed during the outage.
 
 ## Security boundary
 
@@ -98,11 +102,13 @@ For managed model use, retrieval authorisation is not permission to disclose ext
 
 For notification, ordinary read or communication drafting is not permission to send. The communication must first exist as confirmed governed state and `notify` remains a separate output action. Exercise suppression occurs before external adapter I/O.
 
+For print, ordinary read does not imply a derived-output entitlement. `ActionPrint` is checked before incident content is read for print composition, and restricted-compartment output requires current read-in to that compartment.
+
 ## Database boundary
 
 The schema-owner identity performs migrations. The ordinary runtime identity is not table owner, superuser or `BYPASSRLS`. Authoritative ledger rows cannot be updated/deleted by the runtime role. Blob metadata/chunks are durable supporting state and are insert/read-only to runtime. Security, incident, obligation, access, evidence, corpus and communications current state are rebuildable projections from ledger history.
 
-Slice 9 adds no model database, model queue or prompt store. Slice 10 adds no message bus, delivery queue, retry service or third scheduler. Communication cadence reuses the same bounded deterministic timed wait-list already used for obligation wake-ups.
+Slice 9 adds no model database, model queue or prompt store. Slice 10 adds no message bus, delivery queue, retry service or third scheduler. Slice 11 adds no print database, print queue or paper-state store: PDFs are derived files and paper transcriptions replay into the ordinary incident timeline from the authoritative ledger.
 
 RLS was tested, not hand-waved. The Slice 6 spike showed it can stop accidental broad reads with transaction-local scope, but retaining it would require an additional privileged projection/rebuild channel in the current one-runtime-role architecture. V0.4 therefore keeps application authorisation primary and records the rejected RLS design in `docs/rls-spike-decision.md`.
 
