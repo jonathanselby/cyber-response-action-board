@@ -66,3 +66,21 @@ func TestUnauthenticatedAndUnknownActionDeny(t *testing.T) {
 		t.Fatalf("unknown action allowed: %+v", d)
 	}
 }
+
+func TestAgentCannotExceedNamedHuman(t *testing.T) {
+	human := principal(RoleMinor)
+	bound, decision := BindAgent("agent-1", "alice", "alice", human)
+	if !decision.Allowed || bound.AgentID != "agent-1" || bound.HumanID != "alice" {
+		t.Fatalf("valid agent binding failed principal=%+v decision=%+v", bound, decision)
+	}
+	if d := Authorise(bound, ActionConfirm, ObjectScope{IncidentID: "INC-A", Compartment: "GENERAL"}); d.Allowed {
+		t.Fatalf("agent exceeded named human role: %+v", d)
+	}
+}
+
+func TestAgentCannotSwapNamedHuman(t *testing.T) {
+	human := principal(RoleMajor)
+	if _, decision := BindAgent("agent-1", "bob", "alice", human); decision.Allowed {
+		t.Fatalf("agent principal swap allowed: %+v", decision)
+	}
+}
