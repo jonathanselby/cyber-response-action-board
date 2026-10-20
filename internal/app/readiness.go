@@ -29,6 +29,7 @@ func CurrentReadiness(cfg config.Config) Readiness {
 		{Name: "incident_semantic_kernel", Status: "implemented", Message: "Slice 3 Record/Propose/Decide application kernel and rebuildable common-operating-picture projections are built"},
 		{Name: "actions_checklists_timeline", Status: "implemented", Message: "Slice 4 governed Action lifecycle, configured checklist activation, explicit incident timeline and dedicated Action/timeline renderers are built; authenticated browser routing remains later presentation work"},
 		{Name: "obligations_timed_waits", Status: "implemented", Message: "Slice 5 governed organisation-defined obligations, deterministic provisional/firm clocks, amendments and bounded rebuildable timed wait list are built; notifier delivery and authenticated browser UX remain later work"},
+		{Name: "access_governance_compartments", Status: "implemented", Message: "Slice 6 Sponsor/Controller -> Custodian governance, expiring incident/compartment access, metadata-only administration and selective-release scope are built; PostgreSQL RLS was spiked and deliberately not retained because it would require a second privileged projection/rebuild path"},
 	}
 	return Readiness{Ready: false, Checks: checks}
 }
