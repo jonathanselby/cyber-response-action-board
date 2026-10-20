@@ -12,14 +12,14 @@ import (
 )
 
 const (
-	RecordRoleEligibility          = "security.role_eligibility"
-	RecordCustodianDesignation     = "security.custodian_designation"
-	RecordIncidentSponsor          = "security.incident_sponsor"
-	RecordCompartmentController    = "security.compartment_controller"
-	RecordIncidentMembership       = "security.incident_membership"
-	RecordCompartmentMembership    = "security.compartment_membership"
-	RecordOutputPermission         = "security.output_permission"
-	RecordIsolateMode              = "security.isolate_mode"
+	RecordRoleEligibility       = "security.role_eligibility"
+	RecordCustodianDesignation  = "security.custodian_designation"
+	RecordIncidentSponsor       = "security.incident_sponsor"
+	RecordCompartmentController = "security.compartment_controller"
+	RecordIncidentMembership    = "security.incident_membership"
+	RecordCompartmentMembership = "security.compartment_membership"
+	RecordOutputPermission      = "security.output_permission"
+	RecordIsolateMode           = "security.isolate_mode"
 )
 
 type IncidentSponsorDesignation struct {
