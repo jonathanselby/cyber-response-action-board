@@ -11,9 +11,9 @@ import (
 )
 
 type fakeCommandRunner struct {
-	calls   [][]string
-	fail    error
-	dump    []byte
+	calls [][]string
+	fail  error
+	dump  []byte
 }
 
 func (f *fakeCommandRunner) Run(_ context.Context, name string, args ...string) error {
