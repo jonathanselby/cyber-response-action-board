@@ -11,13 +11,19 @@ type fakeRuntime struct {
 	factToken, factIncident, factStatement, factSource string
 }
 
-func (f *fakeRuntime) DeclareIncident(context.Context, string, string, string, string, string, string) error { return nil }
+func (f *fakeRuntime) DeclareIncident(context.Context, string, string, string, string, string, string) error {
+	return nil
+}
 func (f *fakeRuntime) RecordFact(_ context.Context, token, incidentID, statement, source string) error {
 	f.factToken, f.factIncident, f.factStatement, f.factSource = token, incidentID, statement, source
 	return nil
 }
-func (f *fakeRuntime) ProposeAction(context.Context, string, string, string, string, string, string) error { return nil }
-func (f *fakeRuntime) Decide(context.Context, string, string, string, string, string, string) error { return nil }
+func (f *fakeRuntime) ProposeAction(context.Context, string, string, string, string, string, string) error {
+	return nil
+}
+func (f *fakeRuntime) Decide(context.Context, string, string, string, string, string, string) error {
+	return nil
+}
 
 func TestCurrentDiscoveryAndToolList(t *testing.T) {
 	in := strings.NewReader("{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"server/discover\",\"params\":{\"_meta\":{\"io.modelcontextprotocol/protocolVersion\":\"2026-07-28\"}}}\n{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"tools/list\",\"params\":{\"_meta\":{\"io.modelcontextprotocol/protocolVersion\":\"2026-07-28\"}}}\n")
