@@ -18,20 +18,28 @@ const (
 
 //go:embed migrations/001_slice1.sql
 var migration001 string
+
 //go:embed migrations/002_security_support.sql
 var migration002 string
+
 //go:embed migrations/003_access_projection.sql
 var migration003 string
+
 //go:embed migrations/004_auth_credentials.sql
 var migration004 string
+
 //go:embed migrations/005_security_state.sql
 var migration005 string
+
 //go:embed migrations/006_incident_projection.sql
 var migration006 string
+
 //go:embed migrations/007_proposal_scope.sql
 var migration007 string
+
 //go:embed migrations/008_actions_checklists_timeline.sql
 var migration008 string
+
 //go:embed migrations/009_obligations.sql
 var migration009 string
 
