@@ -1,5 +1,27 @@
 # Changelog
 
+## Unreleased — 0.0.11-dev
+
+Slice 10 structured communications and notifier.
+
+- Added semantic communication drafts for situation reports, regulator/individual notices, executive/board updates, staff communications, holding statements and closure/PIR material.
+- Kept drafting separate from authority: an issued communication uses the ordinary `Propose -> Decide` maker-checker path, and the communication projection rejects immediate-record attempts to create governed issue state.
+- Exact-bound issued communication to the immutable stored draft SHA-256 and independently recomputes the issue content digest so changed wording cannot travel under an old approval hash.
+- Added governed situation-report cadence using the existing deterministic timed wait list; no third scheduler, workflow engine or delivery queue was introduced.
+- Added deterministic due situation-report drafting from current authorised CRAB operating-picture state, including visible exercise marking and deterministic cadence advancement.
+- Added thin local-file and generic HTTP webhook notifier adapters while CRAB retains recipients, authorised content, exercise policy and provenance.
+- Required confirmed issued communication plus the existing separate `notify` output permission before delivery attempts.
+- Limited notification to channels approved in the issued communication and recorded every configured attempt immutably as `delivered`, `failed` or `suppressed` with destination, time, duration and bounded acknowledgement metadata.
+- Preserved sequential attempts after a channel failure; no retry/guaranteed-delivery service was added.
+- Suppressed exercise external notification before adapter/network I/O while retaining the local immutable suppression outcome.
+- Required HTTPS for external webhooks except loopback test endpoints, refused redirects and prevented webhook response bodies from entering outcome/error metadata.
+- Added material incoming-enquiry capture and assignment without a chat/helpdesk subsystem and proved assignment survives deterministic projection rebuild.
+- Added communication/cadence/delivery/enquiry rebuild proof through the authoritative ledger.
+- Added Slice 10 acceptance coverage for AC-32/33/34/77/78 and T-45/46/47/48/152 plus draft-forgery and redirect attacks.
+- Recorded source build evidence in `docs/build-evidence-0.0.11-dev.md`.
+
+Authenticated browser communication UX and deployment notification-channel configuration are not faked at this checkpoint. No release tag should be created yet.
+
 ## Unreleased — 0.0.10-dev
 
 Slice 9 model assistance.
