@@ -29,10 +29,10 @@ type BootstrapIdentity struct {
 }
 
 type BootstrapPlan struct {
-	PreparedBy              string
-	ConfirmedBy             string
-	Identities              []BootstrapIdentity
-	BreakGlassKeyholderIDs  []string
+	PreparedBy             string
+	ConfirmedBy            string
+	Identities             []BootstrapIdentity
+	BreakGlassKeyholderIDs []string
 }
 
 // ValidateBootstrap enforces the frozen no-superuser setup ceremony. It does
@@ -110,9 +110,9 @@ func BootstrapRecords(plan BootstrapPlan, now time.Time) ([]ledger.Record, error
 
 	var records []ledger.Record
 	bootstrapPayload := map[string]any{
-		"prepared_by": plan.PreparedBy,
-		"confirmed_by": plan.ConfirmedBy,
-		"identity_count": len(identities),
+		"prepared_by":            plan.PreparedBy,
+		"confirmed_by":           plan.ConfirmedBy,
+		"identity_count":         len(identities),
 		"break_glass_keyholders": keyholders,
 	}
 	record, err := governedSystemRecord(RecordBootstrap, "bootstrap", plan.PreparedBy, plan.ConfirmedBy, bootstrapPayload, now)
@@ -140,11 +140,11 @@ func BootstrapRecords(plan BootstrapPlan, now time.Time) ([]ledger.Record, error
 }
 
 type RecoveryPlan struct {
-	PreparedBy             string
-	ConfirmedBy            string
-	Reason                 string
-	RestoreCustodianIDs    []string
-	PresentedBreakGlass    map[string]string
+	PreparedBy          string
+	ConfirmedBy         string
+	Reason              string
+	RestoreCustodianIDs []string
+	PresentedBreakGlass map[string]string
 }
 
 func CustodianRecoveryRecords(plan RecoveryPlan, activeBreakGlass []authn.BreakGlassRecord, now time.Time) ([]ledger.Record, error) {
@@ -167,11 +167,11 @@ func CustodianRecoveryRecords(plan RecoveryPlan, activeBreakGlass []authn.BreakG
 	}
 	sort.Strings(restore)
 	payload := map[string]any{
-		"reason": plan.Reason,
-		"prepared_by": plan.PreparedBy,
-		"confirmed_by": plan.ConfirmedBy,
+		"reason":                 plan.Reason,
+		"prepared_by":            plan.PreparedBy,
+		"confirmed_by":           plan.ConfirmedBy,
 		"break_glass_keyholders": keyholders,
-		"restored_custodians": restore,
+		"restored_custodians":    restore,
 	}
 	audit, err := governedSystemRecord(RecordCustodianRecovery, "custodian-recovery", plan.PreparedBy, plan.ConfirmedBy, payload, now)
 	if err != nil {
@@ -225,8 +225,8 @@ func EstablishBreakGlass(ctx context.Context, targetHumanID, reason string, pres
 		return BreakGlassResult{}, err
 	}
 	payload := map[string]any{
-		"human_id": targetHumanID,
-		"reason": reason,
+		"human_id":   targetHumanID,
+		"reason":     reason,
 		"keyholders": keyholders,
 		"expires_at": session.ExpiresAt.UTC(),
 	}
@@ -236,17 +236,17 @@ func EstablishBreakGlass(ctx context.Context, targetHumanID, reason string, pres
 		return BreakGlassResult{}, err
 	}
 	audit := ledger.Record{
-		SchemaVersion: 1,
-		Timestamp: now.UTC(),
-		TimeStatus: "trusted",
-		IncidentMode: "system",
-		WriteSemantic: "record",
-		RecordType: RecordBreakGlass,
-		RecordID: "break-glass:" + targetHumanID + ":" + now.UTC().Format(time.RFC3339Nano),
-		Status: "recorded",
-		Maker: targetHumanID,
-		Compartment: "SYSTEM",
-		Data: raw,
+		SchemaVersion:  1,
+		Timestamp:      now.UTC(),
+		TimeStatus:     "trusted",
+		IncidentMode:   "system",
+		WriteSemantic:  "record",
+		RecordType:     RecordBreakGlass,
+		RecordID:       "break-glass:" + targetHumanID + ":" + now.UTC().Format(time.RFC3339Nano),
+		Status:         "recorded",
+		Maker:          targetHumanID,
+		Compartment:    "SYSTEM",
+		Data:           raw,
 		MakerSignature: ledger.Signature{MissingReason: "break-glass authentication event is server-observed"},
 	}
 	if err := ledger.ValidateRecord(audit); err != nil {
@@ -263,17 +263,17 @@ func governedSystemRecord(recordType, recordID, maker, confirmer string, payload
 	}
 	r := ledger.Record{
 		SchemaVersion: 1,
-		Timestamp: now.UTC(),
-		TimeStatus: "trusted",
-		IncidentMode: "system",
+		Timestamp:     now.UTC(),
+		TimeStatus:    "trusted",
+		IncidentMode:  "system",
 		WriteSemantic: "governed",
-		RecordType: recordType,
-		RecordID: recordID,
-		Status: "confirmed",
-		Maker: maker,
-		Confirmer: confirmer,
-		Compartment: "SYSTEM",
-		Data: raw,
+		RecordType:    recordType,
+		RecordID:      recordID,
+		Status:        "confirmed",
+		Maker:         maker,
+		Confirmer:     confirmer,
+		Compartment:   "SYSTEM",
+		Data:          raw,
 	}
 	if err := ledger.ValidateRecord(r); err != nil {
 		return ledger.Record{}, err
