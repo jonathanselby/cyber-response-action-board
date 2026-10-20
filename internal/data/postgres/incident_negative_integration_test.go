@@ -50,7 +50,13 @@ func TestDecisionCannotChangeProposalIncidentMode(t *testing.T) {
 	ctx := context.Background()
 	kernel, signer := slice3Kernel(t, db)
 	scope := domain.Scope{IncidentID: "INC-MODE", Mode: "exercise", Compartment: "GENERAL"}
-	proposal, err := domain.ProposeAction(scope, "ACT-MODE", "alice", time.Date(2026, 10, 20, 3, 50, 0, 0, time.UTC), domain.Action{Title: "Exercise containment"})
+	proposal, err := domain.ProposeAction(scope, "ACT-MODE", "alice", time.Date(2026, 10, 20, 3, 50, 0, 0, time.UTC), domain.Action{
+		Title:        "Exercise containment",
+		OwnerHumanID: "alice",
+		Status:       domain.ActionStatusNotStarted,
+		Priority:     "P1",
+		SourceRef:    "EXERCISE-PLAN",
+	})
 	if err != nil {
 		t.Fatal(err)
 	}
