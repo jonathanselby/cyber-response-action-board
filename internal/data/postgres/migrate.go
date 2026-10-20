@@ -12,7 +12,7 @@ import (
 )
 
 const (
-	currentMigrationVersion = 12
+	currentMigrationVersion = 13
 	migrationLockKey        = int64(0x435241424d494752)
 )
 
@@ -52,6 +52,9 @@ var migration011 string
 //go:embed migrations/012_corpus_retrieval.sql
 var migration012 string
 
+//go:embed migrations/013_communications.sql
+var migration013 string
+
 func Migrate(ctx context.Context, owner *pgxpool.Pool, runtimeRole string) error {
 	runtimeRole = strings.TrimSpace(runtimeRole)
 	if runtimeRole == "" {
@@ -72,7 +75,7 @@ func Migrate(ctx context.Context, owner *pgxpool.Pool, runtimeRole string) error
 	if _, err := tx.Exec(ctx, `SELECT pg_advisory_xact_lock($1)`, migrationLockKey); err != nil {
 		return fmt.Errorf("lock migration: %w", err)
 	}
-	migrations := []string{migration001, migration002, migration003, migration004, migration005, migration006, migration007, migration008, migration009, migration010, migration011, migration012}
+	migrations := []string{migration001, migration002, migration003, migration004, migration005, migration006, migration007, migration008, migration009, migration010, migration011, migration012, migration013}
 	for version, migration := range migrations {
 		if _, err := tx.Exec(ctx, migration); err != nil {
 			return fmt.Errorf("migration %03d: %w", version+1, err)
@@ -116,6 +119,12 @@ func Migrate(ctx context.Context, owner *pgxpool.Pool, runtimeRole string) error
 		`GRANT SELECT, INSERT, UPDATE, DELETE, TRUNCATE ON crab.corpus_proposals TO ` + role,
 		`GRANT SELECT, INSERT, UPDATE, DELETE, TRUNCATE ON crab.corpus_sources TO ` + role,
 		`GRANT SELECT, INSERT, UPDATE, DELETE, TRUNCATE ON crab.corpus_passages TO ` + role,
+		`GRANT SELECT, INSERT, UPDATE, DELETE, TRUNCATE ON crab.communication_drafts TO ` + role,
+		`GRANT SELECT, INSERT, UPDATE, DELETE, TRUNCATE ON crab.communication_proposals TO ` + role,
+		`GRANT SELECT, INSERT, UPDATE, DELETE, TRUNCATE ON crab.communications TO ` + role,
+		`GRANT SELECT, INSERT, UPDATE, DELETE, TRUNCATE ON crab.communication_cadences TO ` + role,
+		`GRANT SELECT, INSERT, UPDATE, DELETE, TRUNCATE ON crab.notification_outcomes TO ` + role,
+		`GRANT SELECT, INSERT, UPDATE, DELETE, TRUNCATE ON crab.incoming_enquiries TO ` + role,
 	}
 	for _, statement := range grants {
 		if _, err := tx.Exec(ctx, statement); err != nil {
