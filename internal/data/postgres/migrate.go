@@ -12,7 +12,7 @@ import (
 )
 
 const (
-	currentMigrationVersion = 3
+	currentMigrationVersion = 4
 	migrationLockKey        = int64(0x435241424d494752) // "CRABMIGR"
 )
 
@@ -25,9 +25,9 @@ var migration002 string
 //go:embed migrations/003_access_projection.sql
 var migration003 string
 
-// Migrate runs the small explicit CRAB migration set using the schema-owner
-// connection. runtimeRole receives only the privileges needed by the ordinary
-// application process.
+//go:embed migrations/004_auth_credentials.sql
+var migration004 string
+
 func Migrate(ctx context.Context, owner *pgxpool.Pool, runtimeRole string) error {
 	runtimeRole = strings.TrimSpace(runtimeRole)
 	if runtimeRole == "" {
@@ -40,7 +40,6 @@ func Migrate(ctx context.Context, owner *pgxpool.Pool, runtimeRole string) error
 	if !exists {
 		return fmt.Errorf("runtime role %q does not exist", runtimeRole)
 	}
-
 	tx, err := owner.Begin(ctx)
 	if err != nil {
 		return fmt.Errorf("begin migration: %w", err)
@@ -49,12 +48,11 @@ func Migrate(ctx context.Context, owner *pgxpool.Pool, runtimeRole string) error
 	if _, err := tx.Exec(ctx, `SELECT pg_advisory_xact_lock($1)`, migrationLockKey); err != nil {
 		return fmt.Errorf("lock migration: %w", err)
 	}
-	for version, migration := range []string{migration001, migration002, migration003} {
+	for version, migration := range []string{migration001, migration002, migration003, migration004} {
 		if _, err := tx.Exec(ctx, migration); err != nil {
 			return fmt.Errorf("migration %03d: %w", version+1, err)
 		}
 	}
-
 	role := pgx.Identifier{runtimeRole}.Sanitize()
 	grants := []string{
 		`GRANT USAGE ON SCHEMA crab TO ` + role,
@@ -67,6 +65,9 @@ func Migrate(ctx context.Context, owner *pgxpool.Pool, runtimeRole string) error
 		`GRANT SELECT, INSERT, UPDATE, DELETE, TRUNCATE ON crab.incident_memberships TO ` + role,
 		`GRANT SELECT, INSERT, UPDATE, DELETE, TRUNCATE ON crab.compartment_memberships TO ` + role,
 		`GRANT SELECT, INSERT, UPDATE, DELETE, TRUNCATE ON crab.output_permissions TO ` + role,
+		`GRANT SELECT, INSERT, UPDATE, DELETE ON crab.totp_credentials TO ` + role,
+		`GRANT SELECT, INSERT, UPDATE, DELETE ON crab.passkey_credentials TO ` + role,
+		`GRANT SELECT, INSERT, UPDATE, DELETE ON crab.break_glass_credentials TO ` + role,
 	}
 	for _, statement := range grants {
 		if _, err := tx.Exec(ctx, statement); err != nil {
