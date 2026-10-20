@@ -13,9 +13,9 @@ type Readiness struct {
 	Checks []Check `json:"checks"`
 }
 
-// CurrentReadiness reports only implemented capabilities. PostgreSQL runtime
-// verification is filled by the composition root because the application tier
-// does not import the concrete data adapter.
+// CurrentReadiness reports implemented capability without inventing runtime
+// state. PostgreSQL, ledger and installation-state checks are enriched by the
+// composition root when a live deployment is available.
 func CurrentReadiness(cfg config.Config) Readiness {
 	postgres := Check{Name: "postgresql", Status: "not-configured", Message: "CRAB_DATABASE_URL and CRAB_LEDGER_KEYRING_FILE are required for durable-store verification"}
 	if cfg.DatabaseURL != "" && cfg.LedgerKeyringFile != "" {
@@ -25,7 +25,7 @@ func CurrentReadiness(cfg config.Config) Readiness {
 		{Name: "deployment_config", Status: "pass"},
 		{Name: "portable_ledger_verifier", Status: "pass"},
 		postgres,
-		{Name: "authentication_authorisation", Status: "not-built", Message: "frozen Slice 2 security boundary not yet implemented"},
+		{Name: "authentication_authorisation", Status: "implemented", Message: "Slice 2 security kernel, projections and ceremonies are built; live installation state still requires secure setup wiring"},
 	}
 	return Readiness{Ready: false, Checks: checks}
 }
