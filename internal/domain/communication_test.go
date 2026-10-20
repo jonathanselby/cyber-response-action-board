@@ -27,14 +27,30 @@ func TestCommunicationIssueBindsExactDraft(t *testing.T) {
 	}
 }
 
+func TestCommunicationIssueRejectsContentNotMatchingBoundDraft(t *testing.T) {
+	draft := CommunicationDraft{Kind: CommunicationRegulatorNotice, Subject: "Notice", Body: "Approved material notice", Audience: []string{"regulator"}, Channels: []string{"regulator-webhook"}}
+	digest, err := CommunicationDraftDigest(draft)
+	if err != nil {
+		t.Fatal(err)
+	}
+	issue, err := CommunicationIssueFromDraft("DRAFT-1", digest, draft)
+	if err != nil {
+		t.Fatal(err)
+	}
+	issue.Body = "forged different body"
+	if err := ValidateCommunicationIssue(issue); err == nil {
+		t.Fatal("communication issue accepted content that did not match its bound draft digest")
+	}
+}
+
 func TestSituationReportDraftUsesCurrentOperatingPicture(t *testing.T) {
 	now := time.Date(2026, 10, 20, 6, 0, 0, 0, time.UTC)
 	picture := OperatingPicture{
-		Incident: IncidentState{IncidentID: "INC-1", Mode: "live", Title: "Bafflewick", Summary: "Identity service unavailable", Severity: "High"},
-		Facts: []FactView{{RecordID: "FACT-1", Fact: Fact{Statement: "Identity service is unavailable"}}},
-		Unknowns: []UncertaintyView{{RecordID: "UNK-1", Uncertainty: Uncertainty{Kind: "unknown", Statement: "Extent of customer impact"}}},
-		Decisions: []DecisionView{{RecordID: "DEC-1", Decision: Decision{Decision: "Use alternate authentication"}}},
-		Actions: []ActionView{{RecordID: "ACT-1", Action: Action{Title: "Validate backups", OwnerHumanID: "alice", Status: "in_progress"}}},
+		Incident:         IncidentState{IncidentID: "INC-1", Mode: "live", Title: "Bafflewick", Summary: "Identity service unavailable", Severity: "High"},
+		Facts:            []FactView{{RecordID: "FACT-1", Fact: Fact{Statement: "Identity service is unavailable"}}},
+		Unknowns:         []UncertaintyView{{RecordID: "UNK-1", Uncertainty: Uncertainty{Kind: "unknown", Statement: "Extent of customer impact"}}},
+		Decisions:        []DecisionView{{RecordID: "DEC-1", Decision: Decision{Decision: "Use alternate authentication"}}},
+		Actions:          []ActionView{{RecordID: "ACT-1", Action: Action{Title: "Validate backups", OwnerHumanID: "alice", Status: "in_progress"}}},
 		OperationalRoles: []OperationalRoleView{{RecordID: "ROLE-1", Assignment: OperationalRoleAssignment{RoleName: "Incident Commander", HumanID: "bob"}}},
 	}
 	draft, err := BuildSituationReportDraft(picture, "CAD-1", []string{"incident-team"}, []string{"local"}, now)
