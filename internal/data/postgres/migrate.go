@@ -12,7 +12,7 @@ import (
 )
 
 const (
-	currentMigrationVersion = 9
+	currentMigrationVersion = 10
 	migrationLockKey        = int64(0x435241424d494752)
 )
 
@@ -43,6 +43,9 @@ var migration008 string
 //go:embed migrations/009_obligations.sql
 var migration009 string
 
+//go:embed migrations/010_access_governance.sql
+var migration010 string
+
 func Migrate(ctx context.Context, owner *pgxpool.Pool, runtimeRole string) error {
 	runtimeRole = strings.TrimSpace(runtimeRole)
 	if runtimeRole == "" {
@@ -63,7 +66,7 @@ func Migrate(ctx context.Context, owner *pgxpool.Pool, runtimeRole string) error
 	if _, err := tx.Exec(ctx, `SELECT pg_advisory_xact_lock($1)`, migrationLockKey); err != nil {
 		return fmt.Errorf("lock migration: %w", err)
 	}
-	migrations := []string{migration001, migration002, migration003, migration004, migration005, migration006, migration007, migration008, migration009}
+	migrations := []string{migration001, migration002, migration003, migration004, migration005, migration006, migration007, migration008, migration009, migration010}
 	for version, migration := range migrations {
 		if _, err := tx.Exec(ctx, migration); err != nil {
 			return fmt.Errorf("migration %03d: %w", version+1, err)
@@ -78,8 +81,11 @@ func Migrate(ctx context.Context, owner *pgxpool.Pool, runtimeRole string) error
 		`GRANT SELECT, INSERT, DELETE ON crab.sessions TO ` + role,
 		`GRANT SELECT, INSERT, UPDATE, DELETE, TRUNCATE ON crab.role_eligibility TO ` + role,
 		`GRANT SELECT, INSERT, UPDATE, DELETE, TRUNCATE ON crab.custodian_designations TO ` + role,
+		`GRANT SELECT, INSERT, UPDATE, DELETE, TRUNCATE ON crab.incident_sponsors TO ` + role,
+		`GRANT SELECT, INSERT, UPDATE, DELETE, TRUNCATE ON crab.compartment_controllers TO ` + role,
 		`GRANT SELECT, INSERT, UPDATE, DELETE, TRUNCATE ON crab.incident_memberships TO ` + role,
 		`GRANT SELECT, INSERT, UPDATE, DELETE, TRUNCATE ON crab.compartment_memberships TO ` + role,
+		`GRANT SELECT, INSERT, UPDATE, DELETE, TRUNCATE ON crab.access_proposals TO ` + role,
 		`GRANT SELECT, INSERT, UPDATE, DELETE, TRUNCATE ON crab.output_permissions TO ` + role,
 		`GRANT SELECT, INSERT, UPDATE, DELETE ON crab.totp_credentials TO ` + role,
 		`GRANT SELECT, INSERT, UPDATE, DELETE ON crab.passkey_credentials TO ` + role,
