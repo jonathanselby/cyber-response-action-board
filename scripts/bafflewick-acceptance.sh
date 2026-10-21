@@ -78,7 +78,7 @@ run_phase() {
 run_phase 1 "intake, live operation, actions and handover" \
   "TestContinuityProductFlowThroughLedgerAndPostgres,TestConfiguredChecklistActivatesAsOrdinaryActionProposals" \
   "TestContinuityProductFlowThroughLedgerAndPostgres|TestConfiguredChecklistActivatesAsOrdinaryActionProposals" \
-  ./internal/data/postgres
+  ./internal/data/postgres ./internal/app
 
 run_phase 2 "scoped access, external expiry/revocation and rich evidence" \
   "TestAccessGovernanceSponsorControllerCustodianAndExpiry,TestAccessProjectionAndPrincipalAreDenyByDefault,TestEvidenceExactBytesIntegrityScopeAndSeparateDownloadPermission,TestEvidenceHandlingHistoryAndRegisterRebuildWithoutTouchingBlobs" \
