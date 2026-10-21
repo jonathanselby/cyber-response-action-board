@@ -39,12 +39,8 @@ func enrichReadiness(cfg config.Config, r *app.Readiness) {
 	setReadinessCheck(r, packFreshnessCheck(cfg))
 	setReadinessCheck(r, storageCheck(cfg))
 	setReadinessCheck(r, app.Check{Name: "time_status", Status: "warn", Message: "host clock is in use; incident records preserve trusted/drifting/untrusted time status explicitly"})
-	setReadinessCheck(r, app.Check{Name: "notification_channels", Status: "pass", Message: "local sink is always available; external webhook delivery is optional and explicit"})
-	if cfg.OllamaURL == "" {
-		setReadinessCheck(r, app.Check{Name: "model_lanes", Status: "warn", Message: "no local Ollama endpoint configured; model assistance is optional and deterministic core remains available"})
-	} else {
-		setReadinessCheck(r, app.Check{Name: "model_lanes", Status: "pass", Message: "local model endpoint configured; provider I/O remains separately authorised"})
-	}
+	setReadinessCheck(r, notificationDeploymentReadiness(cfg))
+	setReadinessCheck(r, modelDeploymentReadiness(cfg))
 	if strings.HasPrefix(strings.ToLower(cfg.PublicBaseURL), "https://") {
 		setReadinessCheck(r, app.Check{Name: "certificate_hostname", Status: "pass", Message: "HTTPS public base URL configured"})
 	} else {
