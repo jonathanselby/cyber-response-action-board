@@ -34,6 +34,8 @@ type Config struct {
 	PageSizeDefault        string `json:"page_size_default,omitempty"`
 	EvidenceMaxBytes       int64  `json:"evidence_max_bytes,omitempty"`
 	OllamaURL              string `json:"ollama_url,omitempty"`
+	ModelConfigFile        string `json:"model_config_file,omitempty"`
+	NotificationConfigFile string `json:"notification_config_file,omitempty"`
 }
 
 func Defaults() Config {
@@ -73,6 +75,8 @@ func Load() (Config, error) {
 	applyString(&cfg.SecondaryExportDir, "CRAB_SECONDARY_EXPORT_DIR")
 	applyString(&cfg.PageSizeDefault, "CRAB_PAGE_SIZE_DEFAULT")
 	applyString(&cfg.OllamaURL, "CRAB_OLLAMA_URL")
+	applyString(&cfg.ModelConfigFile, "CRAB_MODEL_CONFIG_FILE")
+	applyString(&cfg.NotificationConfigFile, "CRAB_NOTIFICATION_CONFIG_FILE")
 	if raw := strings.TrimSpace(os.Getenv("CRAB_EVIDENCE_MAX_BYTES")); raw != "" {
 		n, err := strconv.ParseInt(raw, 10, 64)
 		if err != nil {
