@@ -12,6 +12,8 @@ OUT=${1:-"pi-acceptance-${STAMP}.md"}
 TMP=$(mktemp -d)
 trap 'rm -rf "$TMP"' EXIT
 
+export VERSION
+export SOURCE_COMMIT
 export CRAB_SOURCE_COMMIT="$SOURCE_COMMIT"
 export CRAB_BUILD_TIME="$BUILD_TIME"
 
