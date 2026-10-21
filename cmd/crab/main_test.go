@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"strings"
 	"testing"
+
+	"github.com/jonathanselby/cyber-response-action-board/internal/buildinfo"
 )
 
 func TestVersionCommand(t *testing.T) {
@@ -12,7 +14,7 @@ func TestVersionCommand(t *testing.T) {
 	if code != exitOK {
 		t.Fatalf("exit = %d stderr=%s", code, errOut.String())
 	}
-	if !strings.HasPrefix(out.String(), "crab 0.0.12-dev") {
+	if !strings.HasPrefix(out.String(), "crab "+buildinfo.Version) {
 		t.Fatalf("version output = %q", out.String())
 	}
 }
