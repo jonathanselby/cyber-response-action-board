@@ -49,7 +49,7 @@ fi
     echo "- PostgreSQL client: $(psql --version)"
   fi
   echo
-  echo "## Source/build gates"
+  echo "## Source, operational and product-quality gates"
   echo
 } >"$OUT"
 
@@ -93,8 +93,11 @@ run_gate() {
 run_gate "module contract" bash -c 'go mod tidy && git diff --exit-code -- go.mod go.sum'
 run_gate "format contract" bash -c 'files=$(gofmt -l ./cmd ./internal); test -z "$files"'
 run_gate "vet" go vet ./...
+run_gate "Bafflewick 8-of-8 scenario" ./scripts/bafflewick-acceptance.sh
+run_gate "visual and accessibility preflight" ./scripts/visual-acceptance-preflight.sh
 run_gate "full tests" go test -count=1 ./...
 run_gate "native build" go build -trimpath -ldflags='-s -w' -o ./bin/crab ./cmd/crab
+run_gate "binary startup baseline" ./bin/crab version
 
 {
   echo "## Built application"
@@ -103,6 +106,12 @@ run_gate "native build" go build -trimpath -ldflags='-s -w' -o ./bin/crab ./cmd/
   echo "- binary bytes: $(stat -c %s ./bin/crab)"
   echo "- binary SHA-256: $(sha256sum ./bin/crab | awk '{print $1}')"
   echo "- reported version: $(./bin/crab version)"
+  echo
+  echo "## Minimum-hardware observations"
+  echo
+  echo "The per-gate blocks above record elapsed time and, when GNU /usr/bin/time is installed, maximum resident set size, CPU time and other process evidence. This records measured evidence rather than replacing the EDD's deliberately qualitative 'low hundreds of MiB' target with an invented threshold."
+  echo
+  echo "Bafflewick includes the required degraded-operation paths: optional model loss/shedding, corporate federation loss with local authentication, paper fallback/reconciliation, backup/restore/rebuild, access revocation, closure/read-only enforcement and fail-closed hostile/output controls."
   echo
   echo "## Host snapshot after gates"
   echo
@@ -117,9 +126,9 @@ run_gate "native build" go build -trimpath -ldflags='-s -w' -o ./bin/crab ./cmd/
   echo "## Result"
   echo
   if [ "$ARCH" = "aarch64" ] || [ "$ARCH" = "arm64" ]; then
-    echo "PASS — source/build/test acceptance completed on arm64. Confirm the hardware line above is the intended Raspberry Pi 5 / 8 GB fixture before closing AC-58."
+    echo "PASS — source/build/test, Bafflewick and automated visual preflight completed on arm64. Confirm the hardware line above is Raspberry Pi 5 / 8 GB, review the recorded resource evidence against EDD section 25, and retain this file as AC-58 evidence. Human browser/print visual sign-off remains separate."
   else
-    echo "PARTIAL — source/build/test acceptance passed, but this host is not arm64 and therefore does not close the Raspberry Pi acceptance item."
+    echo "PARTIAL — all automated gates passed, but this host is not arm64 and therefore does not close the Raspberry Pi acceptance item."
   fi
 } >>"$OUT"
 
