@@ -25,9 +25,9 @@ func NewContinuityRuntimeFromKernel(kernel *Kernel, signer Signer, blobs *BlobSt
 	return NewContinuityRuntime(kernel, signer, store, blobs)
 }
 
-// PendingSeverityChange reconstructs one proposal without normalising the JSONB
-// payload bytes. The decision projection deliberately requires an exact match
-// to the immutable pending proposal.
+// PendingSeverityChange reconstructs one immutable proposal for governed
+// decision. The proposal version remains the authoritative payload identity
+// across the ledger and PostgreSQL JSON encodings.
 func (r *ContinuityRuntime) PendingSeverityChange(ctx context.Context, incidentID, recordID string) (ledger.Record, bool, error) {
 	if r == nil || r.Store == nil {
 		return ledger.Record{}, false, errors.New("continuity runtime is required")

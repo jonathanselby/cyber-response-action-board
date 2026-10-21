@@ -1,7 +1,6 @@
 package postgres
 
 import (
-	"bytes"
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
@@ -131,15 +130,18 @@ func applySeverityChange(ctx context.Context, tx pgx.Tx, r ledger.Record) error 
 		return errors.New("invalid severity decision status")
 	}
 	var version, maker, compartment, mode string
-	var payload []byte
-	err = tx.QueryRow(ctx, `SELECT version,maker,compartment,mode,payload FROM crab.continuity_proposals WHERE incident_id=$1 AND record_type=$2 AND record_id=$3`, r.IncidentID, r.RecordType, r.RecordID).Scan(&version, &maker, &compartment, &mode, &payload)
+	err = tx.QueryRow(ctx, `SELECT version,maker,compartment,mode FROM crab.continuity_proposals WHERE incident_id=$1 AND record_type=$2 AND record_id=$3`, r.IncidentID, r.RecordType, r.RecordID).Scan(&version, &maker, &compartment, &mode)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return errors.New("severity decision has no matching pending proposal")
 	}
 	if err != nil {
 		return err
 	}
-	if version != data.Version || maker != r.Maker || compartment != r.Compartment || mode != r.IncidentMode || !bytes.Equal(payload, []byte(data.Payload)) {
+	// DecodeGovernedData has already verified that data.Version is the SHA-256
+	// of the canonical decision payload. Matching the immutable stored proposal
+	// version therefore proves payload identity without comparing PostgreSQL
+	// jsonb bytes to the ledger's independently canonicalised JSON bytes.
+	if version != data.Version || maker != r.Maker || compartment != r.Compartment || mode != r.IncidentMode {
 		return errors.New("severity decision does not match exact pending proposal")
 	}
 	if r.Status == "confirmed" {
