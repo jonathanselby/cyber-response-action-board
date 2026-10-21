@@ -23,6 +23,7 @@ jobs:
           --health-retries 10
     env:
       CRAB_TEST_POSTGRES_ADMIN_URL: postgres://postgres:postgres@127.0.0.1:5432/crab_test?sslmode=disable
+      CRAB_SOURCE_COMMIT: ${{ github.sha }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
@@ -50,9 +51,19 @@ jobs:
       - name: Unit and PostgreSQL integration tests with race detector
         run: go test -race -count=1 ./...
       - name: Linux amd64 build
-        run: go build -trimpath -ldflags="-s -w" -o ./bin/crab ./cmd/crab
+        run: ./scripts/build.sh ./bin/crab
+      - name: Build provenance contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          expected="crab $(tr -d '[:space:]' < VERSION) commit=${GITHUB_SHA} built="
+          actual=$(./bin/crab version)
+          case "$actual" in
+            "$expected"*) ;;
+            *) echo "unexpected version output: $actual" >&2; exit 1 ;;
+          esac
       - name: Linux arm64 build
-        run: GOOS=linux GOARCH=arm64 go build -trimpath -ldflags="-s -w" -o ./bin/crab-linux-arm64 ./cmd/crab
+        run: GOOS=linux GOARCH=arm64 ./scripts/build.sh ./bin/crab-linux-arm64
       - name: Core checkpoint acceptance
         run: >-
           go test ./internal/ledger ./internal/data/postgres ./internal/security/... ./internal/domain ./internal/app ./internal/adapters/models ./internal/adapters/notifier ./internal/adapters/artifacts ./internal/presentation/web ./internal/presentation/pdf ./internal/architecture ./cmd/crab

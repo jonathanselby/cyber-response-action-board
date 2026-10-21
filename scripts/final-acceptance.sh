@@ -5,9 +5,15 @@ ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 cd "$ROOT"
 
 STAMP=$(date -u +%Y%m%dT%H%M%SZ)
+BUILD_TIME=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+VERSION=$(tr -d '[:space:]' < VERSION)
+SOURCE_COMMIT=${CRAB_SOURCE_COMMIT:-$(git rev-parse HEAD)}
 OUT=${1:-"pi-acceptance-${STAMP}.md"}
 TMP=$(mktemp -d)
 trap 'rm -rf "$TMP"' EXIT
+
+export CRAB_SOURCE_COMMIT="$SOURCE_COMMIT"
+export CRAB_BUILD_TIME="$BUILD_TIME"
 
 if [ "$(uname -s)" != "Linux" ]; then
   echo "final acceptance runner requires Linux" >&2
@@ -33,8 +39,8 @@ fi
   echo "# CRAB final acceptance evidence"
   echo
   echo "- UTC run: ${STAMP}"
-  echo "- git commit: $(git rev-parse HEAD)"
-  echo "- version: $(cat VERSION)"
+  echo "- source commit: ${SOURCE_COMMIT}"
+  echo "- version: ${VERSION}"
   echo "- kernel: $(uname -srmo)"
   echo "- architecture: ${ARCH}"
   if [ -r /proc/device-tree/model ]; then
@@ -96,7 +102,8 @@ run_gate "vet" go vet ./...
 run_gate "Bafflewick 8-of-8 scenario" ./scripts/bafflewick-acceptance.sh
 run_gate "visual and accessibility preflight" ./scripts/visual-acceptance-preflight.sh
 run_gate "full tests" go test -count=1 ./...
-run_gate "native build" go build -trimpath -ldflags='-s -w' -o ./bin/crab ./cmd/crab
+run_gate "native build" ./scripts/build.sh ./bin/crab
+run_gate "binary provenance" bash -c 'test "$(./bin/crab version)" = "crab ${VERSION} commit=${SOURCE_COMMIT} built=${CRAB_BUILD_TIME}"'
 run_gate "binary startup baseline" ./bin/crab version
 
 {
