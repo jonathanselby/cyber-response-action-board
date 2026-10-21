@@ -10,6 +10,8 @@ a { color: inherit; }
 button, input, textarea, select { font: inherit; }
 button { border: 1px solid #274b36; background: #274b36; color: #fff; padding: .65rem .9rem; cursor: pointer; }
 button.secondary { background: #fff; color: #274b36; }
+button, input, select { min-height: 44px; }
+a:focus-visible, button:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-visible { outline: 3px solid #1f6a3c; outline-offset: 2px; }
 .shell { display: flex; justify-content: space-between; align-items: end; gap: 2rem; padding: 1.5rem clamp(1rem,4vw,4rem); border-bottom: 1px solid #c7cec9; background: #fff; }
 .eyebrow, .kicker { margin: 0 0 .25rem; font-size: .76rem; letter-spacing: .08em; text-transform: uppercase; color: #526058; }
 h1 { margin: 0; font-size: clamp(2rem,5vw,3.2rem); font-weight: 650; }
