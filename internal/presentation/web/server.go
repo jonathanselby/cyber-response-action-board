@@ -46,6 +46,7 @@ func New() (*Server, error) {
 	s.runtime = runtime
 	s.registerAPIRoutes()
 	s.registerOperatorRoutes()
+	s.registerDrop2Routes()
 	return s, nil
 }
 
