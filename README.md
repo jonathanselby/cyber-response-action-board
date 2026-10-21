@@ -6,65 +6,106 @@ CRAB is a single Go application for running a cyber incident from first report t
 
 ## Build status
 
-**0.0.13-dev — Slice 12 recovery, PIR, retention and closure.**
+**0.0.14-dev — code-complete development checkpoint.**
 
-Implemented and CI-proven now:
+The frozen product contract is PRD V0.2 and EDD V0.4. The implementation may simplify mechanisms; it may not silently weaken product outcomes, security boundaries or degraded-operation behaviour.
 
-- one `crab` executable with amd64/arm64 build gates;
-- file-first deployment configuration and embedded offline web shell;
-- PostgreSQL as the single durable live store with separate schema-owner/runtime identities;
-- authoritative signed/hash-chained ledger, atomic projections, full verification, integrity-failed read-only mode, deterministic full projection rebuild and portable JSONL export;
-- Slice 2 authentication/security boundary with local credentials, TOTP, passkeys, pinned-key OIDC, isolate mode, break-glass, OOB verification and deny-by-default authorisation;
-- Slice 3 immediate `Record(...)` observations and `Propose(...) -> Decide(...)` governed state with exact proposal-version maker-checker confirmation;
-- Slice 4 governed Action lifecycle, configured checklist activation and rebuildable timeline without a workflow engine;
-- Slice 5 organisation-defined deterministic obligation clocks and bounded rebuildable timed wait list without a legal rules engine or delivery queue;
-- Slice 6 Sponsor/Controller -> Custodian access governance, expiring incident/compartment membership, metadata-only administration and selective-release scope; PostgreSQL RLS was tested and deliberately not retained;
-- Slice 7 bounded hostile-byte streaming into immutable PostgreSQL blob rows, exact SHA-256 verification, evidence register/handling history and fail-closed attachment presentation;
-- Slice 8 governed Markdown/DOCX corpus admission, immutable source blobs, bounded passive extraction, scope filtering before deterministic lexical ranking, stable citations and explicit unsupported-query refusal;
-- Slice 9 five small prompt-versioned model draft specifications with explicit three-lane routing, local/managed provider adapters, sensitivity/model-send gates and untrusted traced output;
-- Slice 10 structured communications, governed issue, situation-report cadence, incoming-enquiry assignment and thin local/webhook notification with immutable delivery outcomes;
-- Slice 11 application-level print composition protected by the existing separate `print` output permission; ordinary read access does not imply print/export authority;
-- local pure-Go PDF rendering for Incident Brief, Emergency Response Pack, evidence register, timeline and review/closure material;
-- A4 and US Letter layouts, colour and monochrome modes, deterministic width-measured wrapping, bounded page breaks, page/source footers and embedded Go font data with no runtime font/network/browser dependency;
-- live Incident Brief composition from the current authorised operating picture, including situation/impact, roles, decisions, actions, obligations, next communications deadline, contacts and source/time provenance;
-- Emergency Response Pack rendering from approved material plus five blank contingency forms: incident, decision, action, communication and evidence;
-- all generated operational PDFs are source-marked from CRAB's current ledger sequence/hash, configuration version, generation time and time-trust state; caller-supplied provenance is not trusted;
-- exercise output is visibly marked in text on every page so meaning is not colour-dependent;
-- primary derived copies use same-directory temp/write/fsync/rename semantics; failed refresh leaves the previous last-good copy untouched;
-- optional secondary copies refresh independently after primary success; secondary failure is surfaced without destroying either the fresh primary or the last-good secondary;
-- already-generated derived files are ordinary local PDFs and remain readable without PostgreSQL;
-- paper-era events reconcile through the existing immutable ledger and timeline rather than a new paper database: original paper occurrence time remains separate from the later named-human transcription time and digital history cannot be backdated;
-- Slice 12 recovery coordination with named human owners, restoration priority, verification/residual-risk/handoff metadata and no remediation orchestrator;
-- operational phase derived from recovery evidence rather than a second mutable state machine;
-- maker-checker stand-down, PIR, retention/disposition and closure milestones using the existing governed-write model;
-- PIR draft generation from the existing authorised operating picture and incident history;
-- closure prerequisites requiring stand-down, confirmed PIR, retention disposition and all recovery work either verified or handed off;
-- confirmed closure makes the incident read-only across feature boundaries through the ledger convergence point;
-- privileged closure material cannot be stored in `GENERAL`; shareable-only closure uses `GENERAL`, while restricted closure material must carry a matching restricted compartment;
-- recovery/closure projections replay deterministically from the immutable ledger;
-- frozen PRD V0.2 / EDD V0.4 and companion build, test and UX/print notes remain beside source.
+CI-proven now:
 
-Not yet claimed complete:
+- one `crab` executable with Linux amd64 and arm64 build gates;
+- PostgreSQL as the single durable live store, with separate schema-owner/runtime identities;
+- signed/hash-chained authoritative ledger, deterministic projections, full verification, rebuild and portable JSONL export;
+- deny-by-default authentication and authorisation with local credentials, passkeys, TOTP, optional OIDC, isolate mode, break-glass and out-of-band verification;
+- Major/Minor/Observer incident authority separated from Custodian, Sponsor and Compartment Controller governance;
+- incident and compartment assignment enforced independently of role seniority;
+- immediate immutable `Record(...)` observations and governed `Propose(...) -> Decide(...)` maker-checker state;
+- incidents, facts, unknowns/hypotheses, decisions, actions, operational roles, checklists and timeline;
+- organisation-defined obligation clocks and bounded rebuildable timed waits without a legal rules engine;
+- immutable hostile-byte evidence storage in PostgreSQL with bounded streaming, SHA-256 verification, safe attachment handling and evidence history;
+- governed Markdown/DOCX corpus ingestion and deterministic scope-filter-before-rank retrieval with stable citations;
+- optional three-lane model assistance with local Ollama and managed Azure/Foundry, Bedrock and Vertex adapters; model output is always untrusted and never becomes governed state automatically;
+- structured communications, cadence, incoming enquiries and thin local/webhook notification with exercise suppression before external I/O;
+- pure-Go local PDF generation for Incident Brief, Emergency Response Pack, evidence register, timeline and review/closure material;
+- A4/Letter, colour/monochrome, deterministic wrapping/page breaks and embedded font data with no browser/network renderer dependency;
+- atomic last-good primary/secondary derived-copy handling;
+- paper-era reconciliation that preserves original occurrence time separately from later digital transcription time;
+- recovery coordination, stand-down, PIR, retention/disposition and closure, with closed incidents read-only;
+- secure operator browser path for bootstrap, login, incident declaration, fact recording, action proposal and maker-checker decisions;
+- local JSON API and authenticated MCP stdio adapter on the same operator runtime and application controls;
+- authenticated CLI print using a private operator-session file;
+- PostgreSQL-native backup, SHA-256 metadata, replacement-host restore, independent ledger verification and deterministic projection rebuild;
+- readiness derived from actual key, backup/restore, export, storage, paper-pack, model and notification deployment evidence;
+- local Custodian recovery that is refused while normal Custodian quorum is demonstrably usable and never grants incident-content access;
+- non-loopback serving refused unless TLS certificate/key and an HTTPS public base URL are configured;
+- file-first optional model and notification deployment composition, with local model endpoints constrained to loopback and managed endpoints constrained to HTTPS.
 
-- secure operator/presentation wiring for `crab setup`, browser login and authenticated operational routes;
-- deployment composition for live model credentials and notification channel configuration;
-- authenticated operator/session wiring for the `crab print` command; it intentionally remains fail-closed rather than bypassing the print authorisation boundary;
-- backup/restore and final Bafflewick/Pi/visual acceptance.
+The current checkpoint passed module integrity, gofmt, `go vet`, the full race-enabled unit/PostgreSQL integration suite, Linux amd64 build, Linux arm64 build and the explicit core acceptance gate. See `docs/build-evidence-0.0.14-dev.md`.
 
-The checkpoint does not create a universal administrator, universal Major visibility, emergency read-in, external portal, per-object ACL estate, production RLS, object store, media-processing service, malware scanner, workflow engine, delivery queue, retry service, vector database, autonomous agent framework, automatic model classifier, chat/helpdesk platform, print service, print database, headless-browser renderer, records-management subsystem, recovery orchestrator or generic CRUD incident model.
+### Remaining release evidence
+
+The product mechanisms are implemented. A stable release tag is intentionally withheld until the final acceptance evidence is recorded:
+
+1. Bafflewick operational scenario;
+2. Raspberry Pi 5 / 8 GB arm64 resource-budget run;
+3. final browser and print visual review;
+4. generated codebase-to-EDD comparison against frozen EDD V0.4.
+
+These are acceptance activities, not permission for another architectural rewrite.
 
 ## Commands
 
 ```text
 crab version
 crab readiness
-crab serve
 crab verify --ledger <file> --keyring <file>
 crab rebuild
 crab export-ledger --output <file>
+crab backup --output <file>
+crab restore --input <file>
+crab setup
+crab serve
+crab mcp --session-file <path>
+crab print incident-brief --incident <id> --session-file <path>
+crab print emergency-pack --organisation <name> --session-file <path>
+crab recover --request-file <path>
 ```
 
-`crab verify` is the offline portable verifier. Database-backed commands require `CRAB_DATABASE_URL` and `CRAB_LEDGER_KEYRING_FILE`. `crab serve` remains loopback-only until the authenticated presentation path is wired. `crab setup` continues to fail closed until a secure operator input path is implemented; passwords, recovery proofs and signing private material are not accepted through ordinary command arguments. `crab print` likewise remains fail-closed until the authenticated operator/session path can supply a real principal; the implemented print service itself already enforces incident/compartment scope and separate print permission. `crab rebuild` verifies the authoritative ledger and deterministically rebuilds the full registered projection set.
+Database-backed commands require the configured PostgreSQL and ledger-keyring paths. Operator mode additionally requires the server signing key. Sensitive session/recovery files must be private to the current user; CRAB refuses group/other-readable files.
+
+`crab serve` may use loopback HTTP for local bootstrap/operation. A non-loopback listener requires TLS and an HTTPS public base URL.
+
+`crab backup` verifies the authoritative ledger before creating a PostgreSQL custom-format backup. `crab restore` verifies backup integrity, restores through the maintenance connection, independently verifies the ledger, rebuilds projections and records restore-rehearsal evidence.
+
+## Deployment configuration
+
+Deployment configuration is file-first with environment overrides. Organisation business rules do not belong in deployment configuration; obligations, roles, access policy and incident data remain governed application state.
+
+Important settings include:
+
+```text
+CRAB_CONFIG_FILE
+CRAB_DATABASE_URL
+CRAB_MAINTENANCE_DATABASE_URL
+CRAB_LISTEN_ADDR
+CRAB_PUBLIC_BASE_URL
+CRAB_TLS_CERT_FILE
+CRAB_TLS_KEY_FILE
+CRAB_SESSION_KEY_FILE
+CRAB_SERVER_SIGNING_KEY_FILE
+CRAB_LEDGER_KEYRING_FILE
+CRAB_CREDENTIAL_WRAP_KEY_FILE
+CRAB_EXPORT_DIR
+CRAB_SECONDARY_EXPORT_DIR
+CRAB_PAGE_SIZE_DEFAULT
+CRAB_EVIDENCE_MAX_BYTES
+CRAB_OLLAMA_URL
+CRAB_MODEL_CONFIG_FILE
+CRAB_NOTIFICATION_CONFIG_FILE
+```
+
+Model and notification deployment files must be private local JSON files. Managed-provider authentication is referenced by environment-variable name from the private model deployment file; authentication material is not stored in repository configuration. A configured Ollama endpoint must be loopback-only. Managed provider endpoints must use HTTPS.
+
+Notification channels are currently either local file sinks or HTTPS webhooks. CRAB derives whether a channel is external from its type; callers cannot relabel an external webhook as local. Exercise-mode external delivery is suppressed before adapter I/O.
 
 ## Write semantics
 
@@ -75,21 +116,13 @@ Record(...)                  observation/history: append now
 Propose(...) -> Decide(...)  governed state: maker proposes, different eligible human confirms or rejects
 ```
 
-Evidence capture metadata and evidence-handling events use `Record(...)`: they preserve what was received/handled without becoming a controlled decision. A blob becomes incident evidence only when an authorised evidence record binds that opaque blob to its incident and compartment.
+Corrections are new records or versions. Governed history is not edited in place.
 
-Corpus admission uses governed `Propose(...) -> Decide(...)`. Uploading bytes alone does not make a document retrievable. A confirmed corpus source must exactly bind the immutable blob metadata before deterministic extraction/index projection is effective.
-
-Model drafts use neither write semantic. They are transient, untrusted assistance. A human must still perform the ordinary CRAB Record or Propose/Decide action if any model-derived wording is to become incident history or governed state.
-
-Communication drafts, incoming enquiries and delivery outcomes use `Record(...)`: they preserve what was drafted, received or attempted. **Issuing a communication and changing its cadence use `Propose(...) -> Decide(...)`.** An unconfirmed draft cannot be notified.
-
-Paper reconciliation uses `Record(...)`. The paper occurrence time is preserved in the transcription payload and timeline occurrence field; the authoritative ledger timestamp is the actual later CRAB transcription time. CRAB never rewrites the digital record as though it existed during the outage.
-
-Recovery updates use `Record(...)` for operational coordination. Stand-down, PIR, retention/disposition and closure use `Propose(...) -> Decide(...)`. Closure is refused until prerequisites are satisfied and confirmed closure makes incident-scoped writes read-only.
+Model drafts are neither semantic. They are transient, untrusted assistance. A human still has to perform the ordinary CRAB record or maker-checker action before model-derived wording can affect incident state.
 
 ## Security boundary
 
-CRAB's application decision remains deliberately small:
+The application decision is intentionally small:
 
 ```text
 ALLOW = authenticated principal
@@ -104,23 +137,15 @@ otherwise DENY
 
 Role determines what a person may do. Incident membership determines where. Compartment membership determines what information they may know. Custodian authority administers identity/access metadata but grants no incident-content visibility by itself. Sponsor and Controller designations create mission authority to propose access changes, not content visibility. Break-glass changes authentication only.
 
-For retrieval, ranking is not a security boundary. PostgreSQL first returns only organisation-wide or incident-specific passages within the requester's authorised compartment set; the deterministic ranker can only rank that already-authorised set.
+For retrieval, ranking is not a security boundary: PostgreSQL first returns only authorised passages. For managed model use, retrieval authority is still not external-disclosure authority: sensitivity policy and separate `model_send` permission must pass before provider I/O. For notification and print, ordinary read access does not imply send/export authority.
 
-For managed model use, retrieval authorisation is not permission to disclose externally. The sensitivity rule and separate `model_send` permission must both pass before provider I/O. A local lane does not create governed authority either: all model output remains untrusted.
+## Durable-state boundary
 
-For notification, ordinary read or communication drafting is not permission to send. The communication must first exist as confirmed governed state and `notify` remains a separate output action. Exercise suppression occurs before external adapter I/O.
+PostgreSQL is the single durable live store. The ledger is authoritative for governed business/configuration state; operational current state is rebuildable. Immutable evidence/corpus blobs live in PostgreSQL as supporting durable content. Derived PDFs and exports are files, not a second live state store.
 
-For print, ordinary read does not imply a derived-output entitlement. `ActionPrint` is checked before incident content is read for print composition, and restricted-compartment output requires current read-in to that compartment.
+CRAB deliberately does **not** introduce a workflow engine, message bus, delivery/retry service, vector database, object store, chat/helpdesk system, print service, recovery orchestrator, records-management engine, autonomous agent framework or universal administrator.
 
-For closure, `GENERAL` cannot carry privileged closure text. Shareable closure material remains separate from restricted-compartment material, and access remains governed by the ordinary incident/compartment boundary.
-
-## Database boundary
-
-The schema-owner identity performs migrations. The ordinary runtime identity is not table owner, superuser or `BYPASSRLS`. Authoritative ledger rows cannot be updated/deleted by the runtime role. Blob metadata/chunks are durable supporting state and are insert/read-only to runtime. Security, incident, obligation, access, evidence, corpus, communications, print/paper and recovery current state are rebuildable projections from ledger history.
-
-Slice 9 adds no model database, model queue or prompt store. Slice 10 adds no message bus, delivery queue, retry service or third scheduler. Slice 11 adds no print database, print queue or paper-state store: PDFs are derived files and paper transcriptions replay into the ordinary incident timeline from the authoritative ledger. Slice 12 adds no recovery workflow engine, records-management subsystem or deletion engine.
-
-RLS was tested, not hand-waved. The Slice 6 spike showed it can stop accidental broad reads with transaction-local scope, but retaining it would require an additional privileged projection/rebuild channel in the current one-runtime-role architecture. V0.4 therefore keeps application authorisation primary and records the rejected RLS design in `docs/rls-spike-decision.md`.
+PostgreSQL RLS was empirically tested. It was not retained in V0.4 because the extra privileged rebuild/projection channel required by the current one-runtime-role design made the system harder to reason about than the defence-in-depth gain justified. The application authorisation boundary remains primary and the rejected RLS spike is documented in `docs/rls-spike-decision.md`.
 
 ## Governing documents
 
@@ -129,8 +154,7 @@ RLS was tested, not hand-waved. The Slice 6 spike showed it can stop accidental 
 - `BUILD-NOTES.md` — implementation sequencing and build discipline.
 - `TEST-ACCEPTANCE-NOTES.md` — behavioural/security acceptance catalogue.
 - `UX-PRINT-BUILD-NOTES.md` — web, accessibility and print quality requirements.
-
-The implementation may simplify code. It may not silently weaken the product or security contract.
+- `docs/build-evidence-0.0.14-dev.md` — current checkpoint evidence.
 
 ## Toolchain
 
