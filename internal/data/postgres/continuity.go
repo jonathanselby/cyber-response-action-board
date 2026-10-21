@@ -193,7 +193,7 @@ func (s *ContinuityStore) FirstReports(ctx context.Context) ([]domain.FirstRepor
 			v.Disposition = &d
 			v.DispositionAt = dispositionAt
 		}
-	out = append(out, v)
+		out = append(out, v)
 	}
 	return out, rows.Err()
 }
@@ -208,7 +208,7 @@ func (s *ContinuityStore) ScopeAssessments(ctx context.Context, incidentID, comp
 	for rows.Next() {
 		var v domain.ScopeAssessmentView
 		var p []byte
-		if err := rows.Scan(&v.RecordID, &I.Compartment, &p, &v.Maker, &v.RecordedAt); err != nil {
+		if err := rows.Scan(&v.RecordID, &v.Compartment, &p, &v.Maker, &v.RecordedAt); err != nil {
 			return nil, err
 		}
 		if err := json.Unmarshal(p, &v.Assessment); err != nil {
@@ -218,5 +218,196 @@ func (s *ContinuityStore) ScopeAssessments(ctx context.Context, incidentID, comp
 	}
 	return out, rows.Err()
 }
+func (s *ContinuityStore) SeverityChanges(ctx context.Context, incidentID, compartment string) ([]domain.SeverityChangeView, error) {
+	rows, err := s.pool.Query(ctx, `SELECT record_id,compartment,payload,maker,confirmer,confirmed_at FROM crab.incident_severity_changes WHERE incident_id=$1 AND compartment=$2 ORDER BY confirmed_at DESC,record_id`, incidentID, compartment)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []domain.SeverityChangeView
+	for rows.Next() {
+		var v domain.SeverityChangeView
+		var p []byte
+		if err := rows.Scan(&v.RecordID, &v.Compartment, &p, &v.Maker, &v.Confirmer, &v.ConfirmedAt); err != nil {
+			return nil, err
+		}
+		if err := json.Unmarshal(p, &v.Change); err != nil {
+			return nil, err
+		}
+		out = append(out, v)
+	}
+	return out, rows.Err()
+}
+func (s *ContinuityStore) Handovers(ctx context.Context, incidentID, compartment string) ([]domain.HandoverView, error) {
+	rows, err := s.pool.Query(ctx, `SELECT record_id,compartment,payload,maker,recorded_at FROM crab.incident_handovers WHERE incident_id=$1 AND compartment=$2 ORDER BY recorded_at DESC,record_id`, incidentID, compartment)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []domain.HandoverView
+	for rows.Next() {
+		var v domain.HandoverView
+		var p []byte
+		if err := rows.Scan(&v.RecordID, &v.Compartment, &p, &v.Maker, &v.RecordedAt); err != nil {
+			return nil, err
+		}
+		if err := json.Unmarshal(p, &v.Handover); err != nil {
+			return nil, err
+		}
+		out = append(out, v)
+	}
+	return out, rows.Err()
+}
+func (s *ContinuityStore) ResourceRequests(ctx context.Context, incidentID, compartment string) ([]domain.ResourceRequestView, error) {
+	rows, err := s.pool.Query(ctx, `SELECT record_id,compartment,payload,maker,recorded_at FROM crab.incident_resource_requests WHERE incident_id=$1 AND compartment=$2 ORDER BY recorded_at DESC,record_id`, incidentID, compartment)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []domain.ResourceRequestView
+	for rows.Next() {
+		var v domain.ResourceRequestView
+		var p []byte
+		if err := rows.Scan(&v.RecordID, &v.Compartment, &p, &v.Maker, &v.RecordedAt); err != nil {
+			return nil, err
+		}
+		if err := json.Unmarshal(p, &v.Request); err != nil {
+			return nil, err
+		}
+		out = append(out, v)
+	}
+	return out, rows.Err()
+}
 
-func (s *ContinuityStore) SeverityChanges(ctx context.Context, incidentID, compartment string) ([]domain.SeverityChangeView, error"’° —&÷w2ÂW'"£Ò2çööÂåVW'’†7G‚Â4TÄT5B&V6÷&Eö–BÆ6ö×'FÖVçBÇ–ÆöBÆÖ¶W"Æ6öæf—&ÖW"Æ6öæf—&ÖVEöBe$ôÒ7&"æ–æ6–FVçE÷6WfW&—G•ö6†ævW2t„U$R–æ6–FVçEö–CÒCäB6ö×'FÖVçCÒC"õ$DU"%’6öæf—&ÖVEöBDU42Ç&V6÷&Eö–FÂ–æ6–FVçD”BÂ6ö×'FÖVçB ––bW'"Òæ–Â° —&WGW&âæ–ÂÂW'  —Ğ –FVfW"&÷w2ä6Æ÷6R‚ —f"÷WBµÖFöÖ–âå6WfW&—G”6†ævUf–Wp –f÷"&÷w2äæW‡B‚’° —f"`¦FöÖ–âå6WfW&—G”6†ævUf–Wp —f" mu‰åÑ”($%¥˜•ÉÈ€èôÉ½İÌ¹M…¸ ™Ø¹I•½É‘%°€™Ø¹½µÁ…ÉÑµ•¹Ğ°€™À°€™Ø¹5…­•È°€™Ø¹½¹™¥Éµ•È°€™Ø¹½¹™¥Éµ•‘Ğ¤ì•ÉÈ€„ô¹¥°ì($$%É•ÑÕÉ¸¹¥°°•ÉÈ($%ô($%¥˜•ÉÈ€èô©Í½¸¹U¹µ…ÉÍ¡…°¡À°€™Ø¹¡…¹”¤ì•ÉÈ€„ô¹¥°ì($$%É•ÑÕÉ¸¹¥°°•ÉÈ($%ô($%½ÕĞ€ô…ÁÁ•¹¡½ÕĞ°Ø¤(%ô(%É•ÑÕÉ¸½ÕĞ°É½İÌ¹ÉÈ ¤)ô()™Õ¹Œ€¡Ì€©½¹Ñ¥¹Õ¥ÑåMÑ½É”¤!…¹‘½Ù•ÉÌ¡Ñà½¹Ñ•áĞ¹½¹Ñ•áĞ°¥¹¥‘•¹Ñ%°½µÁ…ÉÑµ•¹ĞÍÑÉ¥¹œ¤€¡mu‘½µ…¥¸¹!…¹‘½Ù•ÉY¥•Ü°•ÉÉ½È¤ì(%É½İÌ°•ÉÈ€èôÌ¹Á½½°¹EÕ•Éä¡Ñà°M1PÉ•½É‘}¥±½µÁ…ÉÑµ•¹Ğ±Á…å±½…±µ…­•È±É•½É‘•‘}…ĞI=4É…ˆ¹¥¹¥‘•¹Ñ}¡…¹‘½Ù•ÉÌ]!I¥¹¥‘•¹Ñ}¥ôÄ9½µÁ…ÉÑµ•¹ĞôÈ=IH	dÉ•½É‘•‘}…ĞM±É•½É‘}¥‘€°¥¹¥‘•¹Ñ%°½µÁ…ÉÑµ•¹Ğ¤(%¥˜•ÉÈ€„ô¹¥°ì($%É•ÑÕÉ¸¹¥°°•ÉÈ(%ô(%‘•™•ÈÉ½İÌ¹±½Í” ¤(%Ù…È½ÕĞmu‘½µ…¥¸¹!…¹‘½Ù•ÉY¥•Ü(%™½ÈÉ½İÌ¹9•áĞ ¤ì($%Ù…ÈØ‘½µ…¥¸¹!…¹‘½Ù•ÉY¥•Ü($%Ù…ÈÀmu‰åÑ”($%¥˜•ÉÈ€èôÉ½İÌ¹M…¸ ™Ø¹I•½É‘%°€™Ø¹½µÁ…ÉÑµ•¹Ğ°€™À°€™Ø¹5…­•È°€™Ø¹I•½É‘•‘Ğ¤ì•ÉÈ€„ô¹¥°ì($$%É•ÑÕÉ¸¹¥°°•ÉÈ($%ô($%¥˜•ÉÈ€èô©Í½¸¹U¹µ…ÉÍ¡…°¡À°€™Ø¹!…¹‘½Ù•È¤ì•ÉÈ€„ô¹¥°ì($$%É•ÑÕÉ¸¹¥°°•ÉÈ($%ô($%½ÕĞ€ô…ÁÁ•¹¡½ÕĞ°Ø¤(%ô(%É•ÑÕÉ¸½ÕĞ°É½İÌ¹ÉÈ ¤)ô()™Õ¹Œ€¡Ì€©½¹Ñ¥¹Õ¥ÑåMÑ½É”¤I•Í½ÕÉ•I•ÅÕ•ÍÑÌ¡Ñà½¹Ñ•áĞ¹½¹Ñ•áĞ°¥¹¥‘•¹Ñ%°½µÁ…ÉÑµ•¹ĞÍÑÉ¥¹œ¤€¡mu‘½µ…¥¸¹I•Í½ÕÉ•I•ÅÕ•ÍÑY¥•Ü°•ÉÉ½È¤ì(%É½İÌ°•ÉÈ€èôÌ¹Á½½°¹EÕ•Éä¡Ñà°M1PÉ•½É‘}¥±½µÁ…ÉÑµ•¹Ğ±Á…å±½…±µ…­•È±É•½É‘•‘}…ĞI=4É…ˆ¹¥¹¥‘•¹Ñ}É•Í½ÕÉ•}É•ÅÕ•ÍÑÌ]!I¥¹¥‘•¹Ñ}¥ôÄ9½µÁ…ÉÑµ•¹ĞôÈ=IH	dÉ•½É‘•‘}…ĞM±É•½É‘}¥‘€°¥¹¥‘•¹Ñ%°½µÁ…ÉÑµ•¹Ğ¤(%¥˜•ÉÈ€„ô¹¥°ì($%É•ÑÕÉ¸¹¥°°•ÉÈ(%ô(%‘•™•ÈÉ½İÌ¹±½Í” ¤(%Ù…È½ÕĞmu‘½µ…¥¸¹I•Í½ÕÉ•I•ÅÕ•ÍÑY¥•Ü(%™½ÈÉ½İÌ¹9•áĞ ¤ì($%Ù…ÈØ‘½µ…¥¸¹I•Í½ÕÉ•I•ÅÕ•ÍÑY¥•Ü($%Ù…ÈÀmu‰åÑ”($%¥˜•ÉÈ€èôÉ½İÌ¹M…¸ ™Ø¹I•½É‘%°€™Ø¹½µÁ…ÉÑµ•¹Ğ°€™À°€™Ø¹5…­•È°€™Ø¹I•½É‘•‘Ğ¤ì•ÉÈ€„ô¹¥°ì($$%É•ÑÕÉ¸¹¥°°•ÉÈ($%ô($%¥˜•ÉÈ€èô©Í½¸¹U¹µ…ÉÍ¡…°¡À°€™Ø¹I•ÅÕ•ÍĞ¤ì•ÉÈ€„ô¹¥°ì($$%É•ÑÕÉ¸¹¥°°•ÉÈ($%ô($%½ÕĞ€ô…ÁÁ•¹¡½ÕĞ°Ø¤(%ô(%É•ÑÕÉ¸½ÕĞ°É½İÌ¹ÉÈ ¤)ô()ÑåÁ”½¹Ñ¥¹Õ¥ÑåIÕ¹Ñ¥µ”ÍÑÉÕĞì(%-•É¹•°€©-•É¹•°(%M¥¹•ÈM¥¹•È(%MÑ½É”€€©½¹Ñ¥¹Õ¥ÑåMÑ½É”(%	±½‰Ì€€©	±½‰MÑ½É”)ô()™Õ¹Œ9•İ½¹Ñ¥¹Õ¥ÑåIÕ¹Ñ¥µ”¡­•É¹•°€©-•É¹•°°Í¥¹•ÈM¥¹•È°ÍÑ½É”€©½¹Ñ¥¹Õ¥ÑåMÑ½É”°‰±½‰Ì€©	±½‰MÑ½É”¤€ ©½¹Ñ¥¹Õ¥ÑåIÕ¹Ñ¥µ”°•ÉÉ½È¤ì(%¥˜­•É¹•°€ôô¹¥°ñğÍÑ½É”€ôô¹¥°ñğ‰±½‰Ì€ôô¹¥°ñğÍ¥¹•È¹-•å%€ôô€ˆˆì($%É•ÑÕÉ¸¹¥°°•ÉÉ½ÉÌ¹9•Ü ‰½¹Ñ¥¹Õ¥ÑäÉÕ¹Ñ¥µ”É•ÅÕ¥É•Ì­•É¹•°°Í¥¹•È°ÍÑ½É”…¹‰±½ˆÍÑ½É”ˆ¤(%ô(%É•ÑÕÉ¸€™½¹Ñ¥¹Õ¥ÑåIÕ¹Ñ¥µ•í-•É¹•°è­•É¹•°°M¥¹•ÈèÍ¥¹•È°MÑ½É”èÍÑ½É”°	±½‰Ìè‰±½‰Íô°¹¥°)ô()™Õ¹Œ€¡È€©½¹Ñ¥¹Õ¥ÑåIÕ¹Ñ¥µ”¤AÕÑ¥ÉÍÑI•Á½ÉÑ	±½ˆ¡Ñà½¹Ñ•áĞ¹½¹Ñ•áĞ°™¥±•¹…µ”°µ•‘¥…QåÁ”ÍÑÉ¥¹œ°ÍÉŒ¥¼¹I•…‘•È¤€¡‘½µ…¥¸¹	±½‰I••¥ÁĞ°•ÉÉ½È¤ì(%¥˜™¥±•¹…µ”€ôô€ˆˆñğÍÉŒ€ôô¹¥°ì($%É•ÑÕÉ¸‘½µ…¥¸¹	±½‰I••¥ÁÑíô°•ÉÉ½ÉÌ¹9•Ü ‰‰±½ˆ™¥±•¹…µ”…¹É•…‘•È…É”É•ÅÕ¥É•ˆ¤(%ô(%‰±½‰%°•ÉÈ€èô½Á…ÅÕ•	±½‰% ¤(%¥˜•ÉÈ€„ô¹¥°ì($%É•ÑÕÉ¸‘½µ…¥¸¹	±½‰I••¥ÁÑíô°•ÉÈ(%ô(%Ñà°•ÉÈ€èôÈ¹	±½‰Ì¹Á½½°¹	•¥¸¡Ñà¤(%¥˜•ÉÈ€„ô¹¥°ì($%É•ÑÕÉ¸‘½µ…¥¸¹	±½‰I••¥ÁÑíô°•ÉÈ(%ô(%‘•™•ÈÑà¹I½±±‰…¬¡Ñà¤(% €èôÍ¡„ÈÔØ¹9•Ü ¤(%‰Õ˜€èôµ…­”¡mu‰åÑ”°•Ù¥‘•¹•¡Õ¹­	åÑ•Ì¤(%Í…µÁ±”€èôµ…­”¡mu‰åÑ”°€À°€ÔÄÈ¤(%Ù…ÈÑ½Ñ…°¥¹ĞØĞ(%¡Õ¹­9¼€èô€À(%™½Èì($%¥˜•ÉÈ€èôÑà¹ÉÈ ¤ì•ÉÈ€„ô¹¥°ì($$%É•ÑÕÉ¸‘½µ…¥¸¹	±½‰I••¥ÁÑíô°•ÉÈ($%ô($%¸°É•…‘ÉÈ€èôÍÉŒ¹I•…¡‰Õ˜¤($%¥˜¸€ø€Àì($$%¥˜Ñ½Ñ…°­¥¹ĞØĞ¡¸¤€øÈ¹	±½‰Ì¹µ…á	åÑ•Ìì($$$%É•ÑÕÉ¸‘½µ…¥¸¹	±½‰I••¥ÁÑíô°ÉÉ	±½‰Q½½1…É”($$%ô($$%Á¥•”€èô‰Õ™lé¹t($$%¥˜±•¸¡Í…µÁ±”¤€ğ€ÔÄÈì($$$%¹••€èô€ÔÄÈ€´±•¸¡Í…µÁ±”¤($$$%¥˜¹••€ø¸ì($$$$%¹••€ô¸($$$%ô($$$%Í…µÁ±”€ô…ÁÁ•¹¡Í…µÁ±”°Á¥••lé¹••‘t¸¸¸¤($$%ô($$%|°|€ô ¹]É¥Ñ”¡Á¥•”¤($$%¥˜|°•ÉÈ€èôÑà¹á•Œ¡Ñà°%9MIP%9Q<É…ˆ¹‰±½‰}¡Õ¹­Ì¡‰±½‰}¥±¡Õ¹­}¹¼±‰åÑ•Ì¤Y1UL Ä°È°Ì¥€°‰±½‰%°¡Õ¹­9¼°Á¥•”¤ì•ÉÈ€„ô¹¥°ì($$$%É•ÑÕÉ¸‘½µ…¥¸¹	±½‰I••¥ÁÑíô°•ÉÈ($$%ô($$%Ñ½Ñ…°€¬ô¥¹ĞØĞ¡¸¤($$%¡Õ¹­9¼¬¬($%ô($%¥˜É•…‘ÉÈ€„ô¹¥°ì($$%¥˜•ÉÉ½ÉÌ¹%Ì¡É•…‘ÉÈ°¥¼¹=¤ì($$$%‰É•…¬($$%ô($$%É•ÑÕÉ¸‘½µ…¥¸¹	±½‰I••¥ÁÑíô°É•…‘ÉÈ($%ô(%ô(%‘¥•ÍĞ€èô¡•à¹¹½‘•Q½MÑÉ¥¹œ¡ ¹MÕ´¡¹¥°¤¤(%‘•Ñ•Ñ•€èô¡ÑÑÀ¹•Ñ•Ñ½¹Ñ•¹ÑQåÁ”¡Í…µÁ±”¤(%¹½Ü€èôÑ¥µ”¹9½Ü ¤¹UQ ¤(%¥˜|°•ÉÈ€èôÑà¹á•Œ¡Ñà°%9MIP%9Q<É…ˆ¹‰±½‰Ì¡‰±½‰}¥±¥¹¥‘•¹Ñ}¥±µ½‘”±½µÁ…ÉÑµ•¹Ğ±Í¡„ÈÔØ±Í¥é•}‰åÑ•Ì±½É¥¥¹…±}™¥±•¹…µ”±‘•±…É•‘}µ•‘¥…}ÑåÁ”±‘•Ñ•Ñ•‘}µ•‘¥…}ÑåÁ”±É•…Ñ•‘}…Ğ¤Y1UL Ä°œœ°ÍåÍÑ•´œ°MeMQ4œ°È°Ì°Ğ°Ô°Ø°Ü¥€°‰±½‰%°‘¥•ÍĞ°Ñ½Ñ…°°™¥±•¹…µ”°µ•‘¥…QåÁ”°‘•Ñ•Ñ•°¹½Ü¤ì•ÉÈ€„ô¹¥°ì($%É•ÑÕÉ¸‘½µ…¥¸¹	±½‰I••¥ÁÑíô°•ÉÈ(%ô(%¥˜•ÉÈ€èôÑà¹½µµ¥Ğ¡Ñà¤ì•ÉÈ€„ô¹¥°ì($%É•ÑÕÉ¸‘½µ…¥¸¹	±½‰I••¥ÁÑíô°•ÉÈ(%ô(%É•ÑÕÉ¸‘½µ…¥¸¹	±½‰I••¥ÁÑí	±½‰%è‰±½‰%°M!ÈÔØè‘¥•ÍĞ°M¥é•	åÑ•ÌèÑ½Ñ…°°=É¥¥¹…±¥±•¹…µ”è™¥±•¹…µ”°•±…É•‘5•‘¥…QåÁ”èµ•‘¥…QåÁ”°•Ñ•Ñ•‘5•‘¥…QåÁ”è‘•Ñ•Ñ•‘ô°¹¥°)ô()™Õ¹Œ€¡È€©½¹Ñ¥¹Õ¥ÑåIÕ¹Ñ¥µ”¤ÁÁ•¹‘½¹Ñ¥¹Õ¥Ñä¡Ñà½¹Ñ•áĞ¹½¹Ñ•áĞ°É•½É±•‘•È¹I•½É¤•ÉÉ½Èì(%|°•ÉÈ€èôÈ¹-•É¹•°¹ÁÁ•¹¡Ñà°É•½É°È¹M¥¹•È°½¹Ñ¥¹Õ¥ÑåAÉ½©•Ñ¥½¹íô¤(%É•ÑÕÉ¸•ÉÈ)ô()™Õ¹Œ€¡È€©½¹Ñ¥¹Õ¥ÑåIÕ¹Ñ¥µ”¤A•¹‘¥¹½¹Ñ¥¹Õ¥Ñä¡Ñà½¹Ñ•áĞ¹½¹Ñ•áĞ°¥¹¥‘•¹Ñ%°É•½É‘QåÁ”°É•½É‘%ÍÑÉ¥¹œ¤€¡±•‘•È¹I•½É°‰½½°°•ÉÉ½È¤ì(%Ù…ÈÙ•ÉÍ¥½¸°µ…­•È°½µÁ…ÉÑµ•¹Ğ°µ½‘”ÍÑÉ¥¹œ(%Ù…ÈÁ…å±½…mu‰åÑ”(%Ù…ÈÁÉ½Á½Í•‘ĞÑ¥µ”¹Q¥µ”(%•ÉÈ€èôÈ¹MÑ½É”¹Á½½°¹EÕ•ÉåI½Ü¡Ñà°M1PÙ•ÉÍ¥½¸±µ…­•È±½µÁ…ÉÑµ•¹Ğ±µ½‘”±Á…å±½…±ÁÉ½Á½Í•‘}…ĞI=4É…ˆ¹½¹Ñ¥¹Õ¥Ñå}ÁÉ½Á½Í…±Ì]!I¥¹¥‘•¹Ñ}¥ôÄ9É•½É‘}ÑåÁ”ôÈ9É•½É‘}¥ôÍ€°¥¹¥‘•¹Ñ%°É•½É‘QåÁ”°É•½É‘%¤¹M…¸ ™Ù•ÉÍ¥½¸°€™µ…­•È°€™½µÁ…ÉÑµ•¹Ğ°€™µ½‘”°€™Á…å±½…°€™ÁÉ½Á½Í•‘Ğ¤(%¥˜•ÉÉ½ÉÌ¹%Ì¡•ÉÈ°Áà¹ÉÉ9½I½İÌ¤ì($%É•ÑÕÉ¸±•‘•È¹I•½É‘íô°™…±Í”°¹¥°(%ô(%¥˜•ÉÈ€„ô¹¥°ì($%É•ÑÕÉ¸±•‘•È¹I•½É‘íô°™…±Í”°•ÉÈ(%ô(%İÉ…ÁÁ•°•ÉÈ€èô©Í½¸¹5…ÉÍ¡…°¡‘½µ…¥¸¹½Ù•É¹•‘…Ñ…íY•ÉÍ¥½¸èÙ•ÉÍ¥½¸°A…å±½…è©Í½¸¹I…İ5•ÍÍ…”¡Á…å±½…¥ô¤(%¥˜•ÉÈ€„ô¹¥°ì($%É•ÑÕÉ¸±•‘•È¹I•½É‘íô°™…±Í”°•ÉÈ(%ô(%É•½É€èô±•‘•È¹I•½É‘íM¡•µ…Y•ÉÍ¥½¸è€Ä°Q¥µ•ÍÑ…µÀèÁÉ½Á½Í•‘Ğ¹UQ ¤°Q¥µ•MÑ…ÑÕÌè€‰ÑÉÕÍÑ•ˆ°%¹¥‘•¹Ñ%è¥¹¥‘•¹Ñ%°%¹¥‘•¹Ñ5½‘”èµ½‘”°]É¥Ñ•M•µ…¹Ñ¥Œè€‰½Ù•É¹•ˆ°I•½É‘QåÁ”èÉ•½É‘QåÁ”°I•½É‘%èÉ•½É‘%°MÑ…ÑÕÌè€‰ÁÉ½Á½Í•ˆ°5…­•Èèµ…­•È°½µÁ…ÉÑµ•¹Ğè½µÁ…ÉÑµ•¹Ğ°…Ñ„èİÉ…ÁÁ•°5…­•ÉM¥¹…ÑÕÉ”è±•‘•È¹M¥¹…ÑÕÉ•í5¥ÍÍ¥¹I•…Í½¸è€‰µ…­•È…ÕÑ¡•¹Ñ¥…Ñ•½¸¥µµÕÑ…‰±”ÁÉ½Á½Í…°•¹ÑÉä‰õô(%¥˜|°•ÉÈ€èô‘½µ…¥¸¹AÉ½Á½Í…±Y•ÉÍ¥½¸¡É•½É¤ì•ÉÈ€„ô¹¥°ì($%É•ÑÕÉ¸±•‘•È¹I•½É‘íô°™…±Í”°•ÉÈ(%ô(%É•ÑÕÉ¸É•½É°ÑÉÕ”°¹¥°)ô()™Õ¹Œ€¡È€©½¹Ñ¥¹Õ¥ÑåIÕ¹Ñ¥µ”¤¥ÉÍÑI•Á½ÉÑÌ¡Ñà½¹Ñ•áĞ¹½¹Ñ•áĞ¤€¡mu‘½µ…¥¸¹¥ÉÍÑI•Á½ÉÑY¥•Ü°•ÉÉ½È¤ì(%É•ÑÕÉ¸È¹MÑ½É”¹¥ÉÍÑI•Á½ÉÑÌ¡Ñà¤)ô)™Õ¹Œ€¡È€©½¹Ñ¥¹Õ¥ÑåIÕ¹Ñ¥µ”¤M½Á•ÍÍ•ÍÍµ•¹ÑÌ¡Ñà½¹Ñ•áĞ¹½¹Ñ•áĞ°¤°ŒÍÑÉ¥¹œ¤€¡mu‘½µ…¥¸¹M½Á•ÍÍ•ÍÍµ•¹ÑY¥•Ü°•ÉÉ½È¤ì(%É•ÑÕÉ¸È¹MÑ½É”¹M½Á•ÍÍ•ÍÍµ•¹ÑÌ¡Ñà°¤°Œ¤)ô)™Õ¹Œ€¡È€©½¹Ñ¥¹Õ¥ÑåIÕ¹Ñ¥µ”¤M•Ù•É¥Ñå¡…¹•Ì¡Ñà½¹Ñ•áĞ¹½¹Ñ•áĞ°¤°ŒÍÑÉ¥¹œ¤€¡mu‘½µ…¥¸¹M•Ù•É¥Ñå¡…¹•Y¥•Ü°•ÉÉ½È¤ì(%É•ÑÕÉ¸È¹MÑ½É”¹M•Ù•É¥Ñå¡…¹•Ì¡Ñà°¤°Œ¤)ô)™Õ¹Œ€¡È€©½¹Ñ¥¹Õ¥ÑåIÕ¹Ñ¥µ”¤!…¹‘½Ù•ÉÌ¡Ñà½¹Ñ•áĞ¹½¹Ñ•áĞ°¤°ŒÍÑÉ¥¹œ¤€¡mu‘½µ…¥¸¹!…¹‘½Ù•ÉY¥•Ü°•ÉÉ½È¤ì(%É•ÑÕÉ¸È¹MÑ½É”¹!…¹‘½Ù•ÉÌ¡Ñà°¤°Œ¤)ô)™Õ¹Œ€¡È€©½¹Ñ¥¹Õ¥ÑåIÕ¹Ñ¥µ”¤I•Í½ÕÉ•I•ÅÕ•ÍÑÌ¡Ñà½¹Ñ•áĞ¹½¹Ñ•áĞ°¤°ŒÍÑÉ¥¹œ¤€¡mu‘½µ…¥¸¹I•Í½ÕÉ•I•ÅÕ•ÍÑY¥•Ü°•ÉÉ½È¤ì(%É•ÑÕÉ¸È¹MÑ½É”¹I•Í½ÕÉ•I•ÅÕ•ÍÑÌ¡Ñà°¤°Œ¤)ô()™Õ¹Œ½¹Ñ¥¹Õ¥ÑåMÕµµ…Éä¡É•½É±•‘•È¹I•½É¤ÍÑÉ¥¹œì(%Íİ¥Ñ É•½É¹I•½É‘QåÁ”ì(%…Í”‘½µ…¥¸¹QåÁ•M½Á•ÍÍ•ÍÍµ•¹Ğè($%Ø°|€èô‘½µ…¥¸¹•½‘•A…å±½…‘m‘½µ…¥¸¹M½Á•ÍÍ•ÍÍµ•¹Ñt¡É•½É¤($%É•ÑÕÉ¸€‰M½Á”½¥µÁ…Ğè€ˆ€¬Ø¹%µÁ…Ğ(%…Í”‘½µ…¥¸¹QåÁ•M•Ù•É¥Ñå¡…¹”è($%Ø°|€èô‘½µ…¥¸¹•½‘•A…å±½…‘m‘½µ…¥¸¹M•Ù•É¥Ñå¡…¹•t¡É•½É¤($%É•ÑÕÉ¸€‰M•Ù•É¥Ñäè€ˆ€¬Ø¹M•Ù•É¥Ñä(%…Í”‘½µ…¥¸¹QåÁ•!…¹‘½Ù•Èè($%É•ÑÕÉ¸€‰M¡¥™Ğ¡…¹‘½Ù•Èˆ(%…Í”‘½µ…¥¸¹QåÁ•I•Í½ÕÉ•I•ÅÕ•ÍĞè($%Ø°|€èô‘½µ…¥¸¹•½‘•A…å±½…‘m‘½µ…¥¸¹I•Í½ÕÉ•I•ÅÕ•ÍÑt¡É•½É¤($%É•ÑÕÉ¸€‰I•Í½ÕÉ”É•ÅÕ•ÍĞè€ˆ€¬Ø¹I•ÅÕ•ÍĞ(%‘•™…Õ±Ğè($%É•ÑÕÉ¸™µĞ¹MÁÉ¥¹Ñ˜ ˆ•Ìˆ°É•½É¹I•½É‘QåÁ”¤(%ô)ô(
+type ContinuityRuntime struct {
+	Kernel *Kernel
+	Signer Signer
+	Store  *ContinuityStore
+	Blobs  *BlobStore
+}
+
+func NewContinuityRuntime(kernel *Kernel, signer Signer, store *ContinuityStore, blobs *BlobStore) (*ContinuityRuntime, error) {
+	if kernel == nil || store == nil || blobs == nil || signer.KeyID == "" {
+		return nil, errors.New("continuity runtime requires kernel, signer, store and blob store")
+	}
+	return &ContinuityRuntime{Kernel: kernel, Signer: signer, Store: store, Blobs: blobs}, nil
+}
+
+func (r *ContinuityRuntime) PutFirstReportBlob(ctx context.Context, filename, mediaType string, src io.Reader) (domain.BlobReceipt, error) {
+	if filename == "" || src == nil {
+		return domain.BlobReceipt{}, errors.New("blob filename and reader are required")
+	}
+	blobID, err := opaqueBlobID()
+	if err != nil {
+		return domain.BlobReceipt{}, err
+	}
+	tx, err := r.Blobs.pool.Begin(ctx)
+	if err != nil {
+		return domain.BlobReceipt{}, err
+	}
+	defer tx.Rollback(ctx)
+	h := sha256.New()
+	buf := make([]byte, evidenceChunkBytes)
+	sample := make([]byte, 0, 512)
+	var total int64
+	chunkNo := 0
+	for {
+		if err := ctx.Err(); err != nil {
+			return domain.BlobReceipt{}, err
+		}
+		n, readErr := src.Read(buf)
+		if n > 0 {
+			if total+int64(n) > r.Blobs.maxBytes {
+				return domain.BlobReceipt{}, ErrBlobTooLarge
+			}
+			piece := buf[:n]
+			if len(sample) < 512 {
+				need := 512 - len(sample)
+				if need > n {
+					need = n
+				}
+				sample = append(sample, piece[:need]...)
+			}
+			_, _ = h.Write(piece)
+			if _, err := tx.Exec(ctx, `INSERT INTO crab.blob_chunks(blob_id,chunk_no,bytes) VALUES($1,$2,$3)`, blobID, chunkNo, piece); err != nil {
+				return domain.BlobReceipt{}, err
+			}
+			total += int64(n)
+			chunkNo++
+		}
+		if readErr != nil {
+			if errors.Is(readErr, io.EOF) {
+				break
+			}
+			return domain.BlobReceipt{}, readErr
+		}
+	}
+	digest := hex.EncodeToString(h.Sum(nil))
+	detected := http.DetectContentType(sample)
+	now := time.Now().UTC()
+	if _, err := tx.Exec(ctx, `INSERT INTO crab.blobs(blob_id,incident_id,mode,compartment,sha256,size_bytes,original_filename,declared_media_type,detected_media_type,created_at) VALUES($1,'','system','SYSTEM',$2,$3,$4,$5,$6,$7)`, blobID, digest, total, filename, mediaType, detected, now); err != nil {
+		return domain.BlobReceipt{}, err
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return domain.BlobReceipt{}, err
+	}
+	return domain.BlobReceipt{BlobID: blobID, SHA256: digest, SizeBytes: total, OriginalFilename: filename, DeclaredMediaType: mediaType, DetectedMediaType: detected}, nil
+}
+func (r *ContinuityRuntime) AppendContinuity(ctx context.Context, record ledger.Record) error {
+	_, err := r.Kernel.Append(ctx, record, r.Signer, ContinuityProjection{})
+	return err
+}
+func (r *ContinuityRuntime) PendingContinuity(ctx context.Context, incidentID, recordType, recordID string) (ledger.Record, bool, error) {
+	var version, maker, compartment, mode string
+	var payload []byte
+	var proposedAt time.Time
+	err := r.Store.pool.QueryRow(ctx, `SELECT version,maker,compartment,mode,payload,proposed_at FROM crab.continuity_proposals WHERE incident_id=$1 AND record_type=$2 AND record_id=$3`, incidentID, recordType, recordID).Scan(&version, &maker, &compartment, &mode, &payload, &proposedAt)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return ledger.Record{}, false, nil
+	}
+	if err != nil {
+		return ledger.Record{}, false, err
+	}
+	wrapped, err := json.Marshal(domain.GovernedData{Version: version, Payload: json.RawMessage(payload)})
+	if err != nil {
+		return ledger.Record{}, false, err
+	}
+	record := ledger.Record{SchemaVersion: 1, Timestamp: proposedAt.UTC(), TimeStatus: "trusted", IncidentID: incidentID, IncidentMode: mode, WriteSemantic: "governed", RecordType: recordType, RecordID: recordID, Status: "proposed", Maker: maker, Compartment: compartment, Data: wrapped, MakerSignature: ledger.Signature{MissingReason: "maker authenticated on immutable proposal entry"}}
+	if _, err := domain.ProposalVersion(record); err != nil {
+		return ledger.Record{}, false, err
+	}
+	return record, true, nil
+}
+func (r *ContinuityRuntime) FirstReports(ctx context.Context) ([]domain.FirstReportView, error) {
+	return r.Store.FirstReports(ctx)
+}
+func (r *ContinuityRuntime) ScopeAssessments(ctx context.Context, i, c string) ([]domain.ScopeAssessmentView, error) {
+	return r.Store.ScopeAssessments(ctx, i, c)
+}
+func (r *ContinuityRuntime) SeverityChanges(ctx context.Context, i, c string) ([]domain.SeverityChangeView, error) {
+	return r.Store.SeverityChanges(ctx, i, c)
+}
+func (r *ContinuityRuntime) Handovers(ctx context.Context, i, c string) ([]domain.HandoverView, error) {
+	return r.Store.Handovers(ctx, i, c)
+}
+func (r *ContinuityRuntime) ResourceRequests(ctx context.Context, i, c string) ([]domain.ResourceRequestView, error) {
+	return r.Store.ResourceRequests(ctx, i, c)
+}
+
+func continuitySummary(record ledger.Record) string {
+	switch record.RecordType {
+	case domain.TypeScopeAssessment:
+		v, _ := domain.DecodePayload[domain.ScopeAssessment](record)
+		return "Scope/impact: " + v.Impact
+	case domain.TypeSeverityChange:
+		v, _ := domain.DecodePayload[domain.SeverityChange](record)
+		return "Severity: " + v.Severity
+	case domain.TypeHandover:
+		return "Shift handover"
+	case domain.TypeResourceRequest:
+		v, _ := domain.DecodePayload[domain.ResourceRequest](record)
+		return "Resource request: " + v.Request
+	default:
+		return fmt.Sprintf("%s", record.RecordType)
+	}
+}
