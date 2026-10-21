@@ -34,6 +34,10 @@ type pendingSeverityReader interface {
 	PendingSeverityChanges(context.Context, string, string) ([]ledger.Record, error)
 }
 
+type pendingSeverityByIDReader interface {
+	PendingSeverityChange(context.Context, string, string) (ledger.Record, bool, error)
+}
+
 type ContinuityService struct {
 	Backend  ContinuityBackend
 	Incident IncidentPictureReader
@@ -115,7 +119,11 @@ func (s ContinuityService) DecideSeverity(ctx context.Context, principal authz.P
 	if s.Backend == nil {
 		return ledger.Record{}, errors.New("continuity backend is required")
 	}
-	proposal, found, err := s.Backend.PendingContinuity(ctx, incidentID, domain.TypeSeverityChange, recordID)
+	reader, ok := s.Backend.(pendingSeverityByIDReader)
+	if !ok {
+		return ledger.Record{}, errors.New("continuity backend does not expose pending severity lookup")
+	}
+	proposal, found, err := reader.PendingSeverityChange(ctx, incidentID, recordID)
 	if err != nil {
 		return ledger.Record{}, err
 	}
