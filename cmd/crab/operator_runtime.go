@@ -15,6 +15,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/jonathanselby/cyber-response-action-board/internal/adapters/notifier"
 	"github.com/jonathanselby/cyber-response-action-board/internal/app"
 	"github.com/jonathanselby/cyber-response-action-board/internal/config"
 	"github.com/jonathanselby/cyber-response-action-board/internal/data/postgres"
@@ -29,14 +30,18 @@ import (
 const operatorSessionTTL = 8 * time.Hour
 
 type operatorRuntime struct {
-	kernel    *postgres.Kernel
-	signer    postgres.Signer
-	security  *postgres.SecurityStore
-	access    *postgres.AccessStore
-	incidents *postgres.IncidentStore
-	incident  app.IncidentService
-	local     authn.Local
-	sessions  authn.Sessions
+	kernel        *postgres.Kernel
+	signer        postgres.Signer
+	security      *postgres.SecurityStore
+	access        *postgres.AccessStore
+	incidents     *postgres.IncidentStore
+	incident      app.IncidentService
+	accessService app.AccessService
+	evidence      app.EvidenceService
+	communication app.CommunicationService
+	recovery      app.RecoveryService
+	local         authn.Local
+	sessions      authn.Sessions
 }
 
 type signingKeyFile struct {
@@ -68,39 +73,78 @@ func newOperatorRuntime() (web.Runtime, error) {
 	if err != nil {
 		return nil, err
 	}
-	kernel, err := postgres.OpenKernel(ctx, pool, keys)
-	if err != nil {
+	fail := func(err error) (web.Runtime, error) {
 		pool.Close()
 		return nil, err
 	}
+	kernel, err := postgres.OpenKernel(ctx, pool, keys)
+	if err != nil {
+		return fail(err)
+	}
 	if kernel.IntegrityFailed() {
-		pool.Close()
-		return nil, postgres.ErrIntegrityFailed
+		return fail(postgres.ErrIntegrityFailed)
 	}
 	security, err := postgres.NewSecurityStore(pool)
 	if err != nil {
-		pool.Close()
-		return nil, err
+		return fail(err)
 	}
-	access, err := postgres.NewAccessStore(pool)
+	accessStore, err := postgres.NewAccessStore(pool)
 	if err != nil {
-		pool.Close()
-		return nil, err
+		return fail(err)
 	}
 	incidents, err := postgres.NewIncidentStore(pool)
 	if err != nil {
-		pool.Close()
-		return nil, err
+		return fail(err)
 	}
 	incidentBackend, err := postgres.NewIncidentRuntime(kernel, signer, incidents)
 	if err != nil {
-		pool.Close()
-		return nil, err
+		return fail(err)
 	}
-	r := &operatorRuntime{kernel: kernel, signer: signer, security: security, access: access, incidents: incidents}
+	accessBackend, err := postgres.NewAccessRuntime(kernel, signer, accessStore)
+	if err != nil {
+		return fail(err)
+	}
+	blobStore, err := postgres.NewBlobStore(pool, cfg.EvidenceMaxBytes)
+	if err != nil {
+		return fail(err)
+	}
+	evidenceStore, err := postgres.NewEvidenceStore(pool)
+	if err != nil {
+		return fail(err)
+	}
+	evidenceBackend, err := postgres.NewEvidenceRuntime(kernel, signer, blobStore, evidenceStore)
+	if err != nil {
+		return fail(err)
+	}
+	communicationStore, err := postgres.NewCommunicationStore(pool)
+	if err != nil {
+		return fail(err)
+	}
+	communicationBackend, err := postgres.NewCommunicationRuntime(kernel, signer, communicationStore)
+	if err != nil {
+		return fail(err)
+	}
+	recoveryStore, err := postgres.NewRecoveryStore(pool)
+	if err != nil {
+		return fail(err)
+	}
+	recoveryBackend, err := postgres.NewRecoveryRuntime(kernel, signer, recoveryStore)
+	if err != nil {
+		return fail(err)
+	}
+	channels, err := loadNotificationDeployment(cfg)
+	if err != nil {
+		return fail(err)
+	}
+
+	r := &operatorRuntime{kernel: kernel, signer: signer, security: security, access: accessStore, incidents: incidents}
 	r.local = authn.Local{Store: security}
 	r.sessions = authn.Sessions{Store: security, TTL: operatorSessionTTL}
 	r.incident = app.IncidentService{Backend: incidentBackend}
+	r.accessService = app.AccessService{Backend: accessBackend}
+	r.evidence = app.EvidenceService{Backend: evidenceBackend}
+	r.communication = app.CommunicationService{Backend: communicationBackend, Incident: r.incident, Notifier: notifier.Sender{}, Channels: channels}
+	r.recovery = app.RecoveryService{Backend: recoveryBackend}
 	return r, nil
 }
 
