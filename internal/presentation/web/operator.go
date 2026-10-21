@@ -85,7 +85,7 @@ var operatorTemplate = template.Must(template.New("operator").Parse(`<!doctype h
 <main>
 {{if .Error}}<section class="notice notice--error" role="alert"><strong>Refused</strong><p>{{.Error}}</p></section>{{end}}
 {{if .Setup}}
-<section class="panel narrow"><p class="kicker">First run</p><h2>Two-person bootstrap</h2><p>Available only from the local host before bootstrap.</p><form method="post" action="/setup" class="form-grid"><label>Preparer ID<input name="prepared_by" required></label><label>Preparer password<input type="password" name="prepared_password" minlength="12" required></label><label>Confirmer ID<input name="confirmed_by" required></label><label>Confirmer password<input type="password" name="confirmed_password" minlength="12" required></label><button>Confirm bootstrap</button></form></section>
+<section class="panel narrow"><p class="kicker">First run</p><h2>Two-person bootstrap</h2><p>Create both initial accounts together. The preparer and confirmer must be two different people. Available only from the local host before bootstrap.</p><form method="post" action="/setup" class="form-grid"><label>Preparer ID<input name="prepared_by" required></label><label>Preparer password<input type="password" name="prepared_password" minlength="12" required></label><label>Confirmer ID<input name="confirmed_by" required></label><label>Confirmer password<input type="password" name="confirmed_password" minlength="12" required></label><button>Confirm bootstrap</button></form></section>
 {{else if not .Authenticated}}
 <section class="panel narrow"><h2>Sign in</h2><form method="post" action="/login" class="form-grid"><label>Human ID<input name="human_id" required></label><label>Password<input type="password" name="password" required></label><button>Sign in</button></form></section>
 {{else if .Incident}}
@@ -320,12 +320,39 @@ func parseSmallForm(w http.ResponseWriter, r *http.Request) error {
 }
 
 func sameOrigin(r *http.Request) bool {
-	origin := r.Header.Get("Origin")
+	origin := strings.TrimSpace(r.Header.Get("Origin"))
 	if origin == "" {
 		return loopbackRequest(r)
 	}
 	u, err := url.Parse(origin)
-	return err == nil && strings.EqualFold(u.Host, r.Host)
+	if err != nil {
+		return false
+	}
+	if strings.EqualFold(u.Host, r.Host) {
+		return true
+	}
+	return equivalentLoopbackHosts(u.Host, r.Host)
+}
+
+func equivalentLoopbackHosts(originHost, requestHost string) bool {
+	originName, originPort, err := net.SplitHostPort(originHost)
+	if err != nil {
+		return false
+	}
+	requestName, requestPort, err := net.SplitHostPort(requestHost)
+	if err != nil || originPort != requestPort {
+		return false
+	}
+	return loopbackHost(originName) && loopbackHost(requestName)
+}
+
+func loopbackHost(host string) bool {
+	host = strings.TrimSuffix(strings.TrimSpace(host), ".")
+	if strings.EqualFold(host, "localhost") {
+		return true
+	}
+	ip := net.ParseIP(host)
+	return ip != nil && ip.IsLoopback()
 }
 
 func loopbackRequest(r *http.Request) bool {

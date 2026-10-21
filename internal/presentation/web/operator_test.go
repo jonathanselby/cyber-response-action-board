@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"strings"
 	"testing"
 )
@@ -56,6 +57,46 @@ func TestOperatorStartsWithBootstrap(t *testing.T) {
 	s.Handler().ServeHTTP(w, r)
 	if w.Code != http.StatusOK || !strings.Contains(w.Body.String(), "Two-person bootstrap") {
 		t.Fatalf("code=%d body=%q", w.Code, w.Body.String())
+	}
+}
+
+func TestOperatorSetupAcceptsEquivalentLoopbackOrigin(t *testing.T) {
+	runtime := &fakeRuntime{}
+	s := withRuntime(t, runtime)
+	form := url.Values{
+		"prepared_by":        {"alice"},
+		"prepared_password":  {"alice-password-123"},
+		"confirmed_by":       {"bob"},
+		"confirmed_password": {"bob-password-12345"},
+	}
+	r := httptest.NewRequest(http.MethodPost, "http://127.0.0.1:8080/setup", strings.NewReader(form.Encode()))
+	r.RemoteAddr = "127.0.0.1:45000"
+	r.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	r.Header.Set("Origin", "http://localhost:8080")
+	w := httptest.NewRecorder()
+	s.Handler().ServeHTTP(w, r)
+	if w.Code != http.StatusSeeOther || !runtime.bootstrapped {
+		t.Fatalf("code=%d bootstrapped=%v body=%q", w.Code, runtime.bootstrapped, w.Body.String())
+	}
+}
+
+func TestOperatorSetupRefusesNonLocalOrigin(t *testing.T) {
+	runtime := &fakeRuntime{}
+	s := withRuntime(t, runtime)
+	form := url.Values{
+		"prepared_by":        {"alice"},
+		"prepared_password":  {"alice-password-123"},
+		"confirmed_by":       {"bob"},
+		"confirmed_password": {"bob-password-12345"},
+	}
+	r := httptest.NewRequest(http.MethodPost, "http://127.0.0.1:8080/setup", strings.NewReader(form.Encode()))
+	r.RemoteAddr = "127.0.0.1:45000"
+	r.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	r.Header.Set("Origin", "https://example.invalid")
+	w := httptest.NewRecorder()
+	s.Handler().ServeHTTP(w, r)
+	if w.Code != http.StatusForbidden || runtime.bootstrapped {
+		t.Fatalf("code=%d bootstrapped=%v body=%q", w.Code, runtime.bootstrapped, w.Body.String())
 	}
 }
 
