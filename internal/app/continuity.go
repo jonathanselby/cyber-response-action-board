@@ -154,7 +154,7 @@ func (s ContinuityService) GenerateHandover(ctx context.Context, principal authz
 		h.OperationalRoles = append(h.OperationalRoles, label)
 	}
 	for _, action := range picture.Actions {
-		if action.Action.Status != domain.ActionStatusCompleted && action.Action.Status != domain.ActionStatusSkipped {
+		if action.Action.Status != domain.ActionStatusComplete && action.Action.Status != domain.ActionStatusSkipped {
 			h.CriticalActions = append(h.CriticalActions, fmt.Sprintf("%s [%s] — %s", action.Action.Title, action.Action.Priority, action.Action.OwnerHumanID))
 		}
 	}
@@ -165,7 +165,7 @@ func (s ContinuityService) GenerateHandover(ctx context.Context, principal authz
 		h.Obligations = append(h.Obligations, fmt.Sprintf("%s — %s", obligation.Name, obligation.Deadline.UTC().Format(time.RFC3339)))
 	}
 	for _, unknown := range picture.Unknowns {
-		h.Unknowns = append(h.Unknowns, unknown.Item.Statement)
+		h.Unknowns = append(h.Unknowns, unknown.Uncertainty.Statement)
 	}
 	record, err := domain.RecordHandover(scope, recordID, principal.HumanID, now, h)
 	if err != nil {
