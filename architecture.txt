@@ -1,4 +1,4 @@
-CRAB V0.4 — frozen architecture
+CRAB V0.4 — frozen architecture, implemented
 
 RESPONDERS / EXECUTIVES / ADVISERS / AUTHORISED AGENTS
                          |
@@ -11,19 +11,27 @@ RESPONDERS / EXECUTIVES / ADVISERS / AUTHORISED AGENTS
                              |
                              v
 +-----------------------------------------------------------+
-| APPLICATION / DOMAIN                                      |
-| Authn/authz | Record | Propose -> Decide | projections    |
-| incident/actions/obligations/access/evidence/retrieval    |
+| APPLICATION / DOMAIN / SECURITY                           |
+| Authn/authz | Record | Propose -> Decide | semantic views |
+| incidents/actions/obligations/access/evidence/retrieval   |
+| models/comms/recovery/PIR/closure/readiness/print policy  |
 +----------------------------+------------------------------+
                              |
                              v
 +-----------------------------------------------------------+
 | DATA                                                      |
 | PostgreSQL                                                |
-| signed append-only ledger | blobs | security support      |
-| rebuildable projections                                  |
+| signed append-only ledger | immutable blobs | security    |
+| rebuildable projections/indexes/timed waits              |
 +-----------------------------------------------------------+
 
-Current build checkpoint (0.0.2-dev): executable shell plus Slice 1
-PostgreSQL ledger/projection kernel. Authentication, incident semantics and
-later product slices remain deliberately unimplemented rather than simulated.
+ONE Go application. ONE durable live store. Optional model/notifier edges.
+Derived PDFs/exports/backups are files, not a second live application store.
+
+Implementation evidence checkpoint analysed by codebase-to-EDD:
+77adcde68a271683d4c94706bac89955530d84ea
+
+Tier import boundaries are executable CI constraints in
+internal/architecture/imports_test.go. The frozen governing design remains
+EDD.md V0.4; docs/generated-codebase-edd.md describes the implemented system
+and docs/edd-drift-review.md records the comparison.
