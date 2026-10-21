@@ -6,7 +6,7 @@ CRAB is a single Go application for running a cyber incident from first report t
 
 ## Build status
 
-**0.0.14-dev — code-complete development checkpoint.**
+**0.0.14-dev — release-candidate checkpoint; automated acceptance complete.**
 
 The frozen product contract is PRD V0.2 and EDD V0.4. The implementation may simplify mechanisms; it may not silently weaken product outcomes, security boundaries or degraded-operation behaviour.
 
@@ -37,18 +37,19 @@ CI-proven now:
 - readiness derived from actual key, backup/restore, export, storage, paper-pack, model and notification deployment evidence;
 - local Custodian recovery that is refused while normal Custodian quorum is demonstrably usable and never grants incident-content access;
 - non-loopback serving refused unless TLS certificate/key and an HTTPS public base URL are configured;
-- file-first optional model and notification deployment composition, with local model endpoints constrained to loopback and managed endpoints constrained to HTTPS.
+- file-first optional model and notification deployment composition, with local model endpoints constrained to loopback and managed endpoints constrained to HTTPS;
+- explicit Bafflewick end-to-end regression acceptance with an 8/8 mandatory threshold;
+- generated codebase-to-EDD comparison against frozen EDD V0.4 with no material architecture drift found;
+- automated visual/accessibility preflight covering responsive/mobile contracts, keyboard focus, touch targets and local A4/Letter/monochrome print contracts.
 
-The current checkpoint passed module integrity, gofmt, `go vet`, the full race-enabled unit/PostgreSQL integration suite, Linux amd64 build, Linux arm64 build and the explicit core acceptance gate. See `docs/build-evidence-0.0.14-dev.md`.
+The current candidate passes normal module/gofmt/`go vet`/race-enabled PostgreSQL CI, Linux amd64 and arm64 builds, the explicit core acceptance gate, Bafflewick 8/8 and the visual/accessibility preflight. See `docs/final-acceptance-progress.md`.
 
 ### Remaining release evidence
 
-The product mechanisms are implemented. A stable release tag is intentionally withheld until the final acceptance evidence is recorded:
+The product mechanisms and repository-automatable acceptance are complete. A stable release tag is intentionally withheld until two empirical gates are recorded:
 
-1. Bafflewick operational scenario;
-2. Raspberry Pi 5 / 8 GB arm64 resource-budget run;
-3. final browser and print visual review;
-4. generated codebase-to-EDD comparison against frozen EDD V0.4.
+1. Raspberry Pi 5 / 8 GB arm64 physical resource-budget run using `scripts/final-acceptance.sh`;
+2. final human browser and print visual review using `docs/visual-acceptance.md`.
 
 These are acceptance activities, not permission for another architectural rewrite.
 
@@ -154,7 +155,12 @@ PostgreSQL RLS was empirically tested. It was not retained in V0.4 because the e
 - `BUILD-NOTES.md` — implementation sequencing and build discipline.
 - `TEST-ACCEPTANCE-NOTES.md` — behavioural/security acceptance catalogue.
 - `UX-PRINT-BUILD-NOTES.md` — web, accessibility and print quality requirements.
-- `docs/build-evidence-0.0.14-dev.md` — current checkpoint evidence.
+- `docs/build-evidence-0.0.14-dev.md` — code-complete implementation checkpoint evidence.
+- `docs/bafflewick-acceptance.md` — explicit operational regression gate.
+- `docs/generated-codebase-edd.md` and `docs/edd-drift-review.md` — recovered implementation architecture and frozen-EDD comparison.
+- `docs/visual-acceptance.md` — automated preflight plus human rendered-review contract.
+- `docs/pi-final-acceptance.md` — one-command physical minimum-hardware acceptance.
+- `docs/final-acceptance-progress.md` — current release-gate status.
 
 ## Toolchain
 
