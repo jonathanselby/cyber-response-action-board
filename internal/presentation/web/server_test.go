@@ -28,6 +28,9 @@ func TestShellIsOfflineAndSecurityHeadersArePresent(t *testing.T) {
 			t.Fatalf("missing %s", h)
 		}
 	}
+	if got := w.Header().Get("Referrer-Policy"); got != "same-origin" {
+		t.Fatalf("Referrer-Policy = %q; want same-origin", got)
+	}
 }
 
 func TestStaticAssetIsEmbedded(t *testing.T) {
