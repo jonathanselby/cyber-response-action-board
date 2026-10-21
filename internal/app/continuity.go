@@ -30,6 +30,10 @@ type ContinuityBackend interface {
 	ResourceRequests(context.Context, string, string) ([]domain.ResourceRequestView, error)
 }
 
+type pendingSeverityReader interface {
+	PendingSeverityChanges(context.Context, string, string) ([]ledger.Record, error)
+}
+
 type ContinuityService struct {
 	Backend  ContinuityBackend
 	Incident IncidentPictureReader
@@ -161,6 +165,13 @@ func (s ContinuityService) GenerateHandover(ctx context.Context, principal authz
 	for _, pending := range picture.Pending {
 		h.PendingDecisions = append(h.PendingDecisions, pending.RecordType+"/"+pending.RecordID)
 	}
+	pendingSeverity, err := s.PendingSeverityChanges(ctx, principal, scope.IncidentID, scope.Compartment)
+	if err != nil {
+		return ledger.Record{}, err
+	}
+	for _, pending := range pendingSeverity {
+		h.PendingDecisions = append(h.PendingDecisions, pending.RecordType+"/"+pending.RecordID)
+	}
 	for _, obligation := range picture.Obligations {
 		h.Obligations = append(h.Obligations, fmt.Sprintf("%s — %s", obligation.Name, obligation.Deadline.UTC().Format(time.RFC3339)))
 	}
@@ -210,6 +221,17 @@ func (s ContinuityService) SeverityChanges(ctx context.Context, principal authz.
 		return nil, ErrAuthorisationDenied
 	}
 	return s.Backend.SeverityChanges(ctx, incidentID, compartment)
+}
+
+func (s ContinuityService) PendingSeverityChanges(ctx context.Context, principal authz.Principal, incidentID, compartment string) ([]ledger.Record, error) {
+	if d := authz.Authorise(principal, authz.ActionRead, authz.ObjectScope{IncidentID: incidentID, Compartment: compartment}); !d.Allowed {
+		return nil, ErrAuthorisationDenied
+	}
+	reader, ok := s.Backend.(pendingSeverityReader)
+	if !ok {
+		return nil, errors.New("continuity backend does not expose pending severity changes")
+	}
+	return reader.PendingSeverityChanges(ctx, incidentID, compartment)
 }
 
 func (s ContinuityService) Handovers(ctx context.Context, principal authz.Principal, incidentID, compartment string) ([]domain.HandoverView, error) {
