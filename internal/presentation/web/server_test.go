@@ -23,6 +23,9 @@ func TestShellIsOfflineAndSecurityHeadersArePresent(t *testing.T) {
 	if strings.Contains(body, "http://") || strings.Contains(body, "https://") {
 		t.Fatal("shell depends on external asset")
 	}
+	if !strings.Contains(body, "gas-body") || !strings.Contains(body, "/_app-shell/shell.css") {
+		t.Fatal("released go-app-shell is not the active presentation chassis")
+	}
 	for _, h := range []string{"Content-Security-Policy", "X-Content-Type-Options", "Cache-Control"} {
 		if w.Header().Get(h) == "" {
 			t.Fatalf("missing %s", h)
@@ -33,21 +36,29 @@ func TestShellIsOfflineAndSecurityHeadersArePresent(t *testing.T) {
 	}
 }
 
-func TestStaticAssetIsEmbedded(t *testing.T) {
+func TestShellAndCRABAssetsAreEmbedded(t *testing.T) {
 	s, err := New()
 	if err != nil {
 		t.Fatal(err)
 	}
-	r := httptest.NewRequest(http.MethodGet, "/static/app.css", nil)
-	w := httptest.NewRecorder()
-	s.Handler().ServeHTTP(w, r)
-	res := w.Result()
-	defer res.Body.Close()
-	b, err := io.ReadAll(res.Body)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if res.StatusCode != http.StatusOK || !strings.Contains(string(b), ".shell") {
-		t.Fatalf("embedded CSS unavailable: %d", res.StatusCode)
+	for _, tc := range []struct {
+		path string
+		want string
+	}{
+		{path: "/_app-shell/shell.css", want: ".gas-header"},
+		{path: "/static/app.css", want: ".crab-home-layout"},
+	} {
+		r := httptest.NewRequest(http.MethodGet, tc.path, nil)
+		w := httptest.NewRecorder()
+		s.Handler().ServeHTTP(w, r)
+		res := w.Result()
+		b, readErr := io.ReadAll(res.Body)
+		res.Body.Close()
+		if readErr != nil {
+			t.Fatal(readErr)
+		}
+		if res.StatusCode != http.StatusOK || !strings.Contains(string(b), tc.want) {
+			t.Fatalf("embedded asset %s unavailable: %d", tc.path, res.StatusCode)
+		}
 	}
 }

@@ -1,6 +1,7 @@
 package web
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"html/template"
@@ -8,6 +9,8 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+
+	appshell "github.com/jonathanselby/go-app-shell/shell"
 )
 
 const sessionCookie = "crab_session"
@@ -77,28 +80,124 @@ type Runtime interface {
 
 var RuntimeFactory func() (Runtime, error)
 
-var operatorTemplate = template.Must(template.New("operator").Parse(`<!doctype html>
-<html lang="en">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>CRAB</title><link rel="stylesheet" href="/static/app.css"></head>
-<body>
-<header class="shell"><div><p class="eyebrow">Cyber Response Action Board</p><h1>CRAB</h1></div><div class="version">{{.Version}}</div></header>
-<main>
-{{if .Error}}<section class="notice notice--error" role="alert"><strong>Refused</strong><p>{{.Error}}</p></section>{{end}}
-{{if .Setup}}
-<section class="panel narrow"><p class="kicker">First run</p><h2>Two-person bootstrap</h2><p>Create both initial accounts together. The preparer and confirmer must be two different people. Available only from the local host before bootstrap.</p><form method="post" action="/setup" class="form-grid"><label>Preparer ID<input name="prepared_by" required></label><label>Preparer password<input type="password" name="prepared_password" minlength="12" required></label><label>Confirmer ID<input name="confirmed_by" required></label><label>Confirmer password<input type="password" name="confirmed_password" minlength="12" required></label><button>Confirm bootstrap</button></form></section>
-{{else if not .Authenticated}}
-<section class="panel narrow"><h2>Sign in</h2><form method="post" action="/login" class="form-grid"><label>Human ID<input name="human_id" required></label><label>Password<input type="password" name="password" required></label><button>Sign in</button></form></section>
-{{else if .Incident}}
-<nav class="crumb"><a href="/">Incidents</a><span>/</span><strong>{{.Incident.IncidentID}}</strong><span>/</span><a href="/incident/{{.Incident.IncidentID}}/operations">Operations</a></nav>
-<section class="incident-head"><div><p class="kicker">{{.Incident.Mode}}</p><h2>{{.Incident.Title}}</h2><p>{{.Incident.Summary}}</p></div><div class="severity"><span>Severity</span><strong>{{.Incident.Severity}}</strong></div></section>
-<section class="dashboard-grid"><article><h3>Facts</h3>{{range .Incident.Facts}}<p><strong>{{.Statement}}</strong><br><small>{{.Source}}</small></p>{{else}}<p class="muted">No facts recorded.</p>{{end}}</article><article><h3>Actions</h3>{{range .Incident.Actions}}<p><strong>{{.Title}}</strong><br><small>{{.Owner}} · {{.Status}} · {{.Priority}}</small></p>{{else}}<p class="muted">No confirmed actions.</p>{{end}}</article><article><h3>Pending approvals</h3>{{range .Incident.Pending}}<form method="post" action="/incident/{{$.Incident.IncidentID}}/decide" class="approval"><input type="hidden" name="record_type" value="{{.RecordType}}"><input type="hidden" name="record_id" value="{{.RecordID}}"><input type="hidden" name="version" value="{{.Version}}"><strong>{{.RecordType}}</strong><small>{{.Maker}}</small><div><button name="outcome" value="confirmed">Confirm</button><button class="secondary" name="outcome" value="rejected">Reject</button></div></form>{{else}}<p class="muted">Nothing waiting.</p>{{end}}</article></section>
-<section class="dashboard-grid"><article><h3>Record fact</h3><form method="post" action="/incident/{{.Incident.IncidentID}}/fact" class="form-grid"><label>Statement<textarea name="statement" required></textarea></label><label>Source<input name="source" required></label><button>Record</button></form></article><article><h3>Propose action</h3><form method="post" action="/incident/{{.Incident.IncidentID}}/action" class="form-grid"><label>Action<input name="title" required></label><label>Owner<input name="owner" required></label><label>Priority<input name="priority" value="P1" required></label><label>Source reference<input name="source_ref" required></label><button>Propose</button></form></article><article><h3>Timeline</h3>{{range .Incident.Timeline}}<p><strong>{{.Summary}}</strong><br><small>{{.RecordedAt}} · {{.Governance}}</small></p>{{else}}<p class="muted">No timeline entries.</p>{{end}}<p class="no-print"><strong>Print:</strong> use your browser Print command.</p></article></section>
-{{else}}
-<div class="toolbar"><div><p class="kicker">Signed in</p><h2>{{.Home.HumanID}}</h2><p>{{.Home.Role}}</p></div><div><p><a href="/intake">First-report intake</a></p><form method="post" action="/logout"><button class="secondary">Sign out</button></form></div></div>
-{{if .Home.CanDeclare}}<section class="dashboard-grid"><article><h3>Declare incident</h3><form method="post" action="/incident" class="form-grid"><label>Incident ID<input name="incident_id" required></label><label>Mode<select name="mode"><option value="live">Live</option><option value="exercise">Exercise</option></select></label><label>Title<input name="title" required></label><label>Summary<textarea name="summary" required></textarea></label><label>Severity<input name="severity" required></label><button>Propose declaration</button></form></article><article><h3>Pending declarations</h3>{{range .Home.PendingDeclarations}}<form method="post" action="/declaration/decide" class="approval"><input type="hidden" name="incident_id" value="{{.IncidentID}}"><input type="hidden" name="record_id" value="{{.RecordID}}"><input type="hidden" name="version" value="{{.Version}}"><strong>{{.Title}}</strong><small>{{.IncidentID}} · {{.Maker}} · {{.Severity}}</small><p>{{.Summary}}</p><div><button name="outcome" value="confirmed">Confirm</button><button class="secondary" name="outcome" value="rejected">Reject</button></div></form>{{else}}<p class="muted">No declarations waiting.</p>{{end}}</article></section>{{end}}
-<section class="panel"><h3>Assigned incidents</h3><div class="incident-list">{{range .Home.Incidents}}<a class="incident-row" href="/incident/{{.IncidentID}}"><span><strong>{{.Title}}</strong><small>{{.IncidentID}} · {{.Mode}}</small></span><span>{{.Severity}}</span></a>{{else}}<p class="muted">No incident assignments.</p>{{end}}</div></section>
-{{end}}
-</main></body></html>`))
+var setupFragment = template.Must(template.New("setup").Parse(`
+{{if .Error}}<div class="gas-error-summary" role="alert"><strong>Setup refused</strong><span>{{.Error}}</span></div>{{end}}
+<section class="gas-panel crab-auth-panel">
+  <div class="gas-stack">
+    <div><span class="gas-badge gas-badge--info">First run</span></div>
+    <h2>Two-person bootstrap</h2>
+    <p>Create both initial named accounts together. The preparer and confirmer must be different people. Bootstrap is available only from the local host.</p>
+    <form method="post" action="/setup" class="gas-form">
+      <div class="gas-field"><label for="prepared_by">Preparer ID</label><input id="prepared_by" name="prepared_by" autocomplete="username" required></div>
+      <div class="gas-field"><label for="prepared_password">Preparer password</label><input id="prepared_password" type="password" name="prepared_password" minlength="12" autocomplete="new-password" required><span class="gas-help">At least 12 characters.</span></div>
+      <div class="gas-field"><label for="confirmed_by">Confirmer ID</label><input id="confirmed_by" name="confirmed_by" autocomplete="username" required></div>
+      <div class="gas-field"><label for="confirmed_password">Confirmer password</label><input id="confirmed_password" type="password" name="confirmed_password" minlength="12" autocomplete="new-password" required><span class="gas-help">Must belong to a different named human.</span></div>
+      <div><button class="gas-button gas-button--primary">Confirm bootstrap</button></div>
+    </form>
+  </div>
+</section>`))
+
+var loginFragment = template.Must(template.New("login").Parse(`
+{{if .Error}}<div class="gas-error-summary" role="alert"><strong>Sign in refused</strong><span>{{.Error}}</span></div>{{end}}
+<section class="gas-panel crab-auth-panel">
+  <div class="gas-stack">
+    <h2>Sign in</h2>
+    <p class="gas-muted">Use a named CRAB identity. Access to incidents and restricted compartments remains separately governed.</p>
+    <form method="post" action="/login" class="gas-form">
+      <div class="gas-field"><label for="human_id">Human ID</label><input id="human_id" name="human_id" autocomplete="username" required></div>
+      <div class="gas-field"><label for="password">Password</label><input id="password" type="password" name="password" autocomplete="current-password" required></div>
+      <div><button class="gas-button gas-button--primary">Sign in</button></div>
+    </form>
+  </div>
+</section>`))
+
+var homeFragment = template.Must(template.New("home").Parse(`
+{{if .Error}}<div class="gas-error-summary" role="alert"><strong>Request refused</strong><span>{{.Error}}</span></div>{{end}}
+<div class="crab-home-layout">
+  <section class="gas-panel">
+    <div class="crab-section-heading"><div><h2>Assigned incidents</h2><p class="gas-muted">Only incidents available to your current CRAB identity are shown.</p></div><a class="gas-button" href="/intake">First-report intake</a></div>
+    {{if .Home.Incidents}}
+    <ul class="gas-list crab-incident-list">
+      {{range .Home.Incidents}}<li><a href="/incident/{{.IncidentID}}"><span><strong>{{.Title}}</strong><small>{{.IncidentID}} · {{.Mode}}</small></span><span class="gas-badge">{{.Severity}}</span></a></li>{{end}}
+    </ul>
+    {{else}}<div class="gas-empty">No incident assignments.</div>{{end}}
+  </section>
+
+  <div class="gas-stack">
+    {{if .Home.CanDeclare}}
+    <section class="gas-panel">
+      <div class="gas-stack">
+        <div><span class="gas-badge gas-badge--warning">Governed change</span></div>
+        <div><h2>Declare incident</h2><p class="gas-muted">Declaration establishes governed incident state only after a different named confirmer approves it.</p></div>
+        <form method="post" action="/incident" class="gas-form">
+          <div class="gas-field"><label for="incident_id">Incident ID</label><input id="incident_id" name="incident_id" required></div>
+          <div class="gas-field"><label for="mode">Mode</label><select id="mode" name="mode"><option value="live">Live</option><option value="exercise">Exercise</option></select></div>
+          <div class="gas-field"><label for="title">Title</label><input id="title" name="title" required></div>
+          <div class="gas-field"><label for="summary">Situation summary</label><textarea id="summary" name="summary" required></textarea></div>
+          <div class="gas-field"><label for="severity">Severity</label><input id="severity" name="severity" required><span class="gas-help">This field is replaced by the governed organisation risk model in the next refactor chunk; it is not a release-ready control.</span></div>
+          <div><button class="gas-button gas-button--primary">Propose declaration</button></div>
+        </form>
+      </div>
+    </section>
+    <section class="gas-panel">
+      <h2>Pending declarations</h2>
+      {{range .Home.PendingDeclarations}}
+      <form method="post" action="/declaration/decide" class="crab-approval">
+        <input type="hidden" name="incident_id" value="{{.IncidentID}}"><input type="hidden" name="record_id" value="{{.RecordID}}"><input type="hidden" name="version" value="{{.Version}}">
+        <div class="crab-approval__body"><strong>{{.Title}}</strong><span class="gas-muted">{{.IncidentID}} · proposed by {{.Maker}}</span><p>{{.Summary}}</p><div class="gas-cluster"><span class="gas-badge">{{.Mode}}</span><span class="gas-badge gas-badge--warning">{{.Severity}}</span></div></div>
+        <div class="gas-cluster"><button class="gas-button gas-button--primary" name="outcome" value="confirmed">Confirm</button><button class="gas-button" name="outcome" value="rejected">Reject</button></div>
+      </form>
+      {{else}}<div class="gas-empty">No declarations waiting.</div>{{end}}
+    </section>
+    {{else}}
+    <section class="gas-panel"><h2>Incident declaration</h2><p class="gas-muted">Your current role cannot propose a new incident declaration.</p></section>
+    {{end}}
+  </div>
+</div>`))
+
+var incidentFragment = template.Must(template.New("incident").Parse(`
+{{if .Error}}<div class="gas-error-summary" role="alert"><strong>Request refused</strong><span>{{.Error}}</span></div>{{end}}
+<section class="gas-panel crab-operating-context">
+  <div class="crab-operating-context__summary"><div class="gas-cluster"><span class="gas-badge{{if eq .Incident.Mode "exercise"}} gas-badge--warning{{end}}">{{.Incident.Mode}}</span><span class="gas-badge gas-badge--warning">Severity {{.Incident.Severity}}</span></div><p>{{.Incident.Summary}}</p></div>
+</section>
+
+<div class="crab-board-grid">
+  <section class="gas-panel">
+    <div class="crab-section-heading"><h2>Known facts</h2><a href="#record-fact">Record fact</a></div>
+    {{range .Incident.Facts}}<div class="crab-record"><strong>{{.Statement}}</strong>{{if .Source}}<span class="gas-muted">Source: {{.Source}}</span>{{end}}</div>{{else}}<div class="gas-empty">No facts recorded.</div>{{end}}
+  </section>
+  <section class="gas-panel">
+    <div class="crab-section-heading"><h2>Live actions</h2><a href="#propose-action">Propose action</a></div>
+    {{range .Incident.Actions}}<div class="crab-record"><strong>{{.Title}}</strong><span class="gas-muted">{{.Owner}} · {{.Status}} · {{.Priority}}</span></div>{{else}}<div class="gas-empty">No confirmed actions.</div>{{end}}
+  </section>
+</div>
+
+<section class="gas-panel">
+  <div class="crab-section-heading"><div><h2>Pending decisions</h2><p class="gas-muted">A different named human must confirm or reject the exact proposed version.</p></div></div>
+  {{range .Incident.Pending}}
+  <form method="post" action="/incident/{{$.Incident.IncidentID}}/decide" class="crab-approval">
+    <input type="hidden" name="record_type" value="{{.RecordType}}"><input type="hidden" name="record_id" value="{{.RecordID}}"><input type="hidden" name="version" value="{{.Version}}">
+    <div class="crab-approval__body"><strong>{{.RecordType}}</strong><span class="gas-muted">Proposed by {{.Maker}} · version {{.Version}}</span></div>
+    <div class="gas-cluster"><button class="gas-button gas-button--primary" name="outcome" value="confirmed">Confirm</button><button class="gas-button" name="outcome" value="rejected">Reject</button></div>
+  </form>
+  {{else}}<div class="gas-empty">Nothing waiting for confirmation.</div>{{end}}
+</section>
+
+<div class="crab-board-grid crab-no-print">
+  <section id="record-fact" class="gas-panel">
+    <h2>Record fact</h2><p class="gas-muted">Preserves an observation immediately; it does not silently change governed state.</p>
+    <form method="post" action="/incident/{{.Incident.IncidentID}}/fact" class="gas-form"><div class="gas-field"><label for="fact_statement">Statement</label><textarea id="fact_statement" name="statement" required></textarea></div><div class="gas-field"><label for="fact_source">Source</label><input id="fact_source" name="source" required></div><div><button class="gas-button gas-button--primary">Record fact</button></div></form>
+  </section>
+  <section id="propose-action" class="gas-panel">
+    <h2>Propose action</h2><p class="gas-muted">Creates a governed action proposal for separate confirmation.</p>
+    <form method="post" action="/incident/{{.Incident.IncidentID}}/action" class="gas-form"><div class="gas-field"><label for="action_title">Action</label><input id="action_title" name="title" required></div><div class="gas-field"><label for="action_owner">Owner</label><input id="action_owner" name="owner" required></div><div class="gas-field"><label for="action_priority">Priority</label><input id="action_priority" name="priority" value="P1" required></div><div class="gas-field"><label for="action_source">Source reference</label><input id="action_source" name="source_ref" required></div><div><button class="gas-button gas-button--primary">Propose action</button></div></form>
+  </section>
+</div>
+
+<section class="gas-panel">
+  <div class="crab-section-heading"><h2>Recent history</h2><span class="gas-muted">Immutable event trail</span></div>
+  {{range .Incident.Timeline}}<div class="crab-timeline-row"><strong>{{.Summary}}</strong><span class="gas-muted">{{.RecordedAt}} · {{.Governance}}</span></div>{{else}}<div class="gas-empty">No timeline entries.</div>{{end}}
+</section>`))
 
 type operatorPage struct {
 	Version       string
@@ -277,10 +376,51 @@ func (s *Server) operatorDecision(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) renderOperator(w http.ResponseWriter, page operatorPage) {
 	page.Version = s.version
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	if err := operatorTemplate.Execute(w, page); err != nil {
-		http.Error(w, "render failed", http.StatusInternalServerError)
+	base := appshell.Page{DocumentTitle: "CRAB", App: appshell.AppHeader{Name: "CRAB", Status: "v" + s.version}}
+	var fragment template.HTML
+	var err error
+	switch {
+	case page.Setup:
+		base.Title = "Initial setup"
+		base.Summary = "Establish the two named human identities required to initialise CRAB without creating incident-content visibility."
+		fragment, err = executeOperatorFragment(setupFragment, page)
+	case !page.Authenticated:
+		base.Title = "Sign in"
+		base.Summary = "Named authentication first; incident and compartment authority are evaluated separately."
+		fragment, err = executeOperatorFragment(loginFragment, page)
+	case page.Incident != nil:
+		base.DocumentTitle = page.Incident.Title + " · CRAB"
+		base.App.Context = page.Incident.IncidentID
+		base.App.Status = strings.ToUpper(page.Incident.Mode) + " · " + page.Incident.Severity
+		base.Title = page.Incident.Title
+		base.Summary = "Current authorised operating picture for " + page.Incident.IncidentID + "."
+		base.Navigation = shellNavigation(page.Incident.IncidentID, "board")
+		base.Actions = template.HTML(`<a class="gas-button gas-button--primary" href="/incident/` + url.PathEscape(page.Incident.IncidentID) + `/operations">Operations</a>`)
+		fragment, err = executeOperatorFragment(incidentFragment, page)
+	case page.Home != nil:
+		base.Title = "Incidents"
+		base.Summary = "Assigned incident work, first-report intake and governed declaration."
+		base.App.UserLabel = page.Home.HumanID + " · " + page.Home.Role
+		base.Navigation = shellNavigation("", "incidents")
+		base.Actions = template.HTML(`<form method="post" action="/logout"><button class="gas-button">Sign out</button></form>`)
+		fragment, err = executeOperatorFragment(homeFragment, page)
+	default:
+		err = errors.New("operator page has no renderable state")
 	}
+	if err != nil {
+		http.Error(w, "render failed", http.StatusInternalServerError)
+		return
+	}
+	base.Workspace = appshell.Workspace{Mode: appshell.WorkspaceSingle, Content: fragment}
+	s.renderShell(w, base)
+}
+
+func executeOperatorFragment(tmpl *template.Template, page operatorPage) (template.HTML, error) {
+	var buf bytes.Buffer
+	if err := tmpl.Execute(&buf, page); err != nil {
+		return "", err
+	}
+	return template.HTML(buf.String()), nil
 }
 
 func (s *Server) clearSession(w http.ResponseWriter) {
