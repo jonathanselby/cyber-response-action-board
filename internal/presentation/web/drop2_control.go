@@ -26,9 +26,30 @@ type IncidentControlPage struct {
 	NextDeadline          string
 }
 
-var globalControlTemplate = template.Must(template.New("global-control").Funcs(template.FuncMap{"deref": func(v *bool) bool { return v != nil && *v }}).Parse(`<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Control · CRAB</title><link rel="stylesheet" href="/static/app.css"></head><body><header class="shell"><div><p class="eyebrow">Cyber Response Action Board</p><h1>Control</h1></div><div class="version">{{.Version}}</div></header><main>{{if .Error}}<section class="notice notice--error"><p>{{.Error}}</p></section>{{end}}{{with .Data}}<section class="incident-head"><div><p class="kicker">Signed in</p><h2>{{.HumanID}}</h2><p>{{.Role}}</p></div>{{if .Ready}}<div class="severity"><span>Readiness</span><strong>{{if deref .Ready}}READY{{else}}ATTENTION{{end}}</strong></div>{{end}}</section><section class="dashboard-grid"><article><h3>Assigned incidents</h3>{{range .Incidents}}<p><a href="/incident/{{.IncidentID}}/control"><strong>{{.Title}}</strong></a><br><small>{{.IncidentID}} · {{.Mode}} · {{.Severity}}</small></p>{{else}}<p class="muted">No assigned incidents.</p>{{end}}</article><article><h3>System controls</h3><p><a href="/readiness">Readiness</a></p><p><a href="/access">Access administration</a></p><p><a href="/obligations">Obligation definitions</a></p><p><a href="/intake">First-report intake</a></p></article></section>{{end}}</main></body></html>`))
+var globalControlTemplate = template.Must(template.New("global-control").Funcs(template.FuncMap{"deref": func(v *bool) bool { return v != nil && *v }}).Parse(`
+{{if .Error}}<div class="gas-error-summary" role="alert"><strong>Control unavailable</strong><span>{{.Error}}</span></div>{{end}}
+{{with .Data}}
+<section class="gas-panel crab-toolbar"><div><span class="gas-badge gas-badge--info">Signed in</span><h2>{{.HumanID}}</h2><p class="gas-muted">{{.Role}}</p></div>{{if .Ready}}<div class="crab-status"><span>Readiness</span><strong>{{if deref .Ready}}READY{{else}}ATTENTION{{end}}</strong></div>{{end}}</section>
+<div class="crab-dashboard-grid crab-dashboard-grid--two crab-section-gap">
+  <section class="gas-panel"><h2>Assigned incidents</h2><div class="crab-record-list">{{range .Incidents}}<div class="crab-record"><a href="/incident/{{.IncidentID}}/control"><strong>{{.Title}}</strong></a><span class="gas-muted">{{.IncidentID}} · {{.Mode}} · {{.Severity}}</span></div>{{else}}<div class="gas-empty">No assigned incidents.</div>{{end}}</div></section>
+  <section class="gas-panel"><h2>System controls</h2><div class="gas-stack"><a href="/readiness">Readiness</a><a href="/access">Access administration</a><a href="/obligations">Obligation definitions</a><a href="/intake">First-report intake</a></div></section>
+</div>
+{{end}}`))
 
-var incidentControlTemplate = template.Must(template.New("incident-control").Parse(`<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Incident control · CRAB</title><link rel="stylesheet" href="/static/app.css"></head><body><header class="shell"><div><p class="eyebrow">Cyber Response Action Board</p><h1>Incident control</h1></div><div class="version">{{.Version}}</div></header><main>{{if .Error}}<section class="notice notice--error"><p>{{.Error}}</p></section>{{end}}{{with .Data}}<section class="incident-head"><div><p class="kicker">{{.Incident.Mode}}</p><h2>{{.Incident.Title}}</h2><p>{{.Incident.IncidentID}} · {{.Incident.Summary}}</p></div><div class="severity"><span>Severity</span><strong>{{.Incident.Severity}}</strong></div></section><section class="dashboard-grid"><article><h3>Access</h3><p><strong>{{.AccessPending}}</strong> pending access changes</p><p><a href="/incident/{{.Incident.IncidentID}}/access">Open incident access</a></p></article><article><h3>Evidence</h3><p><strong>{{.EvidenceItems}}</strong> GENERAL evidence items</p><p><a href="/incident/{{.Incident.IncidentID}}/evidence">Open evidence register</a></p></article><article><h3>Obligations</h3><p><strong>{{.ActiveClocks}}</strong> active clocks · <strong>{{.OverdueClocks}}</strong> overdue</p>{{if .NextDeadline}}<p><small>Next deadline {{.NextDeadline}}</small></p>{{end}}<p><a href="/incident/{{.Incident.IncidentID}}/obligations">Open clocks</a></p></article></section><section class="dashboard-grid"><article><h3>Communications</h3><p><strong>{{.CommunicationDrafts}}</strong> drafts · <strong>{{.IssuedCommunications}}</strong> issued</p><p><strong>{{.IncomingEnquiries}}</strong> enquiries · <strong>{{.PendingCommunications}}</strong> pending approvals</p><p><a href="/incident/{{.Incident.IncidentID}}/communications">Open communications</a></p></article><article><h3>Continuity</h3><p><a href="/incident/{{.Incident.IncidentID}}/operations">Open operations, handover and continuity</a></p><p><a href="/incident/{{.Incident.IncidentID}}">Open common operating picture</a></p></article></section>{{end}}</main></body></html>`))
+var incidentControlTemplate = template.Must(template.New("incident-control").Parse(`
+{{if .Error}}<div class="gas-error-summary" role="alert"><strong>Incident control unavailable</strong><span>{{.Error}}</span></div>{{end}}
+{{with .Data}}
+<section class="gas-panel crab-operating-context"><div class="crab-toolbar"><div><div class="gas-cluster"><span class="gas-badge{{if eq .Incident.Mode "exercise"}} gas-badge--warning{{end}}">{{.Incident.Mode}}</span><span class="gas-badge gas-badge--warning">Severity {{.Incident.Severity}}</span></div><h2>{{.Incident.Title}}</h2><p>{{.Incident.Summary}}</p></div></div></section>
+<div class="crab-dashboard-grid crab-section-gap">
+  <section class="gas-panel"><h2>Access</h2><p><strong>{{.AccessPending}}</strong> pending access changes</p><a href="/incident/{{.Incident.IncidentID}}/access">Open incident access</a></section>
+  <section class="gas-panel"><h2>Evidence</h2><p><strong>{{.EvidenceItems}}</strong> GENERAL evidence items</p><a href="/incident/{{.Incident.IncidentID}}/evidence">Open evidence register</a></section>
+  <section class="gas-panel"><h2>Obligations</h2><p><strong>{{.ActiveClocks}}</strong> active clocks · <strong>{{.OverdueClocks}}</strong> overdue</p>{{if .NextDeadline}}<p class="gas-muted">Next deadline {{.NextDeadline}}</p>{{end}}<a href="/incident/{{.Incident.IncidentID}}/obligations">Open clocks</a></section>
+</div>
+<div class="crab-dashboard-grid crab-dashboard-grid--two crab-section-gap">
+  <section class="gas-panel"><h2>Communications</h2><p><strong>{{.CommunicationDrafts}}</strong> drafts · <strong>{{.IssuedCommunications}}</strong> issued</p><p><strong>{{.IncomingEnquiries}}</strong> enquiries · <strong>{{.PendingCommunications}}</strong> pending approvals</p><a href="/incident/{{.Incident.IncidentID}}/communications">Open communications</a></section>
+  <section class="gas-panel"><h2>Continuity</h2><div class="gas-stack"><a href="/incident/{{.Incident.IncidentID}}/operations">Open operations, handover and continuity</a><a href="/incident/{{.Incident.IncidentID}}">Open common operating picture</a></div></section>
+</div>
+{{end}}`))
 
 func init() { registerDrop2Registrar(registerControlRoutes) }
 
@@ -51,7 +72,7 @@ func (s *Server) drop2GlobalControl(w http.ResponseWriter, r *http.Request) {
 		} else {
 			page.Error = "authentication required"
 		}
-		s.renderDrop2(w, globalControlTemplate, page)
+		s.renderSpecialist(w, globalControlTemplate, page)
 		return
 	}
 	view := GlobalControlPage{HumanID: home.HumanID, Role: home.Role, Incidents: home.Incidents}
@@ -61,7 +82,7 @@ func (s *Server) drop2GlobalControl(w http.ResponseWriter, r *http.Request) {
 			view.Ready = &ready
 		}
 	}
-	s.renderDrop2(w, globalControlTemplate, drop2Page{Title: "Control", Data: view})
+	s.renderSpecialist(w, globalControlTemplate, drop2Page{Title: "Control", Summary: "Assigned incidents and the small set of organisation-level controls needed during response.", Data: view})
 }
 
 func (s *Server) drop2IncidentControl(w http.ResponseWriter, r *http.Request) {
@@ -79,7 +100,7 @@ func (s *Server) drop2IncidentControl(w http.ResponseWriter, r *http.Request) {
 		} else {
 			page.Error = "incident unavailable"
 		}
-		s.renderDrop2(w, incidentControlTemplate, page)
+		s.renderSpecialist(w, incidentControlTemplate, page)
 		return
 	}
 	view := IncidentControlPage{Incident: incident}
@@ -116,5 +137,5 @@ func (s *Server) drop2IncidentControl(w http.ResponseWriter, r *http.Request) {
 			view.PendingCommunications = len(communications.Pending)
 		}
 	}
-	s.renderDrop2(w, incidentControlTemplate, drop2Page{Title: "Incident control", IncidentID: incidentID, Data: view})
+	s.renderSpecialist(w, incidentControlTemplate, drop2Page{Title: "Incident control", IncidentID: incidentID, Summary: "Operational control surface across access, evidence, clocks, communications and continuity.", Data: view})
 }

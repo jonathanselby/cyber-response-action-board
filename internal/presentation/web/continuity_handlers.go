@@ -6,6 +6,8 @@ import (
 	"net/url"
 	"strings"
 	"time"
+
+	appshell "github.com/jonathanselby/go-app-shell/shell"
 )
 
 type continuityPage struct {
@@ -239,10 +241,27 @@ func (s *Server) redirectOperations(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) renderContinuity(w http.ResponseWriter, page continuityPage) {
 	page.Version = s.version
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	if err := continuityTemplate.Execute(w, page); err != nil {
+	app := appshell.AppHeader{Name: "CRAB", Status: "v" + s.version}
+	shellPage := appshell.Page{App: app}
+	switch {
+	case page.Intake != nil:
+		shellPage.DocumentTitle = "First-report intake · CRAB"
+		shellPage.Title = "First-report intake"
+		shellPage.Summary = "Capture first reports quickly without forcing premature incident declaration."
+		shellPage.Navigation = shellNavigation("", "intake")
+		shellPage.App.UserLabel = page.Intake.HumanID + " · " + page.Intake.Role
+	case page.Incident != nil:
+		shellPage.DocumentTitle = "Operations & continuity · CRAB"
+		shellPage.Title = "Operations & continuity"
+		shellPage.Summary = "Scope, severity governance, handover and resource coordination for " + page.Incident.IncidentID + "."
+		shellPage.Navigation = shellNavigation(page.Incident.IncidentID, "operations")
+		shellPage.App.Context = page.Incident.IncidentID
+		shellPage.App.Status = strings.ToUpper(page.Incident.Mode) + " · " + page.Incident.Severity
+	default:
 		http.Error(w, "render failed", http.StatusInternalServerError)
+		return
 	}
+	s.renderFragmentShell(w, continuityTemplate, page, shellPage)
 }
 
 func nonBlankLines(raw string) []string {

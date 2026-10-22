@@ -67,7 +67,7 @@ func New() (*Server, error) {
 	return s, nil
 }
 
-func (s *Server) Handler() http.Handler { return securityHeaders(drop2Navigation(s.mux)) }
+func (s *Server) Handler() http.Handler { return securityHeaders(s.mux) }
 
 func (s *Server) index(w http.ResponseWriter, r *http.Request) {
 	if r.URL.Path != "/" {

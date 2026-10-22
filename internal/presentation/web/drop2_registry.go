@@ -1,12 +1,15 @@
 package web
 
 import (
+	"bytes"
 	"errors"
 	"html/template"
 	"net/http"
 	"strconv"
 	"strings"
 	"time"
+
+	appshell "github.com/jonathanselby/go-app-shell/shell"
 )
 
 var drop2RouteRegistrars []func(*Server)
@@ -27,15 +30,70 @@ type drop2Page struct {
 	Version    string
 	Title      string
 	IncidentID string
+	Current    string
+	Summary    string
 	Error      string
 	Data       any
 }
 
-func (s *Server) renderDrop2(w http.ResponseWriter, tmpl *template.Template, page drop2Page) {
+func (s *Server) renderSpecialist(w http.ResponseWriter, tmpl *template.Template, page drop2Page) {
 	page.Version = s.version
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	if err := tmpl.Execute(w, page); err != nil {
+	if page.Current == "" {
+		page.Current = specialistCurrent(page.Title, page.IncidentID)
+	}
+	if page.Summary == "" {
+		if page.IncidentID == "" {
+			page.Summary = "Authorised CRAB operational view."
+		} else {
+			page.Summary = "Authorised operational view for " + page.IncidentID + "."
+		}
+	}
+	app := appshell.AppHeader{Name: "CRAB", Status: "v" + s.version}
+	if page.IncidentID != "" {
+		app.Context = page.IncidentID
+	}
+	s.renderFragmentShell(w, tmpl, page, appshell.Page{
+		DocumentTitle: page.Title + " · CRAB",
+		App:           app,
+		Navigation:    shellNavigation(page.IncidentID, page.Current),
+		Title:         page.Title,
+		Summary:       page.Summary,
+	})
+}
+
+func (s *Server) renderFragmentShell(w http.ResponseWriter, tmpl *template.Template, data any, page appshell.Page) {
+	var fragment bytes.Buffer
+	if err := tmpl.Execute(&fragment, data); err != nil {
 		http.Error(w, "render failed", http.StatusInternalServerError)
+		return
+	}
+	page.Workspace = appshell.Workspace{Mode: appshell.WorkspaceSingle, Content: template.HTML(fragment.String())}
+	s.renderShell(w, page)
+}
+
+func specialistCurrent(title, incidentID string) string {
+	switch title {
+	case "Access administration", "Incident access":
+		return "access"
+	case "Readiness":
+		return "readiness"
+	case "Evidence", "Evidence detail":
+		return "evidence"
+	case "Obligation definitions":
+		return "obligation-definitions"
+	case "Obligations", "Obligations & clocks":
+		if incidentID == "" {
+			return "obligation-definitions"
+		}
+		return "obligations"
+	case "Communications", "Communications & enquiries":
+		return "communications"
+	case "Control":
+		return "control"
+	case "Incident control":
+		return "incident-control"
+	default:
+		return ""
 	}
 }
 
