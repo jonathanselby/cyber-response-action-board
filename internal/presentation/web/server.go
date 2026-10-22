@@ -8,8 +8,8 @@ import (
 	"net/http"
 	"time"
 
-	appshell "github.com/jonathanselby/go-app-shell/shell"
 	"github.com/jonathanselby/cyber-response-action-board/internal/buildinfo"
+	appshell "github.com/jonathanselby/go-app-shell/shell"
 )
 
 //go:embed static/*
