@@ -1,0 +1,30 @@
+{{define "actions"}}<div class="gas-cluster">{{range .}}{{if eq .Method "post"}}<form method="post" action="{{.URL}}"><button class="gas-button{{if .Primary}} gas-button--primary{{end}}">{{.Label}}</button></form>{{else}}<a class="gas-button{{if .Primary}} gas-button--primary{{end}}" href="{{.URL}}">{{.Label}}</a>{{end}}{{end}}</div>{{end}}
+
+{{define "incident-context"}}{{with .Frame.Incident}}{{if eq .Mode "exercise"}}<p class="gas-notice gas-notice--warning" role="note"><strong>EXERCISE</strong> — no real obligations start and no external notifications are sent.</p>{{end}}{{end}}{{end}}
+
+{{define "feedback"}}{{if .Notice}}<p class="gas-notice gas-notice--success" role="status">{{.Notice}}</p>{{end}}{{if .Error}}<div class="gas-error-summary" role="alert" tabindex="-1" autofocus><h2>Not done</h2><p>{{.Error}}</p><p class="gas-help">Your input has been kept. Correct it and try again.</p></div>{{end}}{{end}}
+
+{{define "write-record"}}<p class="gas-help">Preserved as supplied. It does not change the incident's effective state.</p>{{end}}
+{{define "write-governed"}}<p class="gas-help">Takes effect when another eligible person confirms.</p>{{end}}
+
+{{define "refused"}}<section class="gas-panel gas-stack"><p class="gas-notice gas-notice--danger" role="alert"><strong>Not available.</strong> {{.Error}}</p><p><a class="gas-button" href="/">Back to incidents</a></p></section>{{end}}
+
+{{define "render-failed"}}<p class="gas-notice gas-notice--danger" role="alert">This page could not be displayed. Reload, or return to <a href="/">Incidents</a>.</p>{{end}}
+
+{{define "unconfigured"}}<section class="gas-panel gas-stack"><p class="gas-notice gas-notice--warning">The CRAB operator runtime is not configured on this host.</p><p>Configure <code>CRAB_DATABASE_URL</code>, <code>CRAB_LEDGER_KEYRING_FILE</code> and <code>CRAB_SERVER_SIGNING_KEY_FILE</code>, then restart <code>crab serve</code>. Run <code>crab readiness</code> to check the deployment.</p></section>{{end}}
+
+{{define "offline"}}<section class="gas-panel gas-stack">
+<p class="gas-notice gas-notice--warning" role="alert"><strong>CRAB cannot be reached.</strong></p>
+<ol class="gas-stack">
+<li>Use the most recent printed <strong>Incident Brief</strong> and <strong>Emergency Response Pack</strong>.</li>
+<li>Record decisions, actions and communications on the blank paper forms in the pack. Write the time on every entry.</li>
+<li>When CRAB returns, transcribe each paper entry through <strong>Close-out → Transcribe paper record</strong>. Original times are preserved; nothing is backdated.</li>
+</ol>
+<p><a class="gas-button gas-button--primary" href="/">Try again</a></p>
+</section>{{end}}
+
+{{define "mode-badge"}}{{if eq . "exercise"}}<span class="gas-badge gas-badge--warning">EXERCISE</span>{{else}}<span class="gas-badge gas-badge--info">LIVE</span>{{end}}{{end}}
+
+{{define "time-help"}}<p class="gas-help">Date and time in UTC.</p>{{end}}
+
+{{define "time-confidence"}}<div class="gas-field"><label for="{{.}}-tc">Time confidence</label><select id="{{.}}-tc" name="time_confidence"><option value="trusted">Trusted — taken from a reliable clock</option><option value="drifting">Approximate</option><option value="untrusted">Unverified</option></select></div>{{end}}

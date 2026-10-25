@@ -1,0 +1,42 @@
+{{define "evidence-detail"}}{{template "feedback" .}}
+{{with .Data}}
+<section class="gas-panel gas-stack" aria-labelledby="item">
+<h2 id="item">{{.Item.Evidence.OriginalFilename}}</h2>
+{{if .Item.Evidence.Description}}<p>{{.Item.Evidence.Description}}</p>{{end}}
+{{if eq .Inline "image"}}<img src="/evidence/{{pathEscape .Item.EvidenceID}}/attachment" alt="Evidence image: {{.Item.Evidence.OriginalFilename}}">{{else if eq .Inline "audio"}}<audio controls preload="none" src="/evidence/{{pathEscape .Item.EvidenceID}}/attachment"></audio>{{else if eq .Inline "video"}}<video controls preload="none" src="/evidence/{{pathEscape .Item.EvidenceID}}/attachment"></video>{{else}}<p class="gas-notice gas-notice--info">This file type is not shown in the browser. Download the original to examine it in a suitable tool.</p>{{end}}
+<dl class="gas-kv">
+<dt>Evidence ID</dt><dd>{{.Item.EvidenceID}}</dd>
+<dt>Compartment</dt><dd>{{.Item.Compartment}}</dd>
+<dt>SHA-256</dt><dd><code>{{.Item.Evidence.SHA256}}</code></dd>
+<dt>Size</dt><dd>{{size .Item.Evidence.SizeBytes}}</dd>
+<dt>Declared type</dt><dd>{{.Item.Evidence.DeclaredMediaType}}</dd>
+<dt>Detected type</dt><dd>{{.Item.Evidence.DetectedMediaType}}</dd>
+<dt>Collected by</dt><dd>{{.Item.Evidence.Collector}}</dd>
+<dt>Source</dt><dd>{{.Item.Evidence.Source}}</dd>
+<dt>Collected at</dt><dd>{{whenPtr .Item.Evidence.CollectedAt}}</dd>
+<dt>Occurred at</dt><dd>{{whenPtr .Item.Evidence.OccurredAt}}</dd>
+<dt>Recorded at</dt><dd>{{when .Item.RecordedAt}}{{if ne .Item.TimeStatus "trusted"}} <span class="gas-badge gas-badge--warning">TIME UNVERIFIED</span>{{end}}</dd>
+<dt>Current handler</dt><dd>{{.Item.Evidence.CurrentHandler}}</dd>
+{{if .Item.Evidence.SourceLocation}}<dt>Storage location</dt><dd>{{.Item.Evidence.SourceLocation}}</dd>{{end}}
+{{if .Item.Evidence.RelatedRef}}<dt>Related to</dt><dd>{{.Item.Evidence.RelatedRef}}</dd>{{end}}
+</dl>
+<p class="gas-help">CRAB records evidence and its handling for incident management. It does not certify forensic chain of custody.</p>
+</section>
+<section class="gas-panel gas-stack" aria-labelledby="handling">
+<h2 id="handling">Handling history</h2>
+{{if .History}}<div class="gas-table-wrap"><table><thead><tr><th scope="col">When</th><th scope="col">Action</th><th scope="col">Handler</th><th scope="col">Location</th><th scope="col">Note</th></tr></thead>
+<tbody>{{range .History}}<tr><td>{{whenPtr .Handling.OccurredAt}}<br><span class="gas-muted">recorded {{when .RecordedAt}}</span></td><td>{{.Handling.Action}}</td><td>{{.Handling.Handler}}</td><td>{{.Handling.Location}}</td><td>{{.Handling.Note}}</td></tr>{{end}}</tbody></table></div>
+{{else}}<p class="gas-empty">No handling events recorded.</p>{{end}}
+<details{{if eq $.Open "handling"}} open{{end}}><summary>Record handling event</summary>
+{{template "write-record"}}
+<form class="gas-form gas-stack" method="post" action="/evidence/{{pathEscape .Item.EvidenceID}}/handling">
+<input type="hidden" name="_form" value="handling">
+<div class="gas-field"><label for="h-action">What happened</label><input id="h-action" name="action" required list="handling-actions" value="{{$.Form.Get "action"}}"><datalist id="handling-actions"><option value="transferred"><option value="examined"><option value="copied"><option value="sealed"><option value="returned"></datalist></div>
+<div class="gas-field"><label for="h-handler">Handler</label><input id="h-handler" name="handler" required value="{{if $.Form}}{{$.Form.Get "handler"}}{{else}}{{$.Frame.HumanID}}{{end}}"></div>
+<div class="gas-field"><label for="h-location">Location</label><input id="h-location" name="location" value="{{$.Form.Get "location"}}"></div>
+<div class="gas-field"><label for="h-at">Occurred at</label><input id="h-at" type="datetime-local" name="occurred_at" value="{{$.Form.Get "occurred_at"}}">{{template "time-help"}}</div>
+<div class="gas-field"><label for="h-note">Note</label><textarea id="h-note" name="note" rows="2">{{$.Form.Get "note"}}</textarea></div>
+<button class="gas-button gas-button--primary">Record handling</button>
+</form></details>
+</section>
+{{end}}{{end}}

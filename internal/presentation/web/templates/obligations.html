@@ -1,0 +1,35 @@
+{{define "obligations"}}{{template "feedback" .}}
+{{with .Data}}
+<section class="gas-panel gas-stack" aria-labelledby="defs">
+<h2 id="defs">Confirmed obligations</h2>
+{{if .Definitions}}<div class="gas-table-wrap"><table>
+<thead><tr><th scope="col">Obligation</th><th scope="col">Starts from</th><th scope="col">Deadline</th><th scope="col">Recipient</th><th scope="col">Owner</th><th scope="col">Authority</th></tr></thead>
+<tbody>{{range .Definitions}}<tr><th scope="row">{{.Definition.Name}}<br><span class="gas-muted">{{.DefinitionID}}</span></th><td>{{.Definition.TriggerField}}</td><td>{{.Definition.Duration}} {{actionStatus .Definition.Unit}}<br><span class="gas-muted">{{.Definition.Calendar.Timezone}}</span></td><td>{{.Definition.Recipient}}</td><td>{{.Definition.Owner}}</td><td>{{.Definition.AuthoritySource}}</td></tr>{{end}}</tbody>
+</table></div>{{else}}<p class="gas-empty">No obligations are configured. CRAB does not decide what is legally reportable; your organisation defines its own clocks here.</p>{{end}}
+</section>
+{{if .Pending}}<p class="gas-notice gas-notice--info">{{len .Pending}} obligation change{{if gt (len .Pending) 1}}s are{{else}} is{{end}} waiting for confirmation. <a href="/approvals">Review in Approvals</a></p>{{end}}
+{{end}}
+<details id="propose" class="gas-panel"{{if eq .Open "propose"}} open{{end}}>
+<summary><h2>Propose obligation</h2></summary>
+{{template "write-governed"}}
+<form class="gas-form gas-stack" method="post" action="/obligations/definition">
+<input type="hidden" name="_form" value="propose">
+<div class="gas-field"><label for="o-name">Name</label><input id="o-name" name="name" required value="{{.Form.Get "name"}}"><p class="gas-help">For example: Regulator notification — personal data breach.</p></div>
+<div class="gas-field"><label for="o-trigger">Starts from</label><input id="o-trigger" name="trigger_field" required list="trigger-fields" value="{{.Form.Get "trigger_field"}}"><datalist id="trigger-fields"><option value="awareness"><option value="determination"><option value="occurred"><option value="flagged"><option value="classification"></datalist></div>
+<div class="gas-cluster">
+<div class="gas-field"><label for="o-duration">Duration</label><input id="o-duration" name="duration" inputmode="numeric" required value="{{.Form.Get "duration"}}"></div>
+<div class="gas-field"><label for="o-unit">Unit</label><select id="o-unit" name="unit"><option value="elapsed_hours">Hours</option><option value="calendar_days">Calendar days</option><option value="business_days">Business days</option></select></div>
+</div>
+<div class="gas-field"><label for="o-tz">Timezone</label><input id="o-tz" name="timezone" required list="zones" value="{{.Form.Get "timezone"}}"><datalist id="zones"><option value="UTC"><option value="Australia/Sydney"><option value="Australia/Perth"><option value="Pacific/Auckland"><option value="Asia/Singapore"><option value="Europe/London"><option value="Europe/Brussels"><option value="America/New_York"><option value="America/Los_Angeles"></datalist><p class="gas-help">An IANA timezone name, such as Australia/Sydney.</p></div>
+<div class="gas-field"><label for="o-weekend">Weekend days (one per line)</label><textarea id="o-weekend" name="weekend" rows="2">{{.Form.Get "weekend"}}</textarea><p class="gas-help">Only needed for business days, for example Saturday and Sunday.</p></div>
+<div class="gas-field"><label for="o-holidays">Holidays (one date per line, YYYY-MM-DD)</label><textarea id="o-holidays" name="holidays" rows="3">{{.Form.Get "holidays"}}</textarea></div>
+<div class="gas-field"><label for="o-adjust">If the deadline falls on a non-business day</label><select id="o-adjust" name="adjustment"><option value="none">Keep it</option><option value="next_business_day">Move to the next business day</option><option value="previous_business_day">Move to the previous business day</option></select></div>
+<div class="gas-field"><label for="o-applies">Applies when</label><input id="o-applies" name="applicability" value="{{.Form.Get "applicability"}}"></div>
+<div class="gas-field"><label for="o-recipient">Recipient</label><input id="o-recipient" name="recipient" required value="{{.Form.Get "recipient"}}"></div>
+<div class="gas-field"><label for="o-owner">Owner or responsible role</label><input id="o-owner" name="owner" required value="{{.Form.Get "owner"}}"></div>
+<div class="gas-field"><label for="o-authority">Authority or source</label><input id="o-authority" name="authority" required value="{{.Form.Get "authority"}}"></div>
+<div class="gas-field"><label for="o-warn">Warn before the deadline (minutes, one per line)</label><textarea id="o-warn" name="warnings" rows="2">{{.Form.Get "warnings"}}</textarea></div>
+<button class="gas-button gas-button--primary">Propose obligation</button>
+</form>
+</details>
+{{end}}

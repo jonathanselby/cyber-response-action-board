@@ -15,12 +15,15 @@ import (
 	"strings"
 	"time"
 
+	"github.com/jonathanselby/cyber-response-action-board/internal/adapters/artifacts"
 	"github.com/jonathanselby/cyber-response-action-board/internal/adapters/notifier"
 	"github.com/jonathanselby/cyber-response-action-board/internal/app"
+	"github.com/jonathanselby/cyber-response-action-board/internal/buildinfo"
 	"github.com/jonathanselby/cyber-response-action-board/internal/config"
 	"github.com/jonathanselby/cyber-response-action-board/internal/data/postgres"
 	"github.com/jonathanselby/cyber-response-action-board/internal/domain"
 	"github.com/jonathanselby/cyber-response-action-board/internal/ledger"
+	pdfpresentation "github.com/jonathanselby/cyber-response-action-board/internal/presentation/pdf"
 	"github.com/jonathanselby/cyber-response-action-board/internal/presentation/web"
 	"github.com/jonathanselby/cyber-response-action-board/internal/security/authn"
 	"github.com/jonathanselby/cyber-response-action-board/internal/security/authz"
@@ -30,18 +33,21 @@ import (
 const operatorSessionTTL = 8 * time.Hour
 
 type operatorRuntime struct {
-	kernel        *postgres.Kernel
-	signer        postgres.Signer
-	security      *postgres.SecurityStore
-	access        *postgres.AccessStore
-	incidents     *postgres.IncidentStore
-	incident      app.IncidentService
-	accessService app.AccessService
-	evidence      app.EvidenceService
-	communication app.CommunicationService
-	recovery      app.RecoveryService
-	local         authn.Local
-	sessions      authn.Sessions
+	kernel          *postgres.Kernel
+	signer          postgres.Signer
+	security        *postgres.SecurityStore
+	access          *postgres.AccessStore
+	incidents       *postgres.IncidentStore
+	incident        app.IncidentService
+	accessService   app.AccessService
+	evidence        app.EvidenceService
+	communication   app.CommunicationService
+	recovery        app.RecoveryService
+	retrieval       app.RetrievalService
+	print           app.PrintService
+	pageSizeDefault string
+	local           authn.Local
+	sessions        authn.Sessions
 }
 
 type signingKeyFile struct {
@@ -145,6 +151,23 @@ func newOperatorRuntime() (web.Runtime, error) {
 	r.evidence = app.EvidenceService{Backend: evidenceBackend}
 	r.communication = app.CommunicationService{Backend: communicationBackend, Incident: r.incident, Notifier: notifier.Sender{}, Channels: channels}
 	r.recovery = app.RecoveryService{Backend: recoveryBackend}
+	if corpusStore, err := postgres.NewCorpusStore(pool); err == nil {
+		if corpusBackend, err := postgres.NewCorpusRuntime(kernel, signer, blobStore, corpusStore); err == nil {
+			r.retrieval = app.RetrievalService{Backend: corpusBackend}
+		}
+	}
+	r.pageSizeDefault = cfg.PageSizeDefault
+	if strings.TrimSpace(cfg.ExportDir) != "" {
+		printSource, err := postgres.NewPrintStore(pool)
+		if err != nil {
+			return fail(err)
+		}
+		artifactStore, err := artifacts.New(cfg.ExportDir, cfg.SecondaryExportDir)
+		if err != nil {
+			return fail(err)
+		}
+		r.print = app.PrintService{Incident: r.incident, Evidence: printEvidenceReader{store: evidenceStore}, Source: printSource, Renderer: pdfpresentation.Renderer{}, Artifacts: artifactStore, ConfigurationVersion: buildinfo.Version}
+	}
 	return r, nil
 }
 

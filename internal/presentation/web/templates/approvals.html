@@ -1,0 +1,39 @@
+{{define "approvals"}}{{template "feedback" .}}
+{{with .Data}}
+{{if .Incidents}}<form class="gas-cluster" method="get" action="/approvals">
+<div class="gas-field"><label for="ap-filter">Show</label><select id="ap-filter" name="incident"><option value="">All my incidents and system changes</option>{{range .Incidents}}<option value="{{.IncidentID}}"{{if eq $.Data.Filter .IncidentID}} selected{{end}}>{{.IncidentID}} · {{.Title}}</option>{{end}}</select></div>
+<button class="gas-button">Filter</button>
+</form>{{end}}
+<section class="gas-stack" aria-labelledby="waiting">
+<h2 id="waiting">Waiting for your decision</h2>
+{{range .Waiting}}{{template "approval-card" .}}{{else}}<p class="gas-empty">Nothing is waiting for your decision.</p>{{end}}
+</section>
+{{if .AwaitingOther}}<section class="gas-stack" aria-labelledby="mine">
+<h2 id="mine">Your proposals awaiting someone else</h2>
+<p class="gas-help">You cannot confirm your own proposal. Another eligible person must decide.</p>
+{{range .AwaitingOther}}{{template "approval-card" .}}{{end}}
+</section>{{end}}
+{{end}}{{end}}
+
+{{define "approval-card"}}<article class="gas-panel gas-stack" id="{{.RecordID}}" aria-labelledby="t-{{.RecordID}}">
+<div class="gas-cluster"><span class="gas-badge gas-badge--info">{{.Label}}</span>{{if .IncidentID}}<span class="gas-muted">{{.IncidentID}}{{if .IncidentTitle}} · {{.IncidentTitle}}{{end}}</span>{{else}}<span class="gas-muted">System</span>{{end}}{{if .Compartment}}{{if ne .Compartment "GENERAL"}}<span class="gas-badge gas-badge--warning">{{.Compartment}} restricted</span>{{end}}{{end}}</div>
+<h3 id="t-{{.RecordID}}">{{.Summary}}</h3>
+{{if .Effective}}<div class="gas-table-wrap"><table><thead><tr><th scope="col">Field</th><th scope="col">Now</th><th scope="col">Proposed</th></tr></thead><tbody>
+{{range $i, $f := .Proposed}}<tr><th scope="row">{{$f.Name}}</th><td>{{range $.Effective}}{{if eq .Name $f.Name}}{{.Value}}{{end}}{{end}}</td><td><strong>{{$f.Value}}</strong></td></tr>{{end}}
+</tbody></table></div>
+{{else if .Proposed}}<dl class="gas-kv">{{range .Proposed}}<dt>{{.Name}}</dt><dd>{{.Value}}</dd>{{end}}</dl>{{end}}
+<p>Proposed by <strong>{{.Maker}}</strong>{{if .ProposedAt}} at {{.ProposedAt}}{{end}}{{if .Reason}}. Reason: {{.Reason}}{{end}}</p>
+{{if .Consequence}}<p class="gas-notice gas-notice--info"><strong>If confirmed:</strong> {{.Consequence}}</p>{{end}}
+{{if .CanDecide}}<form class="gas-cluster" method="post" action="/decide">
+<input type="hidden" name="_form" value="decide">
+<input type="hidden" name="kind" value="{{.Kind}}">
+<input type="hidden" name="scope_id" value="{{.ScopeID}}">
+<input type="hidden" name="record_type" value="{{.RecordType}}">
+<input type="hidden" name="record_id" value="{{.RecordID}}">
+<input type="hidden" name="version" value="{{.Version}}">
+{{if .IncidentID}}<input type="hidden" name="return_incident" value="{{.IncidentID}}">{{end}}
+<button class="gas-button gas-button--primary" name="outcome" value="confirmed">Confirm</button>
+<button class="gas-button" name="outcome" value="rejected">Reject</button>
+</form>{{else}}<p class="gas-muted">Waiting for another eligible person.</p>{{end}}
+<details><summary>Technical reference</summary><p class="gas-muted">{{humanType .RecordType}} · record {{.RecordID}} · version {{.Version}}</p></details>
+</article>{{end}}

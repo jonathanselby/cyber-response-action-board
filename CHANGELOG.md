@@ -1,5 +1,21 @@
 # Changelog
 
+## Unreleased — 0.0.15-dev
+
+Slice 15 browser presentation rebuild after Phase 1 UAT (AC-43 failed).
+
+- Rebuilt the browser tier on `go-app-shell` v0.1.0: phone overlay drawer, tablet and desktop navigation rails, light/dark presentation, accessible landmarks, skip link, focus and 44px targets, and cross-document transitions where supported.
+- One page builder, one embedded template set and one `template.HTML` conversion point; removed the HTML-rewriting navigation middleware, 13 inline full-document templates, `app.css` and the stale checkpoint page.
+- Collapsed six optional runtime interfaces into one `Runtime` and six browser decide routes into one `POST /decide` with a closed kind set; every existing application decision service still re-loads the stored proposal, binds the exact version and refuses maker-as-confirmer.
+- Added one Approvals surface showing what changes (now → proposed), maker, reason, compartment and consequence; record identifiers moved to a technical reference.
+- Made the Board the common operating picture and live handover: situation, facts/unknowns/hypotheses with text badges, roles, actions with complete/skip, pending decisions, clocks, communications commitments, recent change, next objectives, resilience, runbook search and timeline.
+- Exposed already-wired services in the browser: unknowns/hypotheses, decisions, operational roles, action status versions, recovery/stand-down/PIR/retention/closure (Close-out), paper transcription, deterministic retrieval and Incident Brief / Emergency Response Pack PDF downloads.
+- Persistent header shows LIVE/EXERCISE, incident, phase, and a status line of abnormal states only; every exercise page carries an exercise notice; scope shows as `Viewing <COMPARTMENT>`.
+- Replaced engineer-format inputs: `datetime-local` (UTC, labelled), compartment selectors limited to read-in compartments, newline lists instead of comma lists; refusals re-render in frame with input preserved.
+- Static-only PWA: manifest, icon and service worker precaching shell/CRAB CSS and a paper-first offline page; authenticated pages stay `no-store` and are never cached.
+- Added T-166 to T-192 to `TEST-ACCEPTANCE-NOTES.md`; moved every existing web test to the new structure without removing any.
+- Added `UI-SHELL-BUILD-NOTES.md`, `docs/go-app-shell-dependency-decision.md` and `docs/build-evidence-0.0.15-dev.md`.
+
 ## Unreleased — 0.0.12-dev
 
 Slice 11 print and paper resilience.

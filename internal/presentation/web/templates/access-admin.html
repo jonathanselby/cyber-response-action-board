@@ -1,0 +1,24 @@
+{{define "access-admin"}}{{template "feedback" .}}
+{{with .Data}}
+{{template "access-tables" .}}
+{{if .Pending}}<p class="gas-notice gas-notice--info">{{len .Pending}} access change{{if gt (len .Pending) 1}}s are{{else}} is{{end}} waiting for a Custodian. <a href="/approvals">Review in Approvals</a></p>{{end}}
+{{end}}{{end}}
+
+{{define "access-tables"}}
+<section class="gas-panel gas-stack" aria-labelledby="members">
+<h2 id="members">Incident members</h2>
+{{if .IncidentMemberships}}<div class="gas-table-wrap"><table><thead><tr><th scope="col">Person</th><th scope="col">Incident</th><th scope="col">Status</th><th scope="col">From</th><th scope="col">Expires</th><th scope="col">Reason</th></tr></thead>
+<tbody>{{range .IncidentMemberships}}<tr><th scope="row">{{.HumanID}}</th><td>{{.IncidentID}}</td><td><span class="gas-badge gas-badge--{{statusBadge .Status}}">{{upper .Status}}</span></td><td>{{if .EffectiveAt}}{{.EffectiveAt}}{{else}}—{{end}}</td><td>{{if .ExpiresAt}}{{.ExpiresAt}}{{else}}No expiry{{end}}</td><td>{{.Reason}}</td></tr>{{end}}</tbody></table></div>
+{{else}}<p class="gas-empty">No members visible.</p>{{end}}
+</section>
+<section class="gas-panel gas-stack" aria-labelledby="restricted">
+<h2 id="restricted">Restricted compartments</h2>
+{{if or .Controllers .CompartmentMemberships}}<div class="gas-table-wrap"><table><thead><tr><th scope="col">Person</th><th scope="col">Compartment</th><th scope="col">Role</th><th scope="col">Status</th><th scope="col">Expires</th></tr></thead>
+<tbody>{{range .Controllers}}<tr><th scope="row">{{.HumanID}}</th><td>{{.Compartment}}</td><td>Controller</td><td>—</td><td>—</td></tr>{{end}}{{range .CompartmentMemberships}}<tr><th scope="row">{{.HumanID}}</th><td>{{.Compartment}}</td><td>Read in</td><td><span class="gas-badge gas-badge--{{statusBadge .Status}}">{{upper .Status}}</span></td><td>{{if .ExpiresAt}}{{.ExpiresAt}}{{else}}No expiry{{end}}</td></tr>{{end}}</tbody></table></div>
+{{else}}<p class="gas-empty">No restricted compartments visible.</p>{{end}}
+</section>
+<section class="gas-panel gas-stack" aria-labelledby="sponsors">
+<h2 id="sponsors">Incident sponsors</h2>
+{{range .Sponsors}}<p><strong>{{.HumanID}}</strong> <span class="gas-muted">sponsor of {{.IncidentID}}</span></p>{{else}}<p class="gas-empty">No sponsors visible.</p>{{end}}
+</section>
+{{end}}

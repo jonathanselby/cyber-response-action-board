@@ -1,0 +1,77 @@
+{{define "communications"}}{{template "feedback" .}}
+{{with .Data}}
+{{if gt (len .Compartments) 1}}<form class="gas-cluster" method="get" action="">
+<div class="gas-field"><label for="cm-comp">Compartment</label><select id="cm-comp" name="compartment">{{range .Compartments}}<option value="{{.}}"{{if eq . $.Data.Compartment}} selected{{end}}>{{.}}</option>{{end}}</select></div>
+<button class="gas-button">Show</button></form>{{end}}
+
+<section class="gas-panel gas-stack" aria-labelledby="cadence">
+<h2 id="cadence">Situation report cadence</h2>
+{{range .Cadences}}<div class="gas-cluster"><strong>{{.Cadence.Name}}</strong><span>every {{.Cadence.IntervalMinutes}} minutes</span><span class="gas-muted">next due {{when .NextDueAt}}</span>
+<form method="post" action="{{incidentURL .IncidentID "/communications/sitrep"}}"><input type="hidden" name="cadence_id" value="{{.CadenceID}}"><button class="gas-button">Draft due report</button></form></div>
+{{else}}<p class="gas-empty">No report cadence set.</p>{{end}}
+<details{{if eq $.Open "cadence"}} open{{end}}><summary>Set report cadence</summary>
+{{template "write-governed"}}
+<form class="gas-form gas-stack" method="post" action="{{incidentURL .IncidentID "/communications/cadence"}}">
+<input type="hidden" name="_form" value="cadence"><input type="hidden" name="compartment" value="{{.Compartment}}">
+<div class="gas-field"><label for="cd-name">Name</label><input id="cd-name" name="name" required value="{{$.Form.Get "name"}}"></div>
+<div class="gas-field"><label for="cd-int">Every (minutes)</label><input id="cd-int" name="interval_minutes" inputmode="numeric" required value="{{$.Form.Get "interval_minutes"}}"></div>
+<div class="gas-field"><label for="cd-first">First report due</label><input id="cd-first" type="datetime-local" name="first_due_at" required value="{{$.Form.Get "first_due_at"}}">{{template "time-help"}}</div>
+<div class="gas-field"><label for="cd-owner">Owner</label><input id="cd-owner" name="owner" required value="{{$.Form.Get "owner"}}"></div>
+<div class="gas-field"><label for="cd-aud">Audience (one per line)</label><textarea id="cd-aud" name="audience" rows="2" required>{{$.Form.Get "audience"}}</textarea></div>
+<div class="gas-field"><label for="cd-ch">Channels (one per line)</label><textarea id="cd-ch" name="channels" rows="2">{{$.Form.Get "channels"}}</textarea></div>
+<button class="gas-button gas-button--primary">Propose cadence</button>
+</form></details>
+</section>
+
+<section class="gas-panel gas-stack" aria-labelledby="drafts">
+<h2 id="drafts">Drafts</h2>
+{{range .Drafts}}<article class="gas-stack"><div class="gas-cluster"><span class="gas-badge gas-badge--info">{{upper (actionStatus .Draft.Kind)}}</span><strong>{{.Draft.Subject}}</strong><span class="gas-muted">by {{.Maker}} · {{when .RecordedAt}}</span></div>
+<p>{{.Draft.Body}}</p><p class="gas-muted">To: {{join .Draft.Audience ", "}}{{if .Draft.Channels}} · via {{join .Draft.Channels ", "}}{{end}}</p>
+<form method="post" action="{{incidentURL .IncidentID "/communications/issue"}}"><input type="hidden" name="draft_id" value="{{.RecordID}}"><button class="gas-button gas-button--primary">Submit for approval</button></form></article>
+{{else}}<p class="gas-empty">No drafts.</p>{{end}}
+{{if .Pending}}<p class="gas-notice gas-notice--info">{{len .Pending}} communication{{if gt (len .Pending) 1}}s are{{else}} is{{end}} waiting for approval. <a href="/approvals?incident={{.IncidentID}}">Review in Approvals</a></p>{{end}}
+</section>
+
+<details id="draft" class="gas-panel"{{if eq $.Open "draft"}} open{{end}}>
+<summary><h2>Draft communication</h2></summary>
+{{template "write-record"}}
+<form class="gas-form gas-stack" method="post" action="{{incidentURL .IncidentID "/communications/draft"}}">
+<input type="hidden" name="_form" value="draft"><input type="hidden" name="compartment" value="{{.Compartment}}">
+<div class="gas-field"><label for="df-kind">Kind</label><select id="df-kind" name="kind"><option value="situation_report">Situation report</option><option value="executive_update">Executive or board update</option><option value="staff_communication">Staff communication</option><option value="holding_statement">Holding statement</option><option value="regulator_notification">Regulator notification</option><option value="individual_notice">Notice to individuals</option><option value="closure_pir">Closure / PIR material</option></select></div>
+<div class="gas-field"><label for="df-subject">Subject</label><input id="df-subject" name="subject" required value="{{$.Form.Get "subject"}}"></div>
+<div class="gas-field"><label for="df-body">Message</label><textarea id="df-body" name="body" rows="8" required>{{$.Form.Get "body"}}</textarea></div>
+<div class="gas-field"><label for="df-aud">Audience (one per line)</label><textarea id="df-aud" name="audience" rows="2" required>{{$.Form.Get "audience"}}</textarea></div>
+<div class="gas-field"><label for="df-ch">Channels (one per line)</label><textarea id="df-ch" name="channels" rows="2">{{$.Form.Get "channels"}}</textarea></div>
+<div class="gas-field"><label for="df-src">Source references (one per line)</label><textarea id="df-src" name="source_refs" rows="2">{{$.Form.Get "source_refs"}}</textarea></div>
+<button class="gas-button gas-button--primary">Save draft</button>
+</form>
+</details>
+
+<section class="gas-panel gas-stack" aria-labelledby="issued">
+<h2 id="issued">Issued</h2>
+{{range .Issued}}{{$id := .RecordID}}<article class="gas-stack"><div class="gas-cluster"><span class="gas-badge gas-badge--success">ISSUED</span><strong>{{.Issue.Subject}}</strong><span class="gas-muted">{{when .IssuedAt}} · approved by {{.Confirmer}}</span></div>
+<p class="gas-muted">To: {{join .Issue.Audience ", "}}</p>
+{{with outcomes $.Data.Outcomes $id}}<ul class="gas-stack">{{range .}}<li><span class="gas-badge gas-badge--{{statusBadge .Outcome.Status}}">{{upper .Outcome.Status}}</span> {{.Outcome.Channel}} · {{when .Outcome.AttemptedAt}}{{if .Outcome.Detail}} · {{.Outcome.Detail}}{{end}}</li>{{end}}</ul>{{else}}<p class="gas-muted">No delivery attempts yet.</p>{{end}}
+{{if .Issue.Channels}}<form method="post" action="{{incidentURL .IncidentID "/communications/notify"}}"><input type="hidden" name="communication_id" value="{{.RecordID}}"><input type="hidden" name="compartment" value="{{$.Data.Compartment}}"><input type="hidden" name="channels" value="{{join .Issue.Channels "\n"}}"><button class="gas-button">Send via {{join .Issue.Channels ", "}}</button></form>{{end}}
+</article>{{else}}<p class="gas-empty">Nothing issued yet.</p>{{end}}
+</section>
+
+<section class="gas-panel gas-stack" aria-labelledby="enq">
+<h2 id="enq">Incoming enquiries</h2>
+{{if .Enquiries}}<div class="gas-table-wrap"><table><thead><tr><th scope="col">Received</th><th scope="col">From</th><th scope="col">Subject</th><th scope="col">Assigned to</th></tr></thead>
+<tbody>{{range .Enquiries}}<tr><td>{{when .Enquiry.ReceivedAt}}</td><td>{{.Enquiry.Source}}{{if .Enquiry.Contact}}<br><span class="gas-muted">{{.Enquiry.Contact}}</span>{{end}}</td><td>{{.Enquiry.Subject}}</td><td>{{.Enquiry.AssignedToHumanID}}</td></tr>{{end}}</tbody></table></div>
+{{else}}<p class="gas-empty">No enquiries recorded.</p>{{end}}
+<details id="enquiry"{{if eq $.Open "enquiry"}} open{{end}}><summary>Record enquiry</summary>
+{{template "write-record"}}
+<form class="gas-form gas-stack" method="post" action="{{incidentURL .IncidentID "/communications/enquiry"}}">
+<input type="hidden" name="_form" value="enquiry"><input type="hidden" name="compartment" value="{{.Compartment}}">
+<div class="gas-field"><label for="q-src">From</label><input id="q-src" name="source" required list="enq-src" value="{{$.Form.Get "source"}}"><datalist id="enq-src"><option value="media"><option value="customer"><option value="staff"><option value="supplier"><option value="regulator"></datalist></div>
+<div class="gas-field"><label for="q-contact">Contact</label><input id="q-contact" name="contact" value="{{$.Form.Get "contact"}}"></div>
+<div class="gas-field"><label for="q-subject">Subject</label><input id="q-subject" name="subject" required value="{{$.Form.Get "subject"}}"></div>
+<div class="gas-field"><label for="q-msg">Message</label><textarea id="q-msg" name="message" rows="4" required>{{$.Form.Get "message"}}</textarea></div>
+<div class="gas-field"><label for="q-at">Received at</label><input id="q-at" type="datetime-local" name="received_at" required value="{{$.Form.Get "received_at"}}">{{template "time-help"}}</div>
+<div class="gas-field"><label for="q-assign">Assign to</label><input id="q-assign" name="assigned_to" required value="{{$.Form.Get "assigned_to"}}"></div>
+<button class="gas-button gas-button--primary">Record enquiry</button>
+</form></details>
+</section>
+{{end}}{{end}}

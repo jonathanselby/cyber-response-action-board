@@ -1,0 +1,49 @@
+{{define "access"}}{{template "feedback" .}}
+{{with .Data}}{{template "access-tables" .}}
+{{if .Pending}}<p class="gas-notice gas-notice--info">{{len .Pending}} access change{{if gt (len .Pending) 1}}s are{{else}} is{{end}} waiting for a Custodian. <a href="/approvals?incident={{$.IncidentID}}">Review in Approvals</a></p>{{end}}{{end}}
+<details id="member" class="gas-panel"{{if eq .Open "member"}} open{{end}}>
+<summary><h2>Request incident access</h2></summary>
+<p class="gas-help">An incident sponsor proposes; a Custodian confirms. Access can expire, and history is kept after it ends.</p>
+<form class="gas-form gas-stack" method="post" action="{{incidentURL .IncidentID "/access/member"}}">
+<input type="hidden" name="_form" value="member">
+<div class="gas-field"><label for="m-human">Person (CRAB ID)</label><input id="m-human" name="human_id" required value="{{.Form.Get "human_id"}}"></div>
+<fieldset class="gas-field"><legend>Change</legend><label><input type="radio" name="active" value="true" checked> Grant access</label><label><input type="radio" name="active" value="false"> Revoke access</label></fieldset>
+<div class="gas-field"><label for="m-from">Effective from</label><input id="m-from" type="datetime-local" name="effective_at" value="{{.Form.Get "effective_at"}}">{{template "time-help"}}</div>
+<div class="gas-field"><label for="m-to">Expires at</label><input id="m-to" type="datetime-local" name="expires_at" value="{{.Form.Get "expires_at"}}"><p class="gas-help">Leave blank for no expiry. External responders should normally have one.</p></div>
+<div class="gas-field"><label for="m-reason">Reason</label><input id="m-reason" name="reason" required value="{{.Form.Get "reason"}}"></div>
+<button class="gas-button gas-button--primary">Request access</button>
+</form>
+</details>
+<details id="compartment" class="gas-panel"{{if eq .Open "compartment"}} open{{end}}>
+<summary><h2>Read into a compartment</h2></summary>
+<p class="gas-help">The compartment controller proposes; a Custodian confirms. Incident access alone never grants a restricted compartment.</p>
+<form class="gas-form gas-stack" method="post" action="{{incidentURL .IncidentID "/access/compartment-member"}}">
+<input type="hidden" name="_form" value="compartment">
+<div class="gas-field"><label for="c-human">Person (CRAB ID)</label><input id="c-human" name="human_id" required value="{{.Form.Get "human_id"}}"></div>
+<div class="gas-field"><label for="c-name">Compartment</label><input id="c-name" name="compartment_name" required value="{{.Form.Get "compartment_name"}}" list="known-compartments"><datalist id="known-compartments">{{with .Frame.Incident}}{{range .Compartments}}<option value="{{.}}">{{end}}{{end}}<option value="LEGAL"></datalist></div>
+<fieldset class="gas-field"><legend>Change</legend><label><input type="radio" name="active" value="true" checked> Read in</label><label><input type="radio" name="active" value="false"> Read out</label></fieldset>
+<div class="gas-field"><label for="c-from">Effective from</label><input id="c-from" type="datetime-local" name="effective_at">{{template "time-help"}}</div>
+<div class="gas-field"><label for="c-to">Expires at</label><input id="c-to" type="datetime-local" name="expires_at"></div>
+<div class="gas-field"><label for="c-reason">Reason</label><input id="c-reason" name="reason" required value="{{.Form.Get "reason"}}"></div>
+<button class="gas-button gas-button--primary">Propose read-in</button>
+</form>
+</details>
+<details id="designate" class="gas-panel"{{if eq .Open "designate"}} open{{end}}>
+<summary><h2>Designate sponsor or controller</h2></summary>
+<form class="gas-form gas-stack" method="post" action="{{incidentURL .IncidentID "/access/sponsor"}}">
+<input type="hidden" name="_form" value="designate">
+<h3>Incident sponsor</h3>
+<div class="gas-field"><label for="s-human">Person (CRAB ID)</label><input id="s-human" name="human_id" required></div>
+<fieldset class="gas-field"><legend>Change</legend><label><input type="radio" name="active" value="true" checked> Designate</label><label><input type="radio" name="active" value="false"> Remove</label></fieldset>
+<button class="gas-button">Propose sponsor</button>
+</form>
+<form class="gas-form gas-stack" method="post" action="{{incidentURL .IncidentID "/access/controller"}}">
+<input type="hidden" name="_form" value="designate">
+<h3>Compartment controller</h3>
+<div class="gas-field"><label for="k-human">Person (CRAB ID)</label><input id="k-human" name="human_id" required></div>
+<div class="gas-field"><label for="k-name">Compartment</label><input id="k-name" name="compartment_name" required list="known-compartments"></div>
+<fieldset class="gas-field"><legend>Change</legend><label><input type="radio" name="active" value="true" checked> Designate</label><label><input type="radio" name="active" value="false"> Remove</label></fieldset>
+<button class="gas-button">Propose controller</button>
+</form>
+</details>
+{{end}}

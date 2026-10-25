@@ -1,0 +1,13 @@
+{{define "setup"}}{{template "feedback" .}}
+<section class="gas-panel gas-stack">
+<p>Available only from this host, before first use. The person who prepares setup and the person who confirms it must be different people. Both become Custodians and incident Majors, and each holds one break-glass key.</p>
+<form class="gas-form gas-stack" method="post" action="/setup">
+<h2>Prepared by</h2>
+<div class="gas-field"><label for="prepared_by">CRAB ID</label><input id="prepared_by" name="prepared_by" autocomplete="off" required value="{{.Form.Get "prepared_by"}}"></div>
+<div class="gas-field"><label for="prepared_password">Password (at least 12 characters)</label><input id="prepared_password" type="password" name="prepared_password" minlength="12" autocomplete="new-password" required></div>
+<h2>Confirmed by</h2>
+<div class="gas-field"><label for="confirmed_by">CRAB ID</label><input id="confirmed_by" name="confirmed_by" autocomplete="off" required value="{{.Form.Get "confirmed_by"}}"></div>
+<div class="gas-field"><label for="confirmed_password">Password (at least 12 characters)</label><input id="confirmed_password" type="password" name="confirmed_password" minlength="12" autocomplete="new-password" required></div>
+<div class="gas-cluster"><button class="gas-button gas-button--primary">Confirm setup</button></div>
+</form>
+</section>{{end}}

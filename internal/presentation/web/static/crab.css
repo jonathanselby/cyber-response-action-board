@@ -1,0 +1,16 @@
+/* CRAB theme for go-app-shell v0.1.0: tokens, native elements, print. Layout belongs to the shell. */
+:root{--gas-accent:#274b36;--gas-on-accent:#fff;--gas-focus:#1f6a3c;--gas-info:#2b5f8a}
+@media (prefers-color-scheme:dark){:root{--gas-accent:#7fbf98;--gas-on-accent:#0d1410;--gas-focus:#9fd8b4;--gas-info:#7fb2dc}}
+form.gas-cluster{align-items:flex-end}
+summary{cursor:pointer;font-weight:650;min-height:2.75rem;display:flex;align-items:center;gap:.5rem}
+summary h2{display:inline;margin:0;font-size:1.15rem}
+details[open]>summary{margin-bottom:1rem}
+fieldset.gas-field{border:0;padding:0;margin:0}
+fieldset.gas-field legend{font-weight:600;padding:0;margin-bottom:.5rem}
+fieldset.gas-field label{display:flex;gap:.5rem;align-items:center;min-height:2.75rem}
+@media print{
+details{display:block}details>summary,form,.gas-page-actions{display:none!important}
+.gas-header{display:flex!important;position:static;border-bottom:2px solid #000}
+.gas-app-context,.gas-status-text{display:inline!important;color:#000}
+.gas-panel{break-inside:avoid}
+}

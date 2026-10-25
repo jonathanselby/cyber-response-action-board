@@ -893,3 +893,32 @@ These continue BUILD-NOTES §2 as **Slice 15**. Each sub-slice keeps CI green, B
 | Screens | 10 + sign-in/setup | review |
 | Web package non-test lines | below today's ~2,430 after S15.3 | build evidence |
 | Remote assets | 0 | existing preflight |
+
+---
+
+## 22. Implementation record (0.0.15-dev)
+
+Slice 15 was built in one pass. What the code taught us is recorded here, as these notes require.
+
+### Decisions taken during build
+
+- **U-2 display timezone:** no new deployment setting was added. Every browser time is shown and entered as UTC, labelled on each field. A deployment display zone remains open and needs a decision note before it is added.
+- **U-3 redirects:** `/control`, `/incident/{id}/operations`, `/obligations` (incident) and `/incident/{id}/control` return `301` to their new home.
+- **Approvals payloads:** one read-only data-tier file (`internal/data/postgres/approval_queries.go`) reads the stored payload of a proposal that an authorised listing has already returned. It also lists pending close-out proposals, which had no reader. It adds no table, migration or state.
+- **Paper downloads:** a capture wrapper around the existing artifact store returns the same bytes the atomic last-good file receives, so the browser download and the derived copy are identical.
+- **`crab.css`:** 1,046 bytes. It holds tokens, print rules and a few native-element rules the shell does not cover: `details/summary`, `fieldset` and form-cluster alignment. These are **upstream candidates for go-app-shell v0.2**; CRAB does not fork or patch the shell.
+- **Frame cost:** the status line is resolved in one runtime call, using the isolate flag, the session break-glass flag, the integrity flag, a paper-pack directory check and the scoped approvals listing. It does no ledger verification, readiness probe or backup hashing per page (T-170 wording corrected accordingly).
+
+### Gaps found (routed, not solved here)
+
+| ID | Gap | Interim |
+|---|---|---|
+| G-6 | No runtime single-person window policy exists. Self-approval is only modelled in the ledger verifier. | No self-approval UI; `/decide` refuses maker-as-confirmer (T-175 corrected). |
+| G-7 | No governed store of checklist templates. `ActivateChecklist` needs a template the caller supplies. | Checklist steps display on the Board; activation is not exposed. |
+| G-8 | No browser surface for governed corpus admission (runbook upload). | *Ask the runbooks* searches whatever corpus already exists and refuses honestly when none matches. |
+| G-9 | No live time-trust signal; readiness reports the host clock as `warn`. | `TIME UNVERIFIED` shows wherever a record carries non-trusted time; the status line shows time only when a signal exists. |
+
+### Not yet evidenced
+
+- PostgreSQL integration tests and Bafflewick 8/8 run in GitHub Actions only; this build environment had no PostgreSQL server.
+- Human review T-187 to T-192 is the Phase 2 UAT.

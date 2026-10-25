@@ -13,7 +13,7 @@ import (
 func communicationPendingItems(values []postgres.PendingCommunicationView) []web.PendingCommunicationItem {
 	out := make([]web.PendingCommunicationItem, 0, len(values))
 	for _, value := range values {
-		out = append(out, web.PendingCommunicationItem{IncidentID: value.IncidentID, RecordID: value.RecordID, RecordType: value.RecordType, Compartment: value.Compartment, Version: value.Version, Maker: value.Maker, Mode: value.Mode, ProposedAt: value.ProposedAt.UTC().Format(time.RFC3339)})
+		out = append(out, web.PendingCommunicationItem{IncidentID: value.IncidentID, RecordID: value.RecordID, RecordType: value.RecordType, Compartment: value.Compartment, Version: value.Version, Maker: value.Maker, Mode: value.Mode, ProposedAt: value.ProposedAt.UTC().Format(displayTime)})
 	}
 	return out
 }

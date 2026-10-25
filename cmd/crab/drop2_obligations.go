@@ -22,7 +22,7 @@ func (r *operatorRuntime) obligationService() (app.ObligationService, *postgres.
 func obligationPendingItems(values []postgres.PendingObligationView) []web.PendingObligationItem {
 	out := make([]web.PendingObligationItem, 0, len(values))
 	for _, value := range values {
-		out = append(out, web.PendingObligationItem{ScopeID: value.ScopeID, RecordID: value.RecordID, RecordType: value.RecordType, Compartment: value.Compartment, Version: value.Version, Maker: value.Maker, Mode: value.Mode, ProposedAt: value.ProposedAt.UTC().Format(time.RFC3339)})
+		out = append(out, web.PendingObligationItem{ScopeID: value.ScopeID, RecordID: value.RecordID, RecordType: value.RecordType, Compartment: value.Compartment, Version: value.Version, Maker: value.Maker, Mode: value.Mode, ProposedAt: value.ProposedAt.UTC().Format(displayTime)})
 	}
 	return out
 }
@@ -49,7 +49,7 @@ func (r *operatorRuntime) GlobalObligations(ctx context.Context, token string) (
 	}
 	out := web.GlobalObligationsPage{Pending: obligationPendingItems(pending)}
 	for _, value := range definitions {
-		out.Definitions = append(out.Definitions, web.ObligationDefinitionItem{DefinitionID: value.DefinitionID, Definition: value.Definition, Maker: value.Maker, Confirmer: value.Confirmer, ConfirmedAt: value.ConfirmedAt.UTC().Format(time.RFC3339)})
+		out.Definitions = append(out.Definitions, web.ObligationDefinitionItem{DefinitionID: value.DefinitionID, Definition: value.Definition, Maker: value.Maker, Confirmer: value.Confirmer, ConfirmedAt: value.ConfirmedAt.UTC().Format(displayTime)})
 	}
 	return out, nil
 }

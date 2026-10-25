@@ -31,6 +31,9 @@ func TestShellIsOfflineAndSecurityHeadersArePresent(t *testing.T) {
 	if got := w.Header().Get("Referrer-Policy"); got != "same-origin" {
 		t.Fatalf("Referrer-Policy = %q; want same-origin", got)
 	}
+	if !strings.Contains(body, "operator runtime is not configured") {
+		t.Fatalf("unconfigured host should explain configuration: %q", body)
+	}
 }
 
 func TestStaticAssetIsEmbedded(t *testing.T) {
@@ -38,16 +41,25 @@ func TestStaticAssetIsEmbedded(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	r := httptest.NewRequest(http.MethodGet, "/static/app.css", nil)
-	w := httptest.NewRecorder()
-	s.Handler().ServeHTTP(w, r)
-	res := w.Result()
-	defer res.Body.Close()
-	b, err := io.ReadAll(res.Body)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if res.StatusCode != http.StatusOK || !strings.Contains(string(b), ".shell") {
-		t.Fatalf("embedded CSS unavailable: %d", res.StatusCode)
+	for path, want := range map[string]string{
+		"/static/crab.css":      "--gas-accent",
+		"/_app-shell/shell.css": ".gas-nav",
+		"/static/icon.svg":      "<svg",
+		"/manifest.webmanifest": `"short_name": "CRAB"`,
+		"/service-worker.js":    "PRECACHE",
+		"/offline":              "CRAB cannot be reached",
+	} {
+		r := httptest.NewRequest(http.MethodGet, path, nil)
+		w := httptest.NewRecorder()
+		s.Handler().ServeHTTP(w, r)
+		res := w.Result()
+		b, err := io.ReadAll(res.Body)
+		res.Body.Close()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if res.StatusCode != http.StatusOK || !strings.Contains(string(b), want) {
+			t.Fatalf("%s unavailable or wrong: %d", path, res.StatusCode)
+		}
 	}
 }

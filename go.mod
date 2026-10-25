@@ -6,6 +6,7 @@ toolchain go1.27.2
 
 require (
 	github.com/jackc/pgx/v5 v5.11.0
+	github.com/jonathanselby/go-app-shell v0.1.0
 	github.com/signintech/gopdf v0.38.2
 	golang.org/x/image v0.31.0
 )

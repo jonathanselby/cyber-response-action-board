@@ -1,0 +1,121 @@
+{{define "close"}}{{template "feedback" .}}
+{{with .Data}}{{$st := .State}}
+<section class="gas-panel gas-stack" aria-labelledby="phase">
+<h2 id="phase">Where this incident is</h2>
+<dl class="gas-kv">
+<dt>Phase</dt><dd><strong>{{if $st.Phase}}{{upper (actionStatus $st.Phase)}}{{else}}ACTIVE RESPONSE{{end}}</strong></dd>
+<dt>Stand-down</dt><dd>{{if $st.StandDown}}<span class="gas-badge gas-badge--success">CONFIRMED</span> {{whenPtr $st.StandDownAt}} — {{$st.StandDown.Reason}}{{else}}<span class="gas-badge gas-badge--info">NOT YET</span>{{end}}</dd>
+<dt>Post-Incident Review</dt><dd>{{if $st.PIR}}<span class="gas-badge gas-badge--success">CONFIRMED</span> {{whenPtr $st.PIRAt}}{{else}}<span class="gas-badge gas-badge--info">NOT YET</span>{{end}}</dd>
+<dt>Retention and hold</dt><dd>{{if $st.Retention}}<span class="gas-badge gas-badge--success">SET</span> {{$st.Retention.RetentionClass}}{{if $st.Retention.Hold}} · <span class="gas-badge gas-badge--warning">LEGAL HOLD</span>{{end}}{{else}}<span class="gas-badge gas-badge--info">NOT SET</span>{{end}}</dd>
+<dt>Unresolved recovery items</dt><dd>{{$st.UnresolvedCount}}</dd>
+<dt>Closure prerequisites</dt><dd>{{if $st.ClosureReady}}<span class="gas-badge gas-badge--success">MET</span>{{else}}<span class="gas-badge gas-badge--warning">NOT MET</span>{{end}}</dd>
+<dt>Closed</dt><dd>{{if $st.ClosedAt}}<span class="gas-badge gas-badge--info">CLOSED</span> {{whenPtr $st.ClosedAt}} — this incident is now read-only{{else}}No{{end}}</dd>
+</dl>
+{{if .Pending}}<p class="gas-notice gas-notice--info">{{.Pending}} close-out change{{if gt .Pending 1}}s are{{else}} is{{end}} waiting for confirmation. <a href="/approvals?incident={{.IncidentID}}">Review in Approvals</a></p>{{end}}
+<p class="gas-help">Stand-down ends the emergency phase but does not close the incident. Closure needs a confirmed PIR and makes the incident read-only.</p>
+</section>
+
+{{if not $st.ClosedAt}}
+<section class="gas-panel gas-stack" aria-labelledby="recovery-h">
+<h2 id="recovery-h">Recovery work</h2>
+{{if $st.Updates}}<div class="gas-table-wrap"><table><thead><tr><th scope="col">Item</th><th scope="col">Owner</th><th scope="col">Priority</th><th scope="col">Verified</th><th scope="col">Residual risk</th><th scope="col">Hand-off</th></tr></thead>
+<tbody>{{range $st.Updates}}<tr><th scope="row">{{.Update.Summary}}<br><span class="gas-muted">{{when .RecordedAt}}</span></th><td>{{.Update.OwnerHumanID}}</td><td>{{.Update.RestorationPriority}}</td><td>{{if .Update.Verified}}<span class="gas-badge gas-badge--success">VERIFIED</span>{{else}}<span class="gas-badge gas-badge--warning">NOT VERIFIED</span>{{end}}</td><td>{{.Update.ResidualRisk}}</td><td>{{.Update.HandoffRef}}</td></tr>{{end}}</tbody></table></div>
+{{else}}<p class="gas-empty">No recovery updates recorded.</p>{{end}}
+<details id="recovery"{{if eq $.Open "recovery"}} open{{end}}><summary>Record recovery update</summary>
+{{template "write-record"}}
+<form class="gas-form gas-stack" method="post" action="{{incidentURL .IncidentID "/close/recovery-update"}}">
+<input type="hidden" name="_form" value="recovery">
+<div class="gas-field"><label for="ru-sum">What was done or restored</label><textarea id="ru-sum" name="summary" rows="3" required>{{$.Form.Get "summary"}}</textarea></div>
+<div class="gas-field"><label for="ru-owner">Owner</label><input id="ru-owner" name="owner" required value="{{$.Form.Get "owner"}}"></div>
+<div class="gas-field"><label for="ru-prio">Restoration priority</label><input id="ru-prio" name="restoration_priority" required list="prios" value="{{$.Form.Get "restoration_priority"}}"><datalist id="prios"><option value="P1"><option value="P2"><option value="P3"></datalist></div>
+<fieldset class="gas-field"><legend>Verified complete?</legend><label><input type="radio" name="verified" value="true"> Yes, verified</label><label><input type="radio" name="verified" value="false" checked> Not yet</label></fieldset>
+<div class="gas-field"><label for="ru-risk">Residual risk</label><input id="ru-risk" name="residual_risk" value="{{$.Form.Get "residual_risk"}}"></div>
+<div class="gas-field"><label for="ru-hand">Hand-off to (long-term work)</label><input id="ru-hand" name="handoff_ref" value="{{$.Form.Get "handoff_ref"}}"></div>
+<button class="gas-button gas-button--primary">Record recovery update</button>
+</form></details>
+</section>
+
+{{if not $st.StandDown}}
+<details id="stand-down" class="gas-panel"{{if eq $.Open "stand-down"}} open{{end}}>
+<summary><h2>Propose stand-down</h2></summary>
+{{template "write-governed"}}
+<form class="gas-form gas-stack" method="post" action="{{incidentURL .IncidentID "/close/stand-down"}}">
+<input type="hidden" name="_form" value="stand-down">
+<div class="gas-field"><label for="sd-reason">Why the emergency response can stand down</label><textarea id="sd-reason" name="reason" rows="3" required>{{$.Form.Get "reason"}}</textarea></div>
+<button class="gas-button gas-button--primary">Propose stand-down</button>
+</form>
+</details>
+{{end}}
+
+{{if and $st.StandDown (not $st.PIR)}}
+<details id="pir" class="gas-panel"{{if eq $.Open "pir"}} open{{end}}>
+<summary><h2>Post-Incident Review</h2></summary>
+{{with .PIRDraft}}<section class="gas-stack"><h3>Drawn from the record</h3>
+<p>{{.ExecutiveSummary}}</p>
+<p class="gas-muted">{{len .Timeline}} timeline entries · {{len .Decisions}} confirmed decisions · {{len .Actions}} actions</p>
+</section>{{end}}
+{{template "write-governed"}}
+<form class="gas-form gas-stack" method="post" action="{{incidentURL .IncidentID "/close/pir"}}">
+<input type="hidden" name="_form" value="pir">
+<div class="gas-field"><label for="pir-sum">Executive summary</label><textarea id="pir-sum" name="executive_summary" rows="5" required>{{if $.Form}}{{$.Form.Get "executive_summary"}}{{else}}{{with .PIRDraft}}{{.ExecutiveSummary}}{{end}}{{end}}</textarea></div>
+<div class="gas-field"><label for="pir-lessons">Lessons (one per line)</label><textarea id="pir-lessons" name="lessons" rows="5" required>{{$.Form.Get "lessons"}}</textarea><p class="gas-help">What worked, what did not, and what was missing.</p></div>
+<div class="gas-field"><label for="pir-work">Long-term work handed off (one per line)</label><textarea id="pir-work" name="long_term_work" rows="3">{{$.Form.Get "long_term_work"}}</textarea></div>
+<button class="gas-button gas-button--primary">Submit PIR for confirmation</button>
+</form>
+</details>
+{{end}}
+
+{{if $st.StandDown}}
+<details id="retention" class="gas-panel"{{if eq $.Open "retention"}} open{{end}}>
+<summary><h2>Retention and hold</h2></summary>
+{{template "write-governed"}}
+<form class="gas-form gas-stack" method="post" action="{{incidentURL .IncidentID "/close/retention"}}">
+<input type="hidden" name="_form" value="retention">
+<div class="gas-field"><label for="rt-class">Retention class</label><input id="rt-class" name="retention_class" required value="{{$.Form.Get "retention_class"}}"></div>
+<fieldset class="gas-field"><legend>Legal or records hold</legend><label><input type="radio" name="hold" value="false" checked> No hold</label><label><input type="radio" name="hold" value="true"> Place on hold</label></fieldset>
+<div class="gas-field"><label for="rt-reason">Hold reason</label><input id="rt-reason" name="hold_reason" value="{{$.Form.Get "hold_reason"}}"></div>
+<div class="gas-field"><label for="rt-after">Eligible for disposition after</label><input id="rt-after" type="datetime-local" name="disposition_eligible_after" value="{{$.Form.Get "disposition_eligible_after"}}">{{template "time-help"}}</div>
+<div class="gas-field"><label for="rt-hand">Records hand-off reference</label><input id="rt-hand" name="handoff_ref" required value="{{$.Form.Get "handoff_ref"}}"></div>
+<button class="gas-button gas-button--primary">Propose retention</button>
+</form>
+</details>
+{{end}}
+
+{{if $st.ClosureReady}}
+<details id="closure" class="gas-panel"{{if eq $.Open "closure"}} open{{end}}>
+<summary><h2>Propose closure</h2></summary>
+<p class="gas-help">Takes effect when another eligible person confirms. Confirmed closure makes the incident read-only and produces separate privileged and shareable records.</p>
+<form class="gas-form gas-stack" method="post" action="{{incidentURL .IncidentID "/close/closure"}}">
+<input type="hidden" name="_form" value="closure">
+<div class="gas-field"><label for="cl-reason">Reason for closure</label><textarea id="cl-reason" name="reason" rows="3" required>{{$.Form.Get "reason"}}</textarea></div>
+<div class="gas-field"><label for="cl-share">Shareable summary</label><textarea id="cl-share" name="shareable_summary" rows="4" required>{{$.Form.Get "shareable_summary"}}</textarea><p class="gas-help">Must contain no privileged material.</p></div>
+<div class="gas-field"><label for="cl-pcomp">Privileged compartment (if any)</label><input id="cl-pcomp" name="privileged_compartment" value="{{$.Form.Get "privileged_compartment"}}"></div>
+<div class="gas-field"><label for="cl-psum">Privileged summary</label><textarea id="cl-psum" name="privileged_summary" rows="4">{{$.Form.Get "privileged_summary"}}</textarea></div>
+<button class="gas-button gas-button--primary">Propose closure</button>
+</form>
+</details>
+{{end}}
+
+<details id="transcribe" class="gas-panel"{{if eq $.Open "transcribe"}} open{{end}}>
+<summary><h2>Transcribe paper record</h2></summary>
+<p class="gas-help">Use this after paper operation. The original time is preserved separately; the transcription time and your name are recorded automatically. Nothing is backdated.</p>
+<form class="gas-form gas-stack" method="post" action="{{incidentURL .IncidentID "/close/transcription"}}">
+<input type="hidden" name="_form" value="transcribe">
+<div class="gas-field"><label for="pt-what">What the paper record says</label><textarea id="pt-what" name="statement" rows="4" required>{{$.Form.Get "statement"}}</textarea></div>
+<div class="gas-field"><label for="pt-at">Original time on paper</label><input id="pt-at" type="datetime-local" name="paper_occurred_at" required value="{{$.Form.Get "paper_occurred_at"}}">{{template "time-help"}}</div>
+<div class="gas-field"><label for="pt-ref">Paper reference</label><input id="pt-ref" name="source_reference" required value="{{$.Form.Get "source_reference"}}"><p class="gas-help">For example: Decision record sheet 3, Ops room.</p></div>
+{{template "time-confidence" "pt"}}
+<button class="gas-button gas-button--primary">Record transcription</button>
+</form>
+</details>
+{{end}}
+<section class="gas-panel gas-stack" aria-labelledby="paper">
+<h2 id="paper">Paper</h2>
+<p>The Emergency Response Pack holds the blank incident, decision, action, communication and evidence forms responders use if CRAB is unavailable.</p>
+<form class="gas-cluster" method="get" action="{{incidentURL .IncidentID "/pack.pdf"}}">
+<div class="gas-field"><label for="pk-size">Page size</label><select id="pk-size" name="size"><option value="A4">A4</option><option value="LETTER">US Letter</option></select></div>
+<div class="gas-field"><label for="pk-mode">Print</label><select id="pk-mode" name="mode"><option value="colour">Colour</option><option value="monochrome">Black and white</option></select></div>
+<button class="gas-button gas-button--primary">Download Emergency Response Pack</button>
+</form>
+</section>
+{{end}}{{end}}
