@@ -251,3 +251,39 @@ The V0.3 catalogue above remains valuable behavioural coverage. V0.4 changes mec
 | T-163 | Custodian recovery scope | two valid recovery proofs restore Custodian quorum | recovered Custodian requests incident content without membership | denied; recovery restores admin authority only | security floor |
 | T-164 | no cross-incident blob dedupe | identical bytes uploaded to two incidents | store both | separate opaque blob identities exist; retention/access of one does not create relationship to the other | blob boundary |
 | T-165 | access expiry live page | external responder has page open when grant expires | next query/download/mutation occurs | current authorisation is re-evaluated and access denied | AC-74/81 |
+
+## 3. UI shell regression additions
+
+Phase 1 human UAT failed AC-43. Slice 15 rebuilds the browser presentation tier on `go-app-shell` (see `UI-SHELL-BUILD-NOTES.md` and `docs/go-app-shell-dependency-decision.md`). The PRD acceptance criteria and every test above are unchanged; existing web tests move with their routes and keep their behavioural/negative assertions. The following tests are added. T-166 to T-186 are automated; T-187 to T-192 are human/visual acceptance recorded in `docs/visual-acceptance.md`.
+
+| ID | Area | Given | When | Then | Source |
+|---|---|---|---|---|---|
+| T-166 | tier boundary | shell dependency added | architecture import test runs | `go-app-shell` is imported only by `internal/presentation/web`; presentation still imports no data/pgx/security package | EDD 4.2 / 26 |
+| T-167 | template trust | web package source | static check runs | exactly one `template.HTML(` conversion exists, in the page builder; no markup is built by string concatenation | EDD 9.12 |
+| T-168 | mode marking | authorised user on any incident page | page renders | `LIVE` or `EXERCISE` appears as text in the persistent header context | AC-17 / AC-87 |
+| T-169 | exercise marking | exercise incident | any incident page renders | exercise notice stating no real obligations or external notifications appears in the body, independent of colour | AC-17 / UX 17 |
+| T-170 | status area | isolate, break-glass, untrusted time, open single-person window, pending approvals or stale paper pack present | any authenticated page renders | each active state appears as text in the persistent status line within one page refresh; healthy state shows `Ready`; no additional database query beyond session resolution is issued for the frame | AC-55 / AC-16 |
+| T-171 | hidden means hidden | user assigned to Incident A only; Incident B has pending approvals | user loads any page, the navigation, status line or Approvals | Incident B's ID, title, compartments and counts never appear | AC-59 / AC-65 / EDD 9.5 |
+| T-172 | single decide path | authenticated user | `POST /decide` with an unknown or tampered `kind` | refused before any application service is called; no ledger entry | EDD 6.2 |
+| T-173 | single decide path | proposal authored by user X | X confirms through `POST /decide` for every kind | refused outside a permitted single-person window | AC-06 |
+| T-174 | single decide path | proposal superseded by a newer version | confirm with the old version through `POST /decide` | refused; exact-version binding preserved | AC-05 / EDD 6.2 |
+| T-175 | single decide path | durable policy and active single-person window | author confirms with and without a reason via `POST /decide` | succeeds only with non-blank reason and is visibly flagged; otherwise refused | AC-07 |
+| T-176 | approval surface | pending governed change of each kind | Approvals renders | shows change summary, effective and proposed values, maker, reason/evidence, compartment and consequence where known; record IDs appear only in technical reference | UX 12 / AC-43 |
+| T-177 | degradation | JavaScript disabled | bootstrap, sign in, declare, confirm, record fact, add evidence | each core flow completes | AC-01 / AC-87 |
+| T-178 | client runtime | any rendered page and the static asset tree | inspected | no `<script>` other than the shell PWA registration script; no CRAB-authored JavaScript file | EDD 15 / 31 |
+| T-179 | PWA boundary | generated service worker and responses | inspected and exercised offline | precache contains only shell CSS/JS, CRAB CSS, icon and offline page; no `/incident`, `/evidence`, `/approvals` or `/api` URL is cached; authenticated pages retain `Cache-Control: no-store`; non-GET is never queued | EDD 9.12 / AC-39 |
+| T-180 | paper from web | user may read incident but lacks `print` permission | requests Incident Brief or Emergency Pack PDF from the browser | refused before incident content is read; with permission, PDF returns as attachment with `no-store` and last-good derived copy behaviour unchanged | AC-37 / AC-38 / AC-66 |
+| T-181 | close-out from web | incident through recovery | stand-down, PIR and closure are proposed and decided through the browser | each uses normal maker-checker; stand-down does not make the incident read-only; closure is refused until prerequisites are met and then makes it read-only | AC-45 / AC-46 / AC-47 |
+| T-182 | time input | `datetime-local` values including blank-required, malformed and boundary values | submitted | stored in UTC per the configured display zone or refused with a field error; no silent coercion | AC-15 / AC-16 |
+| T-183 | compartment input | user read into GENERAL only | compartment selector renders, then a tampered LEGAL value is submitted | LEGAL is not offered and the tampered request is refused without disclosure | AC-13 / AC-75 / AC-88 |
+| T-184 | severity input | severity suggestions rendered | user views a severity form | suggestions come only from confirmed severities in the user's authorised scope; no severity values are hard-coded | PRD principle 4 / AC-65 |
+| T-185 | asset budget | built assets | visual preflight runs | `crab.css` ≤ 2 KiB, contains no layout rules, and no remote asset is referenced | EDD 15 / UX 2 |
+| T-186 | refusal behaviour | denied, hidden or invalid request through any browser form | submitted | refusal renders inside the application frame with an error summary, input preserved where safe, and no more existence information than the pre-refactor response | AC-64 / AC-65 / UX 22 |
+| T-187 | phone capture | 320 px phone browser | record first report with photo, then add evidence to an assigned incident | each completes from a single screen with the form first, full-width inputs and one primary action | AC-68 / UX 21 |
+| T-188 | keyboard and zoom | keyboard only at 200% zoom | navigate, approve, record fact, add evidence | all operable with visible focus and no hidden-focus trap in the compact navigation | AC-87 / UX 22 |
+| T-189 | colour independence | light, dark and monochrome rendering | review Board, Approvals, Readiness | mode, status, clock, outcome and fact/unknown/hypothesis meaning remain clear from text | AC-87 |
+| T-190 | responsive frame | 320, 390, 768, 1024, 1366 and 1920 px | review every screen | phone drawer, tablet rail and desktop rail behave correctly; no page-level horizontal scroll; tables scroll locally | AC-43 |
+| T-191 | operating picture comprehension | non-technical executive with a Bafflewick incident | opens the Board | identifies situation, owners, active clocks and pending decisions within 30 seconds | PRD 16 / AC-43 |
+| T-192 | approval comprehension | confirmer with a pending severity, communication and access change | opens Approvals | states what each approval changes and its consequence without opening technical reference | UX 12 / AC-43 |
+
+Slice 15 therefore carries **27 additional named tests**. No earlier test is removed or weakened.

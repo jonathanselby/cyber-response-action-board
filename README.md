@@ -155,6 +155,8 @@ PostgreSQL RLS was empirically tested. It was not retained in V0.4 because the e
 - `BUILD-NOTES.md` — implementation sequencing and build discipline.
 - `TEST-ACCEPTANCE-NOTES.md` — behavioural/security acceptance catalogue.
 - `UX-PRINT-BUILD-NOTES.md` — web, accessibility and print quality requirements.
+- `UI-SHELL-BUILD-NOTES.md` — Slice 15 browser presentation rebuild on `go-app-shell` (Phase 1 UAT response).
+- `docs/go-app-shell-dependency-decision.md` — EDD §26 dependency decision for `go-app-shell`.
 - `docs/build-evidence-0.0.14-dev.md` — code-complete implementation checkpoint evidence.
 - `docs/bafflewick-acceptance.md` — explicit operational regression gate.
 - `docs/generated-codebase-edd.md` and `docs/edd-drift-review.md` — recovered implementation architecture and frozen-EDD comparison.

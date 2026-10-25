@@ -44,3 +44,20 @@ Record defects, fix the failed behaviour, rerun normal CI + Bafflewick + visual 
 ## Release boundary
 
 A green automated preflight is repository evidence. Human visual sign-off remains empirical release evidence, alongside the physical Raspberry Pi resource-budget run. Neither should be fabricated by CI.
+
+## Review record
+
+### Phase 1 human UAT — FAIL (AC-43)
+
+**Finding:** the browser frontend is not up to enterprise standard.
+
+**Defects confirmed against source at `494bfd9`:**
+- no shared application frame;
+- navigation injected by HTML rewriting;
+- minimal stylesheet with no tablet/desktop layout or dark mode;
+- no persistent status/context area (AC-55, AC-88);
+- machine-format inputs;
+- approval surface showing record types and identifiers (UX 12);
+- paper path absent from the web interface.
+
+**Response:** Slice 15 — rebuild the presentation tier on `go-app-shell` v0.1.0 per `UI-SHELL-BUILD-NOTES.md`. No PRD or EDD change. Tests T-166 to T-192 added in `TEST-ACCEPTANCE-NOTES.md` §3. Re-run this human review after S15.3, record results here, and sign off only when they pass.
