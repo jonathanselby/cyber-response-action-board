@@ -10,6 +10,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/jonathanselby/cyber-response-action-board/internal/ledger"
 	"regexp"
 	"sort"
 	"strings"
@@ -41,6 +42,9 @@ func (r *operatorRuntime) Frame(ctx context.Context, token, incidentID string) (
 	frame := web.FrameView{HumanID: principal.HumanID, Role: string(principal.Role), Custodian: principal.Custodian}
 	frame.Status.BreakGlass = session.BreakGlass
 	frame.Status.TimeStatus = r.kernel.Clock().Read().Status
+	if open, err := r.organisation.OpenWindow(ctx, r.kernel.Clock().Read().Now); err == nil {
+		frame.Status.WindowOpen = open
+	}
 	frame.Status.IntegrityFailed = r.kernel.IntegrityFailed()
 	if isolate, err := r.access.IsolateMode(ctx); err == nil {
 		frame.Status.Isolate = isolate
@@ -672,10 +676,16 @@ func (r *operatorRuntime) approvals(ctx context.Context, principal authz.Princip
 		}
 	}
 
-	out := web.ApprovalsView{Incidents: incidents}
+	out := web.ApprovalsView{Incidents: incidents, SelfApprovals: r.recentSelfApprovals(ctx, principal)}
+	now := r.kernel.Clock().Read().Now
 	for _, s := range sources {
 		item := r.approvalView(ctx, s, titles)
 		item.CanDecide = s.maker != principal.HumanID
+		if !item.CanDecide && principal.Role == authz.RoleMajor && s.kind != "organisation" && s.kind != "access" && s.kind != "relationship" && s.kind != "declaration" {
+			if ok, err := r.organisation.Permits(ctx, principal.HumanID, s.recordType, now); err == nil && ok {
+				item.CanSelfApprove = true
+			}
+		}
 		if item.CanDecide {
 			out.Waiting = append(out.Waiting, item)
 		} else {
@@ -940,6 +950,16 @@ func fieldText(v any) string {
 // existing application decision service; each one re-loads the stored
 // proposal, binds the exact version and refuses maker-as-confirmer.
 func (r *operatorRuntime) DecideProposal(ctx context.Context, token string, in web.DecisionInput) error {
+	if in.SelfReason != "" {
+		// Only kinds a single-person window can cover carry the self-approval
+		// request; access, organisation, relationship and declaration never do.
+		switch in.Kind {
+		case "incident", "severity", "communication", "obligation", "recovery":
+			ctx = app.WithSelfApproval(ctx, in.SelfReason)
+		default:
+			return app.ErrNoWindow
+		}
+	}
 	switch in.Kind {
 	case "declaration", "incident":
 		return r.Decide(ctx, token, in.ScopeID, in.RecordType, in.RecordID, in.Version, in.Outcome)
@@ -1040,3 +1060,29 @@ func (r *operatorRuntime) ActivateChecklist(ctx context.Context, token, incident
 	_, err = r.incident.ActivateChecklist(ctx, principal, scope, chosen.TemplateID, newOperatorID("CHK"), chosen.ChecklistTemplate, owners, r.kernel.Clock().Read().Now)
 	return err
 }
+
+// recentSelfApprovals lists self-approved decisions in the last 24 hours in
+// incidents the viewer can see (AC-07 single-approval dashboard).
+func (r *operatorRuntime) recentSelfApprovals(ctx context.Context, principal authz.Principal) []web.SelfApprovalView {
+	since := r.kernel.Clock().Read().Now.Add(-24 * time.Hour)
+	var out []web.SelfApprovalView
+	ids := make([]string, 0, len(principal.Incidents))
+	for id := range principal.Incidents {
+		ids = append(ids, id)
+	}
+	sort.Strings(ids)
+	for _, id := range ids {
+		picture, found, err := r.incident.CommonOperatingPicture(ctx, principal, id, "GENERAL")
+		if err != nil || !found {
+			continue
+		}
+		for _, entry := range picture.Timeline {
+			if entry.Governance == "self-approved" && entry.RecordedAt.After(since) {
+				out = append(out, web.SelfApprovalView{IncidentID: id, Summary: humanRecordLabel(entry.RecordType) + ": " + entry.Summary, At: entry.RecordedAt.UTC().Format(displayTime), TimeUnverified: entry.TimeStatus != ledger.TimeTrusted})
+			}
+		}
+	}
+	return out
+}
+
+func humanRecordLabel(recordType string) string { return approvalLabel(recordType) }

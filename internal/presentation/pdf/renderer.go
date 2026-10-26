@@ -112,6 +112,10 @@ func (Renderer) RenderIncidentBrief(value domain.IncidentBrief, pageSize, printM
 	if len(value.Decisions) > 0 {
 		d.section("Key decisions")
 		for _, item := range value.Decisions {
+			if item.Maker != "" && item.Maker == item.Confirmer {
+				d.bullet("SELF-APPROVED", item.Decision.Decision+" ("+item.Maker+", single-person window)")
+				continue
+			}
 			d.bullet("", item.Decision.Decision)
 		}
 	}
@@ -126,7 +130,11 @@ func (Renderer) RenderIncidentBrief(value domain.IncidentBrief, pageSize, printM
 		if item.Action.DueAt != nil {
 			due = item.Action.DueAt.UTC().Format("2 Jan 15:04 UTC")
 		}
-		actionRows = append(actionRows, []string{item.Action.Title, item.Action.OwnerHumanID, item.Action.Priority, strings.ReplaceAll(item.Action.Status, "_", " "), due})
+		title := item.Action.Title
+		if item.Maker != "" && item.Maker == item.Confirmer {
+			title += " [SELF-APPROVED]"
+		}
+		actionRows = append(actionRows, []string{title, item.Action.OwnerHumanID, item.Action.Priority, strings.ReplaceAll(item.Action.Status, "_", " "), due})
 	}
 	if len(actionRows) > 0 {
 		d.section("Priority actions")

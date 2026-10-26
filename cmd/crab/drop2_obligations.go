@@ -16,7 +16,7 @@ func (r *operatorRuntime) obligationService() (app.ObligationService, *postgres.
 	if err != nil {
 		return app.ObligationService{}, nil, err
 	}
-	return app.ObligationService{Backend: runtime}, store, nil
+	return app.ObligationService{Backend: runtime, Window: r.organisation}, store, nil
 }
 
 func obligationPendingItems(values []postgres.PendingObligationView) []web.PendingObligationItem {

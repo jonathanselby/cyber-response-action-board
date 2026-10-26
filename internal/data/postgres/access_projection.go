@@ -341,6 +341,24 @@ func (s *AccessStore) IsCustodian(ctx context.Context, humanID string) (bool, er
 	return result, err
 }
 
+// MajorIDs lists people eligible for the Major role.
+func (s *AccessStore) MajorIDs(ctx context.Context) ([]string, error) {
+	rows, err := s.pool.Query(ctx, `SELECT human_id FROM crab.role_eligibility WHERE role='Major' ORDER BY human_id`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []string
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		out = append(out, id)
+	}
+	return out, rows.Err()
+}
+
 func (s *AccessStore) IsMajorEligible(ctx context.Context, humanID string) (bool, error) {
 	var result bool
 	err := s.pool.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM crab.role_eligibility WHERE human_id=$1 AND role='Major')`, humanID).Scan(&result)

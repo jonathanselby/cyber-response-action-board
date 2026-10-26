@@ -209,7 +209,7 @@ func applyConfirmedRecovery(ctx context.Context, tx pgx.Tx, record ledger.Record
 
 func applyRecoveryTimeline(ctx context.Context, tx pgx.Tx, entry ledger.Entry, summary string) error {
 	record := entry.Record
-	governance := record.Status
+	governance := timelineGovernance(record)
 	if record.WriteSemantic == "record" {
 		governance = "recorded"
 	}

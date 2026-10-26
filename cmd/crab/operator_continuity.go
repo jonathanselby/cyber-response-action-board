@@ -309,7 +309,7 @@ func (r *operatorRuntime) continuityService() (app.ContinuityService, error) {
 	if err != nil {
 		return app.ContinuityService{}, err
 	}
-	return app.ContinuityService{Backend: backend, Incident: r.incident, Severity: r.organisation}, nil
+	return app.ContinuityService{Backend: backend, Incident: r.incident, Severity: r.organisation, Window: r.organisation}, nil
 }
 
 func splitOperatorList(raw string) []string {

@@ -47,6 +47,10 @@ func (r *operatorRuntime) Organisation(ctx context.Context, token string) (web.O
 	if templates, err := r.organisation.ChecklistTemplates(ctx, principal); err == nil {
 		page.Templates = templates
 	}
+	page.Windows = r.windowViews(ctx)
+	if majors, err := r.access.MajorIDs(ctx); err == nil {
+		page.Majors = majors
+	}
 	if page.CanPropose {
 		if pending, err := r.organisation.Pending(ctx, principal); err == nil {
 			page.Pending = len(pending)
@@ -124,6 +128,24 @@ func organisationSummary(recordType string, payload []byte) (string, string, []w
 		}
 		return "Emergency information for " + v.Organisation, "The next Emergency Response Pack and every Incident Brief print this information. The current pack becomes stale.", fields
 	}
+	if recordType == domain.TypeSinglePersonWindow {
+		var v domain.SinglePersonWindow
+		_ = json.Unmarshal(payload, &v)
+		if !v.Active {
+			return "Close single-person window " + v.WindowID, "Self-approval stops immediately.", []web.Field{{Name: "Reason", Value: v.Reason}}
+		}
+		kinds := make([]string, 0, len(v.Kinds))
+		for _, k := range v.Kinds {
+			kinds = append(kinds, domain.WindowCoverableKinds[k])
+		}
+		return "Open single-person window " + v.WindowID, "Between these times the named Majors may decide their own proposals of these kinds, with a reason. Each is flagged SELF-APPROVAL.", []web.Field{
+			{Name: "From (UTC)", Value: v.StartsAt.UTC().Format(displayTime)},
+			{Name: "To (UTC)", Value: v.EndsAt.UTC().Format(displayTime)},
+			{Name: "Who", Value: joinWith(v.Humans, ", ")},
+			{Name: "Covers", Value: joinWith(kinds, ", ")},
+			{Name: "Reason", Value: v.Reason},
+		}
+	}
 	if recordType == domain.TypeChecklistTemplate {
 		var v domain.GovernedChecklistTemplate
 		_ = json.Unmarshal(payload, &v)
@@ -171,4 +193,57 @@ func (r *operatorRuntime) ProposeChecklistTemplate(ctx context.Context, token st
 	}
 	_, err = r.organisation.ProposeChecklistTemplate(ctx, principal, newOperatorID("TEMPLATE"), value, r.kernel.Clock().Read().Now)
 	return err
+}
+
+func (r *operatorRuntime) ProposeSinglePersonWindow(ctx context.Context, token string, value domain.SinglePersonWindow) error {
+	principal, ok, err := r.principal(ctx, token)
+	if err != nil {
+		return err
+	}
+	if !ok {
+		return app.ErrAuthorisationDenied
+	}
+	_, err = r.organisation.ProposeSinglePersonWindow(ctx, principal, newOperatorID("WINDOW"), value, r.kernel.Clock().Read().Now)
+	return err
+}
+
+// windowViews lists windows with their state now.
+func (r *operatorRuntime) windowViews(ctx context.Context) []web.WindowView {
+	windows, views, err := r.organisation.Windows(ctx)
+	if err != nil {
+		return nil
+	}
+	now := r.kernel.Clock().Read().Now
+	out := make([]web.WindowView, 0, len(windows))
+	for i, w := range windows {
+		state := "ENDED"
+		switch {
+		case !w.Active:
+			state = "CLOSED"
+		case now.Before(w.StartsAt):
+			state = "UPCOMING"
+		case now.Before(w.EndsAt):
+			state = "OPEN"
+		}
+		view := web.WindowView{SinglePersonWindow: w, State: state, Meta: confirmedBy(views[i])}
+		labels := make([]string, 0, len(w.Kinds))
+		for _, k := range w.Kinds {
+			labels = append(labels, domain.WindowCoverableKinds[k])
+		}
+		view.Kinds = labels
+		view.SinglePersonWindow.Kinds = labels
+		out = append(out, view)
+	}
+	return out
+}
+
+func joinWith(values []string, sep string) string {
+	out := ""
+	for i, v := range values {
+		if i > 0 {
+			out += sep
+		}
+		out += v
+	}
+	return out
 }

@@ -83,6 +83,7 @@ type Runtime interface {
 	ProposeSeverityScale(ctx context.Context, token string, labels []string) error
 	ProposeEmergencyConfiguration(ctx context.Context, token string, value domain.EmergencyConfiguration) error
 	ProposeChecklistTemplate(ctx context.Context, token string, value domain.GovernedChecklistTemplate) error
+	ProposeSinglePersonWindow(ctx context.Context, token string, value domain.SinglePersonWindow) error
 	Readiness(context.Context, string) (ReadinessPage, error)
 
 	// Close-out and paper.
@@ -127,6 +128,7 @@ type StatusFlags struct {
 	PackStale        bool
 	ReadinessFail    bool
 	ModelUnavailable bool
+	WindowOpen       bool
 }
 
 type IncidentContext struct {
@@ -186,6 +188,12 @@ type HomeView struct {
 	CanTriage        bool
 	AwaitingTriage   int
 	SeverityValues   []string // the organisation's confirmed scale
+	SelfApprovals    []SelfApprovalView
+}
+
+type SelfApprovalView struct {
+	IncidentID, Summary, At string
+	TimeUnverified          bool
 }
 
 type PendingDeclaration struct {
@@ -241,6 +249,7 @@ type GuidanceView struct {
 // ---- Approvals -------------------------------------------------------------
 
 type ApprovalsView struct {
+	SelfApprovals []SelfApprovalView
 	Waiting       []ApprovalView
 	AwaitingOther []ApprovalView
 	Incidents     []IncidentLink
@@ -266,11 +275,15 @@ type ApprovalView struct {
 	RecordID      string
 	Version       string
 	CanDecide     bool
+	// CanSelfApprove is true when a confirmed single-person window lets the
+	// maker decide this proposal now, with a reason.
+	CanSelfApprove bool
 }
 
 type Field struct{ Name, Value string }
 
 type DecisionInput struct {
+	SelfReason string // set only when the maker decides inside a single-person window
 	Kind       string
 	ScopeID    string
 	RecordType string
@@ -593,5 +606,14 @@ type OrganisationPage struct {
 	Emergency       *domain.EmergencyConfiguration
 	EmergencyMeta   *ConfirmedBy
 	Templates       []domain.GovernedChecklistTemplate
+	Windows         []WindowView
+	Majors          []string
 	Pending         int
+}
+
+type WindowView struct {
+	domain.SinglePersonWindow
+	State string // OPEN | UPCOMING | ENDED | CLOSED
+	Meta  *ConfirmedBy
+	Kinds []string
 }

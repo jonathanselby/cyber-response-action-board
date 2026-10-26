@@ -111,6 +111,9 @@ func statusLine(frame FrameView) string {
 	case "drifting":
 		items = append(items, "Time drifting")
 	}
+	if st.WindowOpen {
+		items = append(items, "Single-person window open")
+	}
 	if st.PendingApprovals == 1 {
 		items = append(items, "1 approval")
 	} else if st.PendingApprovals > 1 {
@@ -513,6 +516,14 @@ var templateFuncs = template.FuncMap{
 	},
 	"inc":           func(n int) int { return n + 1 },
 	"emergencyText": emergencyText,
+	"windowKinds": func() []Field {
+		out := make([]Field, 0, len(domain.WindowCoverableKinds))
+		for kind, label := range domain.WindowCoverableKinds {
+			out = append(out, Field{Name: label, Value: kind})
+		}
+		sort.Slice(out, func(i, j int) bool { return out[i].Name < out[j].Name })
+		return out
+	},
 	"partyLabel": func(category string) string {
 		if category == "" {
 			return ""

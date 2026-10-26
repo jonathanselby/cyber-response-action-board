@@ -6,7 +6,7 @@ CRAB is a single Go application for running a cyber incident from first report t
 
 ## Build status
 
-**0.0.16-dev — Phase 2 UAT passed functionally; building the Phase 2 response (`UAT2-BUILD-NOTES.md`) before Phase 3 UAT.**
+**0.0.20-dev — Phase 2 UAT passed functionally; building the Phase 2 response (`UAT2-BUILD-NOTES.md`) before Phase 3 UAT.**
 
 The frozen product contract is PRD V0.2 and EDD V0.4. The implementation may simplify mechanisms; it may not silently weaken product outcomes, security boundaries or degraded-operation behaviour.
 
@@ -161,6 +161,7 @@ PostgreSQL RLS was empirically tested. It was not retained in V0.4 because the e
 - `docs/go-app-shell-dependency-decision.md` — EDD §26 dependency decision for `go-app-shell`.
 - `docs/build-evidence-0.0.14-dev.md` — code-complete implementation checkpoint evidence.
 - `docs/build-evidence-0.0.15-dev.md` — Slice 15 browser presentation rebuild evidence.
+- `docs/build-evidence-0.0.16-dev.md` to `docs/build-evidence-0.0.20-dev.md` — Phase 2 UAT response, Stages 1–5.
 - `docs/bafflewick-acceptance.md` — explicit operational regression gate.
 - `docs/generated-codebase-edd.md` and `docs/edd-drift-review.md` — recovered implementation architecture and frozen-EDD comparison.
 - `docs/visual-acceptance.md` — automated preflight plus human rendered-review contract.

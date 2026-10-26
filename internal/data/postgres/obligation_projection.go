@@ -293,7 +293,7 @@ func applyObligationTimeline(ctx context.Context, tx pgx.Tx, entry ledger.Entry)
 	default:
 		return nil
 	}
-	_, err := tx.Exec(ctx, `INSERT INTO crab.incident_timeline(sequence,incident_id,record_id,record_type,governance,compartment,summary,recorded_at,awareness,time_status) VALUES($1,$2,$3,$4,$5,$6,$7,$8,'[]'::jsonb,$9)`, entry.Seq, record.IncidentID, record.RecordID, record.RecordType, record.Status, record.Compartment, summary, record.Timestamp, record.TimeStatus)
+	_, err := tx.Exec(ctx, `INSERT INTO crab.incident_timeline(sequence,incident_id,record_id,record_type,governance,compartment,summary,recorded_at,awareness,time_status) VALUES($1,$2,$3,$4,$5,$6,$7,$8,'[]'::jsonb,$9)`, entry.Seq, record.IncidentID, record.RecordID, record.RecordType, timelineGovernance(record), record.Compartment, summary, record.Timestamp, record.TimeStatus)
 	return err
 }
 

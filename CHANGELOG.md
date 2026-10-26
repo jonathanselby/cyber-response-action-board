@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased — 0.0.20-dev
+
+UAT Phase 2 response, Stage 5: single-person emergency approval window.
+
+- Two people can open a time-limited window (at most 24 hours) that lets a named Major confirm their own proposals of chosen kinds, with a reason. Access, isolate, custodian, organisation configuration, the window itself, closure and retention can never be self-approved (T-208).
+- Every self-approval is marked `SELF-APPROVAL` on Approvals, Board, timeline, Brief and Command Summary; the status line shows *Single-person window open*; an unverified clock adds its own marker (T-209, T-210).
+- Bafflewick phase 9: degraded authority. Threshold 9/9.
+
 ## Unreleased — 0.0.19-dev
 
 UAT Phase 2 response, Stage 4: related incidents and checklist templates.

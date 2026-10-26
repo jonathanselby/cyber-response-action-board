@@ -71,6 +71,26 @@
 <div class="gas-cluster"><button class="gas-button gas-button--primary">Propose template</button></div>
 </form></details>{{end}}
 </section>
+
+<section class="gas-panel gas-stack" aria-labelledby="windows">
+<h2 id="windows">Single-person windows</h2>
+<p class="gas-help">For degraded operations when only one authorised Major is available. Two people agree a window in advance; inside it, a named Major may decide their own proposals of the listed kinds, with a reason. Every such decision is flagged SELF-APPROVAL. Access, organisation policy, closure and retention can never be self-approved.</p>
+{{if .Windows}}<div class="gas-table-wrap"><table><thead><tr><th scope="col">Window</th><th scope="col">When (UTC)</th><th scope="col">Who</th><th scope="col">Covers</th><th scope="col">State</th></tr></thead>
+<tbody>{{range .Windows}}<tr><th scope="row">{{.WindowID}}<br><span class="gas-muted">{{.Reason}}</span></th><td>{{when .StartsAt}} to {{when .EndsAt}}</td><td>{{join .Humans ", "}}</td><td>{{join .Kinds ", "}}</td><td><span class="gas-badge gas-badge--{{if eq .State "OPEN"}}warning{{else}}info{{end}}">{{.State}}</span>{{if and $.Data.CanPropose (or (eq .State "OPEN") (eq .State "UPCOMING"))}}<form method="post" action="/organisation/window"><input type="hidden" name="_form" value="window"><input type="hidden" name="window_id" value="{{.WindowID}}"><input type="hidden" name="reason" value="Closed early"><input type="hidden" name="active" value="false"><button class="gas-button">Propose closing it</button></form>{{end}}</td></tr>{{end}}</tbody></table></div>
+{{else}}<p class="gas-empty">No single-person windows.</p>{{end}}
+{{if .CanPropose}}<details id="window"{{if eq $.Open "window"}} open{{end}}><summary>Propose a single-person window</summary>
+{{template "write-governed"}}
+<form class="gas-form gas-stack" method="post" action="/organisation/window">
+<input type="hidden" name="_form" value="window">
+<input type="hidden" name="active" value="true">
+<div class="gas-field"><label for="wn-from">Starts (UTC, required)</label><input id="wn-from" type="datetime-local" name="starts_at" required value="{{$.Form.Get "starts_at"}}"></div>
+<div class="gas-field"><label for="wn-to">Ends (UTC, required)</label><input id="wn-to" type="datetime-local" name="ends_at" required value="{{$.Form.Get "ends_at"}}"><p class="gas-help">At most 24 hours after the start.</p></div>
+<div class="gas-field"><label for="wn-who">Majors who may use it (CRAB IDs, one per line)</label><textarea id="wn-who" name="humans" rows="2" required>{{$.Form.Get "humans"}}</textarea>{{if .Majors}}<p class="gas-help">Majors: {{join .Majors ", "}}.</p>{{end}}</div>
+<fieldset class="gas-field"><legend>Decisions it covers</legend>{{range windowKinds}}<label><input type="checkbox" name="kinds" value="{{.Value}}"> {{.Name}}</label>{{end}}</fieldset>
+<div class="gas-field"><label for="wn-reason">Why it is needed (required)</label><textarea id="wn-reason" name="reason" rows="2" required>{{$.Form.Get "reason"}}</textarea></div>
+<div class="gas-cluster"><button class="gas-button gas-button--primary">Propose window</button></div>
+</form></details>{{end}}
+</section>
 {{end}}{{end}}
 
 {{define "confirmed-by"}}<p class="gas-help">Confirmed by {{.Confirmer}} on {{.At}}, proposed by {{.Maker}}.{{if .SelfApproval}} <span class="gas-badge gas-badge--warning">SELF-APPROVAL</span>{{end}}{{if .TimeUnverified}} <span class="gas-badge gas-badge--warning">TIME UNVERIFIED</span>{{end}}</p>{{end}}

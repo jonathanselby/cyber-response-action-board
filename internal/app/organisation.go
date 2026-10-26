@@ -22,7 +22,11 @@ type OrganisationBackend interface {
 // OrganisationService governs organisational policy: severity scale,
 // emergency configuration, checklist templates and single-person windows.
 // Majors propose; a different Major confirms (UAT2-BUILD-NOTES 4).
-type OrganisationService struct{ Backend OrganisationBackend }
+type OrganisationService struct {
+	Backend OrganisationBackend
+	// MajorEligible checks that people named in a window are Majors.
+	MajorEligible func(context.Context, string) (bool, error)
+}
 
 var ErrSeverityScaleMissing = errors.New("define the severity scale first: Organisation → Severity scale")
 
@@ -203,4 +207,73 @@ func (s OrganisationService) EmergencyChangedAt(ctx context.Context) (time.Time,
 		return time.Time{}, err
 	}
 	return values[0].At, nil
+}
+
+// ProposeSinglePersonWindow proposes opening, changing or closing a window.
+// A different Major must confirm it; a window can never approve itself.
+func (s OrganisationService) ProposeSinglePersonWindow(ctx context.Context, principal authz.Principal, recordID string, w domain.SinglePersonWindow, now time.Time) (ledger.Record, error) {
+	if err := s.requireMajor(principal); err != nil {
+		return ledger.Record{}, err
+	}
+	if w.Active && s.MajorEligible != nil {
+		for _, human := range w.Humans {
+			ok, err := s.MajorEligible(ctx, human)
+			if err != nil {
+				return ledger.Record{}, err
+			}
+			if !ok {
+				return ledger.Record{}, errors.New("only Majors can be named in a single-person window: " + human)
+			}
+		}
+	}
+	record, err := domain.ProposeSinglePersonWindow(recordID, principal.HumanID, now, w)
+	return s.append(ctx, record, err)
+}
+
+// Windows returns every confirmed window, newest first.
+func (s OrganisationService) Windows(ctx context.Context) ([]domain.SinglePersonWindow, []domain.OrganisationView, error) {
+	if s.Backend == nil {
+		return nil, nil, nil
+	}
+	values, err := s.Backend.CurrentOrganisation(ctx, domain.TypeSinglePersonWindow)
+	if err != nil {
+		return nil, nil, err
+	}
+	out := make([]domain.SinglePersonWindow, 0, len(values))
+	for _, v := range values {
+		var w domain.SinglePersonWindow
+		if err := json.Unmarshal(v.Payload, &w); err != nil {
+			return nil, nil, err
+		}
+		out = append(out, w)
+	}
+	return out, values, nil
+}
+
+// Permits implements WindowPolicy.
+func (s OrganisationService) Permits(ctx context.Context, human, recordType string, at time.Time) (bool, error) {
+	windows, _, err := s.Windows(ctx)
+	if err != nil {
+		return false, err
+	}
+	for _, w := range windows {
+		if w.Covers(human, recordType, at) {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
+// OpenWindow reports whether any confirmed window is open at a time.
+func (s OrganisationService) OpenWindow(ctx context.Context, at time.Time) (bool, error) {
+	windows, _, err := s.Windows(ctx)
+	if err != nil {
+		return false, err
+	}
+	for _, w := range windows {
+		if w.Active && !at.Before(w.StartsAt) && at.Before(w.EndsAt) {
+			return true, nil
+		}
+	}
+	return false, nil
 }

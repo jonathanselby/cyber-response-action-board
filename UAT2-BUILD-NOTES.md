@@ -250,3 +250,11 @@ All are `governed`, `SYSTEM` compartment, Propose → Decide through the one `/d
 - Checklist step owners: named person, else the current holder of the step's default role on the incident, else the person activating.
 - Observed gap routed to the product track: no path to add accounts or role eligibility after setup.
 - Evidence: `docs/build-evidence-0.0.19-dev.md`.
+
+### Stage 5 — 0.0.20-dev
+
+- Windows are organisation records keyed by window identifier, decided through `/decide` kind `organisation`; `domain.SinglePersonWindow.Covers` is the one rule, evaluated at the kernel clock's time.
+- `app.WindowPolicy` is consulted only through `decideGoverned` in the incident, continuity, communication, obligation and recovery services; the runtime sets the self-approval context only for those kinds.
+- Self-approved severity changes and communication issues are written to the timeline as well as badged.
+- Bafflewick phase 9 added; threshold 9/9.
+- Evidence: `docs/build-evidence-0.0.20-dev.md`.

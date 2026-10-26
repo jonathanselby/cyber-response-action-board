@@ -2,7 +2,9 @@
 {{with .Data}}
 <section class="gas-panel gas-stack" aria-labelledby="attention">
 <h2 id="attention">Needs attention</h2>
-{{if or .WaitingApprovals .AwaitingTriage $.Frame.Status.PackStale .PendingDeclarations}}<ul class="gas-list">
+{{if or .WaitingApprovals .AwaitingTriage $.Frame.Status.PackStale .PendingDeclarations $.Frame.Status.WindowOpen .SelfApprovals}}<ul class="gas-list">
+{{if $.Frame.Status.WindowOpen}}<li><a href="/organisation#windows"><strong>Single-person window open</strong> — named Majors may decide their own proposals</a></li>{{end}}
+{{if .SelfApprovals}}<li><a href="/approvals#self"><span class="gas-badge gas-badge--warning">SELF-APPROVAL</span> <strong>{{len .SelfApprovals}}</strong> self-approved {{if eq (len .SelfApprovals) 1}}decision{{else}}decisions{{end}} in the last 24 hours</a></li>{{end}}
 {{if .WaitingApprovals}}<li><a href="/approvals"><strong>{{.WaitingApprovals}}</strong> {{if eq .WaitingApprovals 1}}approval{{else}}approvals{{end}} waiting for your decision</a></li>{{end}}
 {{if and .CanTriage .AwaitingTriage}}<li><a href="/intake"><strong>{{.AwaitingTriage}}</strong> first {{if eq .AwaitingTriage 1}}report{{else}}reports{{end}} awaiting triage</a></li>{{end}}
 {{if .PendingDeclarations}}<li><a href="/approvals"><strong>{{len .PendingDeclarations}}</strong> incident {{if eq (len .PendingDeclarations) 1}}declaration{{else}}declarations{{end}} waiting for a second person</a></li>{{end}}

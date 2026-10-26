@@ -192,9 +192,12 @@ func (s *Server) decide(r *http.Request, token string) error {
 	if outcome != "confirmed" && outcome != "rejected" {
 		return errors.New("outcome must be confirm or reject")
 	}
-	input := DecisionInput{Kind: kind, ScopeID: formValue(r, "scope_id"), RecordType: formValue(r, "record_type"), RecordID: formValue(r, "record_id"), Version: formValue(r, "version"), Outcome: outcome}
+	input := DecisionInput{SelfReason: formValue(r, "self_reason"), Kind: kind, ScopeID: formValue(r, "scope_id"), RecordType: formValue(r, "record_type"), RecordID: formValue(r, "record_id"), Version: formValue(r, "version"), Outcome: outcome}
 	if input.RecordID == "" || input.Version == "" || input.RecordType == "" {
 		return errors.New("the approval reference is incomplete")
+	}
+	if r.FormValue("self") == "true" && input.SelfReason == "" {
+		return fieldError{"A reason is required to decide your own proposal"}
 	}
 	return s.runtime.DecideProposal(r.Context(), token, input)
 }

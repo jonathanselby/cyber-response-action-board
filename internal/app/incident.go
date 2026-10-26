@@ -36,6 +36,7 @@ type SeverityPolicy interface {
 type IncidentService struct {
 	Backend  IncidentBackend
 	Severity SeverityPolicy
+	Window   WindowPolicy
 }
 
 func (s IncidentService) ProposeIncidentDeclaration(ctx context.Context, principal authz.Principal, scope domain.Scope, recordID string, declaration domain.IncidentDeclaration, now time.Time) (ledger.Record, error) {
@@ -185,7 +186,7 @@ func (s IncidentService) Decide(ctx context.Context, principal authz.Principal, 
 			return ledger.Record{}, err
 		}
 	}
-	decided, err := domain.Decide(proposal, expectedVersion, principal.HumanID, outcome, now)
+	decided, err := decideGoverned(ctx, s.Window, proposal, expectedVersion, principal, outcome, now)
 	if err != nil {
 		return ledger.Record{}, err
 	}

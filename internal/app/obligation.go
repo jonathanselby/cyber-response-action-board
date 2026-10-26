@@ -16,7 +16,10 @@ type ObligationBackend interface {
 	ObligationClocks(context.Context, string, string, time.Time) ([]domain.ObligationClockView, error)
 }
 
-type ObligationService struct{ Backend ObligationBackend }
+type ObligationService struct {
+	Backend ObligationBackend
+	Window  WindowPolicy
+}
 
 func (s ObligationService) ProposeDefinition(ctx context.Context, principal authz.Principal, recordID string, def domain.ObligationDefinition, now time.Time) (ledger.Record, error) {
 	if err := s.ready(); err != nil {
@@ -81,7 +84,7 @@ func (s ObligationService) Decide(ctx context.Context, principal authz.Principal
 	} else if d := authz.Authorise(principal, authz.ActionConfirm, authz.ObjectScope{IncidentID: proposal.IncidentID, Compartment: proposal.Compartment}); !d.Allowed {
 		return ledger.Record{}, ErrAuthorisationDenied
 	}
-	decided, err := domain.Decide(proposal, expectedVersion, principal.HumanID, outcome, now)
+	decided, err := decideGoverned(ctx, s.Window, proposal, expectedVersion, principal, outcome, now)
 	if err != nil {
 		return ledger.Record{}, err
 	}

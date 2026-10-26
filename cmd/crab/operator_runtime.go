@@ -153,8 +153,8 @@ func newOperatorRuntime() (web.Runtime, error) {
 	if err != nil {
 		return fail(err)
 	}
-	r.organisation = app.OrganisationService{Backend: organisationBackend}
-	r.incident = app.IncidentService{Backend: incidentBackend, Severity: r.organisation}
+	r.organisation = app.OrganisationService{Backend: organisationBackend, MajorEligible: accessStore.IsMajorEligible}
+	r.incident = app.IncidentService{Backend: incidentBackend, Severity: r.organisation, Window: r.organisation}
 	relationStore, err := postgres.NewRelationshipRuntime(kernel, signer)
 	if err != nil {
 		return fail(err)
@@ -166,8 +166,8 @@ func newOperatorRuntime() (web.Runtime, error) {
 	}}
 	r.accessService = app.AccessService{Backend: accessBackend}
 	r.evidence = app.EvidenceService{Backend: evidenceBackend}
-	r.communication = app.CommunicationService{Backend: communicationBackend, Incident: r.incident, Notifier: notifier.Sender{}, Channels: channels}
-	r.recovery = app.RecoveryService{Backend: recoveryBackend}
+	r.communication = app.CommunicationService{Backend: communicationBackend, Incident: r.incident, Notifier: notifier.Sender{}, Channels: channels, Window: r.organisation}
+	r.recovery = app.RecoveryService{Backend: recoveryBackend, Window: r.organisation}
 	if corpusStore, err := postgres.NewCorpusStore(pool); err == nil {
 		if corpusBackend, err := postgres.NewCorpusRuntime(kernel, signer, blobStore, corpusStore); err == nil {
 			r.retrieval = app.RetrievalService{Backend: corpusBackend}
@@ -344,7 +344,7 @@ func (r *operatorRuntime) Home(ctx context.Context, token string) (web.HomeView,
 		ids = append(ids, id)
 	}
 	sort.Strings(ids)
-	home := web.HomeView{HumanID: principal.HumanID, Role: string(principal.Role), CanDeclare: principal.Role == authz.RoleMajor, SeverityValues: r.severityLabels(ctx)}
+	home := web.HomeView{HumanID: principal.HumanID, Role: string(principal.Role), CanDeclare: principal.Role == authz.RoleMajor, SeverityValues: r.severityLabels(ctx), SelfApprovals: r.recentSelfApprovals(ctx, principal)}
 	for _, id := range ids {
 		picture, found, err := r.incident.CommonOperatingPicture(ctx, principal, id, "GENERAL")
 		if err != nil {

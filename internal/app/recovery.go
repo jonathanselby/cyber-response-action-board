@@ -19,6 +19,7 @@ type RecoveryBackend interface {
 
 type RecoveryService struct {
 	Backend RecoveryBackend
+	Window  WindowPolicy
 }
 
 func (s RecoveryService) RecordRecoveryUpdate(ctx context.Context, principal authz.Principal, scope domain.Scope, recordID string, value domain.RecoveryUpdate, now time.Time) (ledger.Record, error) {
@@ -107,7 +108,7 @@ func (s RecoveryService) Decide(ctx context.Context, principal authz.Principal, 
 			return ledger.Record{}, err
 		}
 	}
-	decided, err := domain.Decide(proposal, expectedVersion, principal.HumanID, outcome, now)
+	decided, err := decideGoverned(ctx, s.Window, proposal, expectedVersion, principal, outcome, now)
 	if err != nil {
 		return ledger.Record{}, err
 	}

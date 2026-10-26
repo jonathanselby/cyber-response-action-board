@@ -110,3 +110,40 @@ func ProposeSinglePersonWindow(recordID, maker string, now time.Time, w SinglePe
 	w.StartsAt, w.EndsAt = w.StartsAt.UTC(), w.EndsAt.UTC()
 	return ProposeSystemGoverned(TypeSinglePersonWindow, recordID, maker, now, w)
 }
+
+// DecideSelf records a maker confirming or rejecting their own proposal
+// inside a permitted single-person window. The caller must already have
+// checked the window; this only builds the flagged record (AC-07).
+func DecideSelf(proposal ledger.Record, expectedVersion, confirmer, outcome, reason string, now time.Time) (ledger.Record, error) {
+	if proposal.WriteSemantic != "governed" || proposal.Status != "proposed" {
+		return ledger.Record{}, errors.New("decision requires a proposed governed record")
+	}
+	if confirmer == "" || confirmer != proposal.Maker {
+		return ledger.Record{}, errors.New("self-approval is only for the maker's own proposal")
+	}
+	if strings.TrimSpace(reason) == "" {
+		return ledger.Record{}, errors.New("self-approval needs a reason")
+	}
+	if outcome != "confirmed" && outcome != "rejected" {
+		return ledger.Record{}, errors.New("decision outcome must be confirmed or rejected")
+	}
+	data, err := DecodeGovernedData(proposal.Data)
+	if err != nil {
+		return ledger.Record{}, err
+	}
+	if expectedVersion == "" || data.Version != expectedVersion {
+		return ledger.Record{}, errors.New("proposal version changed")
+	}
+	decided := proposal
+	decided.Timestamp = now.UTC()
+	decided.Status = outcome
+	decided.Confirmer = confirmer
+	decided.SelfApproval = true
+	decided.SelfApprovalReason = strings.TrimSpace(reason)
+	decided.MakerSignature = ledger.Signature{MissingReason: "maker authenticated on immutable proposal entry"}
+	decided.ConfirmerSignature = ledger.Signature{MissingReason: "confirmer authenticated by CRAB session inside a single-person window"}
+	if err := ledger.ValidateRecord(decided); err != nil {
+		return ledger.Record{}, err
+	}
+	return decided, nil
+}

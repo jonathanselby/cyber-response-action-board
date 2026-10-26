@@ -8,7 +8,7 @@
 <h2 id="situation">Situation now</h2>
 <p>{{$p.Incident.Summary}}</p>
 <dl class="gas-kv">
-<dt>Severity</dt><dd><strong>{{$p.Incident.Severity}}</strong>{{with $b.SeverityHistory}}{{with index . 0}} <span class="gas-muted">· last set by {{.Maker}}, confirmed by {{.Confirmer}}, {{when .ConfirmedAt}}</span>{{end}}{{end}}</dd>
+<dt>Severity</dt><dd><strong>{{$p.Incident.Severity}}</strong>{{with $b.SeverityHistory}}{{with index . 0}} <span class="gas-muted">· last set by {{.Maker}}, confirmed by {{.Confirmer}}, {{when .ConfirmedAt}}</span>{{if eq .Maker .Confirmer}} <span class="gas-badge gas-badge--warning">SELF-APPROVAL</span>{{end}}{{end}}{{end}}</dd>
 <dt>Phase</dt><dd>{{if $b.Phase}}{{$b.Phase}}{{else}}Active response{{end}}</dd>
 <dt>Declared</dt><dd>{{when $p.Incident.DeclaredAt}}</dd>
 {{with $b.LatestScope}}<dt>Impact</dt><dd>{{.Assessment.Impact}} <span class="gas-muted">(confidence {{.Assessment.Confidence}})</span></dd>
@@ -71,7 +71,7 @@
 <section class="gas-panel gas-stack" aria-labelledby="command">
 <h2 id="command">Who is in charge</h2>
 {{if $p.OperationalRoles}}<div class="gas-table-wrap"><table><thead><tr><th scope="col">Role</th><th scope="col">Person</th><th scope="col">Since</th></tr></thead>
-<tbody>{{range $p.OperationalRoles}}<tr><th scope="row">{{.Assignment.RoleName}}{{if .Assignment.Deputy}} (deputy){{end}}</th><td>{{.Assignment.HumanID}}</td><td>{{when .ConfirmedAt}}</td></tr>{{end}}</tbody></table></div>
+<tbody>{{range $p.OperationalRoles}}<tr><th scope="row">{{.Assignment.RoleName}}{{if .Assignment.Deputy}} (deputy){{end}}</th><td>{{.Assignment.HumanID}}</td><td>{{when .ConfirmedAt}}{{if eq .Maker .Confirmer}} <span class="gas-badge gas-badge--warning">SELF-APPROVAL</span>{{end}}</td></tr>{{end}}</tbody></table></div>
 {{else}}<p class="gas-empty">No operational roles assigned.</p>{{end}}
 <p class="gas-help">Operational roles are your organisation's titles. They are separate from CRAB permissions.</p>
 <details{{if eq $.Open "role"}} open{{end}}><summary>Assign role</summary>
@@ -90,7 +90,7 @@
 {{if $p.Actions}}<div class="gas-table-wrap"><table><thead><tr><th scope="col">Action</th><th scope="col">Owner</th><th scope="col">Status</th><th scope="col">Due</th><th scope="col">Update</th></tr></thead>
 <tbody>{{range $p.Actions}}<tr>
 <th scope="row">{{.Action.Title}}<br><span class="gas-muted">{{.Action.Priority}}{{if .Action.SourceRef}} · {{.Action.SourceRef}}{{end}}{{if .Action.ChecklistTemplateID}} · checklist {{.Action.ChecklistTemplateID}}{{end}}</span></th>
-<td>{{.Action.OwnerHumanID}}</td>
+<td>{{.Action.OwnerHumanID}}{{if eq .Maker .Confirmer}}<br><span class="gas-badge gas-badge--warning">SELF-APPROVAL</span>{{end}}</td>
 <td><span class="gas-badge gas-badge--{{statusBadge .Action.Status}}">{{upper (actionStatus .Action.Status)}}</span>{{if .Overdue}} <span class="gas-badge gas-badge--danger">OVERDUE</span>{{end}}{{if .Action.SkipReason}}<br><span class="gas-muted">{{.Action.SkipReason}}</span>{{end}}</td>
 <td>{{whenPtr .Action.DueAt}}</td>
 <td>{{if and (ne .Action.Status "complete") (ne .Action.Status "skipped")}}<form class="gas-stack" method="post" action="{{incidentURL $id "/action/status"}}"><input type="hidden" name="_form" value="action-status"><input type="hidden" name="action_id" value="{{.RecordID}}">
@@ -139,7 +139,7 @@
 <section class="gas-panel gas-stack" aria-labelledby="decisions">
 <h2 id="decisions">Pending decisions</h2>
 {{if $p.Pending}}<ul class="gas-stack">{{range $p.Pending}}<li><a href="/approvals?incident={{$id}}#{{.RecordID}}">{{humanType .RecordType}}</a> <span class="gas-muted">proposed by {{.Maker}}, {{when .ProposedAt}}</span></li>{{end}}</ul>{{else}}<p class="gas-empty">Nothing waiting.</p>{{end}}
-{{if $p.Decisions}}<h3>Recent confirmed decisions</h3><ul class="gas-stack">{{range $p.Decisions}}<li><strong>{{.Decision.Decision}}</strong>{{if .Decision.Rationale}} — {{.Decision.Rationale}}{{end}}<br><span class="gas-muted">{{.Maker}} proposed · {{.Confirmer}} confirmed · {{when .ConfirmedAt}}</span></li>{{end}}</ul>{{end}}
+{{if $p.Decisions}}<h3>Recent confirmed decisions</h3><ul class="gas-stack">{{range $p.Decisions}}<li><strong>{{.Decision.Decision}}</strong>{{if .Decision.Rationale}} — {{.Decision.Rationale}}{{end}}<br>{{if eq .Maker .Confirmer}}<span class="gas-badge gas-badge--warning">SELF-APPROVAL</span> {{end}}<span class="gas-muted">{{.Maker}} proposed · {{.Confirmer}} confirmed · {{when .ConfirmedAt}}</span></li>{{end}}</ul>{{end}}
 <details{{if eq $.Open "decision"}} open{{end}}><summary>Record decision</summary>
 {{template "write-governed"}}
 <form class="gas-form gas-stack" method="post" action="{{incidentURL $id "/decision"}}">
@@ -250,7 +250,7 @@
 <section class="gas-panel gas-stack" aria-labelledby="timeline">
 <h2 id="timeline">Timeline</h2>
 {{if $p.Timeline}}<div class="gas-table-wrap"><table><thead><tr><th scope="col">Recorded</th><th scope="col">Occurred</th><th scope="col">Flagged</th><th scope="col">What</th><th scope="col">Kind</th></tr></thead>
-<tbody>{{range $p.Timeline}}<tr><td>{{when .RecordedAt}}{{if ne .TimeStatus "trusted"}} <span class="gas-badge gas-badge--warning">TIME UNVERIFIED</span>{{end}}</td><td>{{whenPtr .OccurredAt}}</td><td>{{whenPtr .FlaggedAt}}</td><td>{{.Summary}}</td><td>{{humanType .RecordType}} <span class="gas-muted">· {{.Governance}}</span></td></tr>{{end}}</tbody></table></div>
+<tbody>{{range $p.Timeline}}<tr><td>{{when .RecordedAt}}{{if ne .TimeStatus "trusted"}} <span class="gas-badge gas-badge--warning">TIME UNVERIFIED</span>{{end}}</td><td>{{whenPtr .OccurredAt}}</td><td>{{whenPtr .FlaggedAt}}</td><td>{{.Summary}}</td><td>{{humanType .RecordType}} {{if eq .Governance "self-approved"}}<span class="gas-badge gas-badge--warning">SELF-APPROVAL</span>{{else}}<span class="gas-muted">· {{.Governance}}</span>{{end}}</td></tr>{{end}}</tbody></table></div>
 {{else}}<p class="gas-empty">No timeline entries.</p>{{end}}
 </section>
 {{end}}{{end}}

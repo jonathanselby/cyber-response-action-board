@@ -9,7 +9,7 @@ import (
 	"github.com/jonathanselby/cyber-response-action-board/internal/domain"
 )
 
-var organisationScreen = screen{nav: "organisation", title: "Organisation", summary: "Governed policy every incident uses: severity scale and emergency information.", tmpl: "organisation"}
+var organisationScreen = screen{nav: "organisation", title: "Organisation", summary: "Governed policy every incident uses: severity, emergency information, checklists and single-person windows.", tmpl: "organisation"}
 
 func (s *Server) registerOrganisationRoutes() {
 	sc := organisationScreen
@@ -32,6 +32,27 @@ func (s *Server) registerOrganisationRoutes() {
 			return err
 		}
 		return s.runtime.ProposeChecklistTemplate(r.Context(), token, value)
+	}))
+	s.mux.HandleFunc("POST /organisation/window", s.post(sc, back, "proposed", func(r *http.Request, token string) error {
+		w := domain.SinglePersonWindow{WindowID: formValue(r, "window_id"), Reason: formValue(r, "reason"), Active: r.FormValue("active") != "false", Humans: lines(r.FormValue("humans")), Kinds: r.Form["kinds"]}
+		if w.Active {
+			starts, err := parseLocalTime(r.FormValue("starts_at"), "Start", true)
+			if err != nil {
+				return err
+			}
+			ends, err := parseLocalTime(r.FormValue("ends_at"), "End", true)
+			if err != nil {
+				return err
+			}
+			w.StartsAt, w.EndsAt = *starts, *ends
+			if w.WindowID == "" {
+				w.WindowID = "window-" + starts.UTC().Format("20060102-1504")
+			}
+		}
+		if err := domain.ValidateSinglePersonWindowShape(w); err != nil {
+			return fieldError{err.Error()}
+		}
+		return s.runtime.ProposeSinglePersonWindow(r.Context(), token, w)
 	}))
 	s.mux.HandleFunc("POST /organisation/emergency", s.post(sc, back, "proposed", func(r *http.Request, token string) error {
 		value, err := parseEmergencyForm(r)

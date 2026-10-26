@@ -384,3 +384,7 @@ func (f *fakeRuntime) ActivateChecklist(_ context.Context, _, incidentID, templa
 func (f *fakeRuntime) ProposeChecklistTemplate(_ context.Context, _ string, v domain.GovernedChecklistTemplate) error {
 	return f.record("template:" + v.TemplateID)
 }
+
+func (f *fakeRuntime) ProposeSinglePersonWindow(_ context.Context, _ string, w domain.SinglePersonWindow) error {
+	return f.record("window:" + w.WindowID)
+}
