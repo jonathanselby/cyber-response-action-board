@@ -2,6 +2,8 @@ package web
 
 import (
 	"net/http"
+	"regexp"
+	"strconv"
 	"strings"
 
 	"github.com/jonathanselby/cyber-response-action-board/internal/domain"
@@ -23,6 +25,13 @@ func (s *Server) registerOrganisationRoutes() {
 	s.mux.HandleFunc("GET /organisation", s.show(sc))
 	s.mux.HandleFunc("POST /organisation/severity", s.post(sc, back, "proposed", func(r *http.Request, token string) error {
 		return s.runtime.ProposeSeverityScale(r.Context(), token, lines(r.FormValue("levels")))
+	}))
+	s.mux.HandleFunc("POST /organisation/template", s.post(sc, back, "proposed", func(r *http.Request, token string) error {
+		value, err := parseTemplateForm(r)
+		if err != nil {
+			return err
+		}
+		return s.runtime.ProposeChecklistTemplate(r.Context(), token, value)
 	}))
 	s.mux.HandleFunc("POST /organisation/emergency", s.post(sc, back, "proposed", func(r *http.Request, token string) error {
 		value, err := parseEmergencyForm(r)
@@ -125,4 +134,44 @@ func emergencyText(c *domain.EmergencyConfiguration, field string) string {
 		}
 	}
 	return strings.TrimRight(b.String(), "\n")
+}
+
+var slugInvalid = regexp.MustCompile(`[^a-z0-9]+`)
+
+func slug(name string) string {
+	out := strings.Trim(slugInvalid.ReplaceAllString(strings.ToLower(name), "-"), "-")
+	if len(out) > 60 {
+		out = strings.Trim(out[:60], "-")
+	}
+	return out
+}
+
+// parseTemplateForm reads a checklist template: one step per line,
+// "Action | Priority | Default role | Due within minutes".
+func parseTemplateForm(r *http.Request) (domain.GovernedChecklistTemplate, error) {
+	t := domain.GovernedChecklistTemplate{TemplateID: formValue(r, "template_id"), Active: r.FormValue("active") != "false"}
+	t.Name = formValue(r, "name")
+	t.SourceRef = formValue(r, "source_ref")
+	if t.TemplateID == "" {
+		t.TemplateID = slug(t.Name)
+	}
+	for i, line := range lines(r.FormValue("steps")) {
+		f := splitRow(line, 4)
+		step := domain.ChecklistTemplateStep{StepID: "s" + strconv.Itoa(i+1), Title: f[0], Priority: f[1], DefaultRole: f[2]}
+		if step.Priority == "" {
+			step.Priority = "P2"
+		}
+		if f[3] != "" {
+			minutes, err := strconv.Atoi(f[3])
+			if err != nil || minutes < 0 {
+				return t, fieldError{"Step " + strconv.Itoa(i+1) + ": due within must be a whole number of minutes"}
+			}
+			step.DueAfterMinutes = minutes
+		}
+		t.Steps = append(t.Steps, step)
+	}
+	if err := domain.ValidateGovernedChecklistTemplate(t); err != nil {
+		return t, fieldError{err.Error()}
+	}
+	return t, nil
 }

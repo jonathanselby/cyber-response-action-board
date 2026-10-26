@@ -374,3 +374,13 @@ func (f *fakeRuntime) ProposeSeverityScale(_ context.Context, _ string, labels [
 func (f *fakeRuntime) ProposeEmergencyConfiguration(_ context.Context, _ string, v domain.EmergencyConfiguration) error {
 	return f.record("emergency:" + v.Organisation)
 }
+
+func (f *fakeRuntime) ProposeRelationship(_ context.Context, _, incidentID, relatedID, _ string, active bool) error {
+	return f.record("relate:" + incidentID + ">" + relatedID)
+}
+func (f *fakeRuntime) ActivateChecklist(_ context.Context, _, incidentID, templateID string) error {
+	return f.record("checklist:" + templateID)
+}
+func (f *fakeRuntime) ProposeChecklistTemplate(_ context.Context, _ string, v domain.GovernedChecklistTemplate) error {
+	return f.record("template:" + v.TemplateID)
+}

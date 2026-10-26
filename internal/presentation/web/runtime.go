@@ -31,6 +31,8 @@ type Runtime interface {
 	ProposeRoleAssignment(ctx context.Context, token, incidentID, roleName, humanID string, deputy bool) error
 	ProposeAction(ctx context.Context, token, incidentID, title, owner, priority, sourceRef string) error
 	ProposeActionStatus(ctx context.Context, token, incidentID, actionID, status, skipReason string) error
+	ProposeRelationship(ctx context.Context, token, incidentID, relatedID, reason string, active bool) error
+	ActivateChecklist(ctx context.Context, token, incidentID, templateID string) error
 	Retrieve(ctx context.Context, token, incidentID, question string) (GuidanceView, error)
 
 	// Continuity.
@@ -80,6 +82,7 @@ type Runtime interface {
 	Organisation(ctx context.Context, token string) (OrganisationPage, error)
 	ProposeSeverityScale(ctx context.Context, token string, labels []string) error
 	ProposeEmergencyConfiguration(ctx context.Context, token string, value domain.EmergencyConfiguration) error
+	ProposeChecklistTemplate(ctx context.Context, token string, value domain.GovernedChecklistTemplate) error
 	Readiness(context.Context, string) (ReadinessPage, error)
 
 	// Close-out and paper.
@@ -214,6 +217,18 @@ type BoardView struct {
 	SeverityValues   []string
 	Members          []string
 	PendingApprovals int
+	Related          []RelatedIncidentView
+	RelateCandidates []IncidentLink
+	Checklists       []ChecklistOption
+}
+
+type RelatedIncidentView struct {
+	IncidentID, Title, Reason, Maker, Confirmer, ConfirmedAt string
+}
+
+type ChecklistOption struct {
+	TemplateID, Name, SourceRef string
+	Steps                       int
 }
 
 type GuidanceView struct {
@@ -233,6 +248,7 @@ type ApprovalsView struct {
 }
 
 type ApprovalView struct {
+	Group         string // e.g. one checklist activation; shown as a heading
 	Kind          string
 	Label         string
 	IncidentID    string
@@ -576,5 +592,6 @@ type OrganisationPage struct {
 	SeverityMeta    *ConfirmedBy
 	Emergency       *domain.EmergencyConfiguration
 	EmergencyMeta   *ConfirmedBy
+	Templates       []domain.GovernedChecklistTemplate
 	Pending         int
 }

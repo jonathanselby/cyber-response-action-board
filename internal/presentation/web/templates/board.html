@@ -109,7 +109,31 @@
 <div class="gas-field"><label for="a-src">Source</label><input id="a-src" name="source_ref" required value="{{$.Form.Get "source_ref"}}"><p class="gas-help">The decision, checklist or runbook this comes from.</p></div>
 <button class="gas-button gas-button--primary">Propose action</button>
 </form></details>
+<details id="checklist"{{if eq $.Open "checklist"}} open{{end}}><summary>Activate checklist</summary>
+{{if $b.Checklists}}<p class="gas-help">Each step becomes a proposed action with its source. Another eligible person still confirms each one.</p>
+<form class="gas-form gas-stack" method="post" action="{{incidentURL $id "/checklist"}}">
+<input type="hidden" name="_form" value="checklist">
+<div class="gas-field"><label for="ck-template">Checklist</label><select id="ck-template" name="template_id" required>{{range $b.Checklists}}<option value="{{.TemplateID}}">{{.Name}} — {{.Steps}} steps</option>{{end}}</select></div>
+<button class="gas-button gas-button--primary">Activate checklist</button>
+</form>{{else}}<p class="gas-empty">No checklist templates are confirmed. Add them under <a href="/organisation#templates">Organisation</a>.</p>{{end}}
+</details>
 <datalist id="members">{{range $b.Members}}<option value="{{.}}">{{end}}</datalist>
+</section>
+
+<section class="gas-panel gas-stack" aria-labelledby="related">
+<h2 id="related">Related incidents</h2>
+{{if $b.Related}}<ul class="gas-list">{{range $b.Related}}<li><a href="{{incidentURL .IncidentID ""}}"><strong>{{.IncidentID}}</strong>{{if .Title}} · {{.Title}}{{end}}<br><span class="gas-muted">{{.Reason}} · linked by {{.Maker}}, confirmed by {{.Confirmer}}, {{.ConfirmedAt}}</span></a></li>{{end}}</ul>
+{{else}}<p class="gas-empty">No related incidents you can see.</p>{{end}}
+<p class="gas-help">A link shares no information and grants no access. It shows only to people who can already see both incidents.</p>
+{{if $b.RelateCandidates}}<details id="relate"{{if eq $.Open "relate"}} open{{end}}><summary>Relate or unlink an incident</summary>
+{{template "write-governed"}}
+<form class="gas-form gas-stack" method="post" action="{{incidentURL $id "/relationship"}}">
+<input type="hidden" name="_form" value="relate">
+<div class="gas-field"><label for="rl-other">Incident</label><select id="rl-other" name="related_incident_id" required>{{range $b.RelateCandidates}}<option value="{{.IncidentID}}">{{.IncidentID}} · {{.Title}}</option>{{end}}</select></div>
+<div class="gas-field"><label for="rl-reason">Reason (required)</label><textarea id="rl-reason" name="reason" rows="2" required>{{$.Form.Get "reason"}}</textarea></div>
+<fieldset class="gas-field"><legend>Change</legend><label><input type="radio" name="active" value="true" checked> Relate these incidents</label><label><input type="radio" name="active" value="false"> Remove the link</label></fieldset>
+<button class="gas-button gas-button--primary">Propose</button>
+</form></details>{{end}}
 </section>
 
 <section class="gas-panel gas-stack" aria-labelledby="decisions">

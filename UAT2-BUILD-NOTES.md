@@ -242,3 +242,11 @@ All are `governed`, `SYSTEM` compartment, Propose → Decide through the one `/d
 - `PrintService` reads emergency information only after print authority is checked.
 - Pack freshness checks `emergency-response-pack.pdf` specifically and compares it with the last confirmed emergency information.
 - Evidence: `docs/build-evidence-0.0.18-dev.md`.
+
+### Stage 4 — 0.0.19-dev
+
+- Relationships are their own governed incident record type (`incident.relationship`) with their own projection; decisions go through `/decide` kind `relationship`.
+- `RelationshipService.canSeeBoth` is the single rule for propose, decide and view. The proposal form only offers incidents the viewer can see; Approvals lists a link only to people who can see both.
+- Checklist step owners: named person, else the current holder of the step's default role on the incident, else the person activating.
+- Observed gap routed to the product track: no path to add accounts or role eligibility after setup.
+- Evidence: `docs/build-evidence-0.0.19-dev.md`.

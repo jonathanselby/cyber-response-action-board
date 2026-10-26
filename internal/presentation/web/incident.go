@@ -47,6 +47,12 @@ func (s *Server) registerIncidentRoutes() {
 		}
 		return s.runtime.ProposeActionStatus(r.Context(), token, id(r), formValue(r, "action_id"), status, formValue(r, "skip_reason"))
 	}))
+	s.mux.HandleFunc("POST /incident/{incidentID}/relationship", s.post(board, func(r *http.Request) string { return incidentURL(r, "") }, "proposed", func(r *http.Request, token string) error {
+		return s.runtime.ProposeRelationship(r.Context(), token, id(r), formValue(r, "related_incident_id"), formValue(r, "reason"), r.FormValue("active") != "false")
+	}))
+	s.mux.HandleFunc("POST /incident/{incidentID}/checklist", s.post(board, func(r *http.Request) string { return incidentURL(r, "") }, "proposed", func(r *http.Request, token string) error {
+		return s.runtime.ActivateChecklist(r.Context(), token, id(r), formValue(r, "template_id"))
+	}))
 	s.mux.HandleFunc("POST /incident/{incidentID}/scope", s.post(board, toBoard, "recorded", func(r *http.Request, token string) error {
 		input := ScopeAssessmentInput{AffectedAssets: r.FormValue("affected_assets"), AffectedServices: r.FormValue("affected_services"), PeopleDataPopulations: r.FormValue("people_data_populations"), Locations: r.FormValue("locations"), Suppliers: r.FormValue("suppliers"), Impact: formValue(r, "impact"), Confidence: formValue(r, "confidence"), ReasonEvidence: formValue(r, "reason_evidence")}
 		return s.runtime.RecordScopeAssessment(r.Context(), token, id(r), input)

@@ -6,7 +6,7 @@
 </form>{{end}}
 <section class="gas-stack" aria-labelledby="waiting">
 <h2 id="waiting">Waiting for your decision</h2>
-{{range .Waiting}}{{template "approval-card" .}}{{else}}<p class="gas-empty">Nothing is waiting for your decision.</p>{{end}}
+{{$group := ""}}{{range .Waiting}}{{if and .Group (ne .Group $group)}}<h3>{{.Group}}</h3><p class="gas-help">Steps from one checklist activation. Decide each one.</p>{{end}}{{$group = .Group}}{{template "approval-card" .}}{{else}}<p class="gas-empty">Nothing is waiting for your decision.</p>{{end}}
 </section>
 {{if .AwaitingOther}}<section class="gas-stack" aria-labelledby="mine">
 <h2 id="mine">Your proposals awaiting someone else</h2>

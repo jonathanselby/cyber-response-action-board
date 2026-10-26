@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased — 0.0.19-dev
+
+UAT Phase 2 response, Stage 4: related incidents and checklist templates.
+
+- Related incidents: one person proposes *A is related to B* with a reason, another confirms. Both must already see both incidents; a link never grants access, merges nothing and is invisible to anyone who cannot see both (T-205, T-206).
+- Checklist templates are governed organisation records; *Activate checklist* on the Board proposes one action per step with its source and template, owners taken from the step's default role. Approvals groups an activation's steps (T-207).
+- Migration 017.
+
 ## Unreleased — 0.0.18-dev
 
 UAT Phase 2 response, Stage 3: organisation configuration.

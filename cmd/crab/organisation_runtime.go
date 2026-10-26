@@ -44,6 +44,9 @@ func (r *operatorRuntime) Organisation(ctx context.Context, token string) (web.O
 			page.EmergencyMeta = confirmedBy(*view)
 		}
 	}
+	if templates, err := r.organisation.ChecklistTemplates(ctx, principal); err == nil {
+		page.Templates = templates
+	}
 	if page.CanPropose {
 		if pending, err := r.organisation.Pending(ctx, principal); err == nil {
 			page.Pending = len(pending)
@@ -121,6 +124,22 @@ func organisationSummary(recordType string, payload []byte) (string, string, []w
 		}
 		return "Emergency information for " + v.Organisation, "The next Emergency Response Pack and every Incident Brief print this information. The current pack becomes stale.", fields
 	}
+	if recordType == domain.TypeChecklistTemplate {
+		var v domain.GovernedChecklistTemplate
+		_ = json.Unmarshal(payload, &v)
+		if !v.Active {
+			return "Withdraw checklist: " + v.Name, "Responders can no longer activate it. Actions already created are unchanged.", nil
+		}
+		fields := []web.Field{{Name: "Source", Value: v.SourceRef}}
+		for i, step := range v.Steps {
+			detail := step.Priority
+			if step.DefaultRole != "" {
+				detail += " · " + step.DefaultRole
+			}
+			fields = append(fields, web.Field{Name: "Step " + strconv.Itoa(i+1), Value: step.Title + " (" + detail + ")"})
+		}
+		return "Checklist template: " + v.Name, "Responders can activate it on any incident; each step becomes an action that still needs a second person.", fields
+	}
 	return "Organisation change", "", nil
 }
 
@@ -140,4 +159,16 @@ func countOf(n int) string {
 		return "none"
 	}
 	return strconv.Itoa(n)
+}
+
+func (r *operatorRuntime) ProposeChecklistTemplate(ctx context.Context, token string, value domain.GovernedChecklistTemplate) error {
+	principal, ok, err := r.principal(ctx, token)
+	if err != nil {
+		return err
+	}
+	if !ok {
+		return app.ErrAuthorisationDenied
+	}
+	_, err = r.organisation.ProposeChecklistTemplate(ctx, principal, newOperatorID("TEMPLATE"), value, r.kernel.Clock().Read().Now)
+	return err
 }

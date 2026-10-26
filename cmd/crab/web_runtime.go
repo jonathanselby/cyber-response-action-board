@@ -151,6 +151,31 @@ func (r *operatorRuntime) Board(ctx context.Context, token, incidentID, compartm
 		}
 	}
 	out.SeverityValues = r.severityLabels(ctx)
+	if related, err := r.relationships.Visible(ctx, principal, incidentID); err == nil {
+		for _, v := range related {
+			view := web.RelatedIncidentView{IncidentID: v.RelatedIncidentID, Reason: v.Reason, Maker: v.Maker, Confirmer: v.Confirmer, ConfirmedAt: v.ConfirmedAt.UTC().Format(displayTime)}
+			if picture, found, err := r.incident.CommonOperatingPicture(ctx, principal, v.RelatedIncidentID, "GENERAL"); err == nil && found {
+				view.Title = picture.Incident.Title
+			}
+			out.Related = append(out.Related, view)
+		}
+	}
+	for id := range principal.Incidents {
+		if id == incidentID || !principal.Compartments[id]["GENERAL"] {
+			continue
+		}
+		if picture, found, err := r.incident.CommonOperatingPicture(ctx, principal, id, "GENERAL"); err == nil && found {
+			out.RelateCandidates = append(out.RelateCandidates, web.IncidentLink{IncidentID: id, Title: picture.Incident.Title})
+		}
+	}
+	sort.Slice(out.RelateCandidates, func(i, j int) bool { return out.RelateCandidates[i].IncidentID < out.RelateCandidates[j].IncidentID })
+	if templates, err := r.organisation.ChecklistTemplates(ctx, principal); err == nil {
+		for _, t := range templates {
+			if t.Active {
+				out.Checklists = append(out.Checklists, web.ChecklistOption{TemplateID: t.TemplateID, Name: t.Name, SourceRef: t.SourceRef, Steps: len(t.Steps)})
+			}
+		}
+	}
 
 	if store, err := postgres.NewCommunicationStoreFromKernel(r.kernel); err == nil {
 		if cadences, err := store.Cadences(ctx, incidentID, compartment); err == nil {
@@ -596,6 +621,14 @@ func (r *operatorRuntime) approvals(ctx context.Context, principal authz.Princip
 				}
 			}
 		}
+		if pending, err := r.relationStore.PendingRelationships(ctx, id); err == nil {
+			for _, p := range pending {
+				// Shown only to people who can already see both incidents.
+				if principal.Incidents[p.RelatedIncidentID] && principal.Compartments[p.RelatedIncidentID]["GENERAL"] {
+					add(approvalSource{"relationship", id, domain.TypeIncidentRelationship, p.RecordID, "GENERAL", p.Version, p.Maker, p.ProposedAt})
+				}
+			}
+		}
 		allowed := principal.Compartments[id]
 		if pending, err := r.access.PendingAccessForIncident(ctx, id); err == nil {
 			for _, p := range pending {
@@ -682,6 +715,9 @@ func (r *operatorRuntime) approvalView(ctx context.Context, s approvalSource, ti
 		item.Proposed, values = payloadFields(payload)
 	}
 	item.Reason = firstString(values, "reason_evidence", "reason", "rationale", "applicability_reason")
+	if template := firstString(values, "checklist_template_id"); template != "" {
+		item.Group = "Checklist " + template + " · " + s.scopeID
+	}
 	item.Summary, item.Consequence = approvalSummary(s, values, item.Label)
 	if s.kind == "severity" && item.IncidentID != "" {
 		if current := r.currentSeverity(ctx, item.IncidentID); current != "" {
@@ -725,6 +761,7 @@ func approvalLabel(recordType string) string {
 		"security.isolate_mode":              "Isolate mode",
 		"security.output_permission":         "Print or download permission",
 		domain.TypeSeverityScale:             "Severity scale",
+		domain.TypeIncidentRelationship:      "Related incident",
 		domain.TypeEmergencyConfiguration:    "Emergency information",
 		domain.TypeChecklistTemplate:         "Checklist template",
 		domain.TypeSinglePersonWindow:        "Single-person window",
@@ -774,6 +811,11 @@ func approvalSummary(s approvalSource, v map[string]any, label string) (string, 
 		return "Change obligation clock " + str("clock_id") + " (" + str("kind") + ")", "The original deadline and rule are preserved."
 	case domain.TypeObligationDefinition:
 		return "Obligation: " + str("name"), "Becomes available to start clocks in every incident."
+	case domain.TypeIncidentRelationship:
+		if b, _ := v["active"].(bool); !b {
+			return "Remove link between " + s.scopeID + " and " + str("related_incident_id"), "The link is withdrawn. History is kept."
+		}
+		return "Relate " + s.scopeID + " to " + str("related_incident_id"), "Each incident shows the link to people who can see both. Nobody gains access, and nothing is merged."
 	case domain.TypeStandDown:
 		return "Stand down the emergency response", "The emergency phase ends. The incident stays open for review."
 	case domain.TypePIR:
@@ -909,6 +951,16 @@ func (r *operatorRuntime) DecideProposal(ctx context.Context, token string, in w
 		return r.DecideCommunication(ctx, token, in.ScopeID, in.RecordType, in.RecordID, in.Version, in.Outcome)
 	case "access":
 		return r.DecideAccess(ctx, token, in.ScopeID, in.RecordType, in.RecordID, in.Version, in.Outcome)
+	case "relationship":
+		principal, ok, err := r.principal(ctx, token)
+		if err != nil {
+			return err
+		}
+		if !ok {
+			return app.ErrAuthorisationDenied
+		}
+		_, err = r.relationships.Decide(ctx, principal, in.ScopeID, in.RecordID, in.Version, in.Outcome, r.kernel.Clock().Read().Now)
+		return err
 	case "organisation":
 		if !domain.IsOrganisationType(in.RecordType) {
 			return errors.New("unknown approval kind")
@@ -934,4 +986,57 @@ func (r *operatorRuntime) emergencyChangedAt(ctx context.Context) time.Time {
 		return time.Time{}
 	}
 	return at
+}
+
+func (r *operatorRuntime) ProposeRelationship(ctx context.Context, token, incidentID, relatedID, reason string, active bool) error {
+	principal, picture, err := r.scope(ctx, token, incidentID)
+	if err != nil {
+		return err
+	}
+	scope := domain.Scope{IncidentID: incidentID, Mode: picture.Incident.Mode, Compartment: "GENERAL"}
+	_, err = r.relationships.Propose(ctx, principal, scope, newOperatorID("REL"), domain.IncidentRelationship{RelatedIncidentID: strings.TrimSpace(relatedID), Reason: strings.TrimSpace(reason), Active: active}, r.kernel.Clock().Read().Now)
+	return err
+}
+
+// ActivateChecklist proposes one action per step of a confirmed template.
+// Owners come from the step's named person, else the current holder of its
+// default role on this incident, else the person activating it. Every action
+// still needs a second person (T-207).
+func (r *operatorRuntime) ActivateChecklist(ctx context.Context, token, incidentID, templateID string) error {
+	principal, picture, err := r.scope(ctx, token, incidentID)
+	if err != nil {
+		return err
+	}
+	templates, err := r.organisation.ChecklistTemplates(ctx, principal)
+	if err != nil {
+		return err
+	}
+	var chosen *domain.GovernedChecklistTemplate
+	for i := range templates {
+		if templates[i].TemplateID == templateID && templates[i].Active {
+			chosen = &templates[i]
+		}
+	}
+	if chosen == nil {
+		return errors.New("choose a confirmed checklist template")
+	}
+	holders := map[string]string{}
+	for _, role := range picture.OperationalRoles {
+		if !role.Assignment.Deputy {
+			holders[strings.ToLower(role.Assignment.RoleName)] = role.Assignment.HumanID
+		}
+	}
+	owners := map[string]string{}
+	for _, step := range chosen.Steps {
+		switch {
+		case step.DefaultOwnerHumanID != "":
+		case holders[strings.ToLower(step.DefaultRole)] != "":
+			owners[step.StepID] = holders[strings.ToLower(step.DefaultRole)]
+		default:
+			owners[step.StepID] = principal.HumanID
+		}
+	}
+	scope := domain.Scope{IncidentID: incidentID, Mode: picture.Incident.Mode, Compartment: "GENERAL"}
+	_, err = r.incident.ActivateChecklist(ctx, principal, scope, chosen.TemplateID, newOperatorID("CHK"), chosen.ChecklistTemplate, owners, r.kernel.Clock().Read().Now)
+	return err
 }

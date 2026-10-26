@@ -52,6 +52,25 @@
 <div class="gas-cluster"><button class="gas-button gas-button--primary">Propose emergency information</button></div>
 </form></details>{{end}}
 </section>
+
+<section class="gas-panel gas-stack" aria-labelledby="templates">
+<h2 id="templates">Checklist templates</h2>
+<p class="gas-help">Known-good first steps responders can activate on any incident. Each step becomes an ordinary action that still needs a second person. No branching or automation.</p>
+{{if .Templates}}<div class="gas-table-wrap"><table><thead><tr><th scope="col">Checklist</th><th scope="col">Steps</th><th scope="col">Source</th><th scope="col">State</th></tr></thead>
+<tbody>{{range .Templates}}<tr><th scope="row">{{.Name}}<br><span class="gas-muted">{{.TemplateID}}</span></th><td>{{if .Active}}<ol>{{range .Steps}}<li>{{.Title}} <span class="gas-muted">· {{.Priority}}{{if .DefaultRole}} · {{.DefaultRole}}{{end}}{{if .DueAfterMinutes}} · within {{.DueAfterMinutes}} min{{end}}</span></li>{{end}}</ol>{{else}}—{{end}}</td><td>{{.SourceRef}}</td><td>{{if .Active}}<span class="gas-badge gas-badge--info">ACTIVE</span>{{if $.Data.CanPropose}}<form method="post" action="/organisation/template"><input type="hidden" name="_form" value="template"><input type="hidden" name="template_id" value="{{.TemplateID}}"><input type="hidden" name="name" value="{{.Name}}"><input type="hidden" name="active" value="false"><button class="gas-button">Propose withdrawal</button></form>{{end}}{{else}}<span class="gas-badge">WITHDRAWN</span>{{end}}</td></tr>{{end}}</tbody></table></div>
+{{else}}<p class="gas-empty">No checklist templates yet.</p>{{end}}
+{{if .CanPropose}}<details id="template"{{if eq $.Open "template"}} open{{end}}><summary>Propose a checklist template</summary>
+{{template "write-governed"}}
+<form class="gas-form gas-stack" method="post" action="/organisation/template">
+<input type="hidden" name="_form" value="template">
+<input type="hidden" name="active" value="true">
+<div class="gas-field"><label for="tp-name">Name (required)</label><input id="tp-name" name="name" required value="{{$.Form.Get "name"}}"><p class="gas-help">For example: Ransomware initial response.</p></div>
+<div class="gas-field"><label for="tp-id">Short identifier</label><input id="tp-id" name="template_id" value="{{$.Form.Get "template_id"}}"><p class="gas-help">Lower-case letters, digits and hyphens. Leave blank to derive it from the name. Using an existing identifier proposes a new version.</p></div>
+<div class="gas-field"><label for="tp-src">Source reference (required)</label><input id="tp-src" name="source_ref" required value="{{$.Form.Get "source_ref"}}"><p class="gas-help">The runbook or policy these steps come from.</p></div>
+<div class="gas-field"><label for="tp-steps">Steps, in order (required)</label><p class="gas-help" id="tp-steps-help">One per line: Action | Priority | Default role | Due within minutes. Only the action is required; priority defaults to P2.</p><textarea id="tp-steps" name="steps" rows="8" required aria-describedby="tp-steps-help">{{$.Form.Get "steps"}}</textarea></div>
+<div class="gas-cluster"><button class="gas-button gas-button--primary">Propose template</button></div>
+</form></details>{{end}}
+</section>
 {{end}}{{end}}
 
 {{define "confirmed-by"}}<p class="gas-help">Confirmed by {{.Confirmer}} on {{.At}}, proposed by {{.Maker}}.{{if .SelfApproval}} <span class="gas-badge gas-badge--warning">SELF-APPROVAL</span>{{end}}{{if .TimeUnverified}} <span class="gas-badge gas-badge--warning">TIME UNVERIFIED</span>{{end}}</p>{{end}}

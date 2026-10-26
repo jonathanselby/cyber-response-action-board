@@ -82,6 +82,17 @@ func seedDemo(t *testing.T, e *e2e) (alice, bob string) {
 	e.post(inc+"/severity", alice, url.Values{"severity": {"Severity level 4"}, "reason_evidence": {"Customer-facing outage"}})
 	e.post(inc+"/decision", alice, url.Values{"decision": {"Engage external forensics firm"}, "rationale": {"Retainer in place"}})
 
+	// Organisation checklist, a related incident and an activated checklist.
+	e.post("/organisation/template", alice, url.Values{"name": {"Ransomware initial response"}, "source_ref": {"Runbook RB-07"}, "active": {"true"},
+		"steps": {"Isolate affected hosts | P1 | Technical lead | 15\nCall the insurer hotline | P1 | Incident commander | 30\nPreserve logs and memory images | P2 | Technical lead | 60\nBrief the executive team | P2 | Incident commander | 120"}})
+	e.post("/organisation/template", alice, url.Values{"name": {"Suspected data breach"}, "source_ref": {"Privacy policy section 9"}, "active": {"true"},
+		"steps": {"Record the awareness time | P1 | Incident commander\nAssess personal data involved | P1\nDecide on regulator notification | P1 | Incident commander | 1440"}})
+	e.approveAll(bob)
+	e.setMember(alice, bob, "INC-011", "bob", true)
+	e.post(inc+"/relationship", alice, url.Values{"related_incident_id": {"INC-011"}, "reason": {"Same compromised supplier VPN account seen in both"}, "active": {"true"}})
+	e.approveAll(bob)
+	e.post(inc+"/checklist", alice, url.Values{"template_id": {"suspected-data-breach"}})
+
 	e.postMultipart("/intake", alice, map[string]string{
 		"reporter": "Service desk", "contact_route": "ext 4400", "description": "Staff report ransom note on shared drive",
 		"affected": "Finance share", "immediate_impact": "Finance team cannot work", "source_channel": "phone",

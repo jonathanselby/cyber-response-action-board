@@ -45,6 +45,8 @@ type operatorRuntime struct {
 	recovery        app.RecoveryService
 	retrieval       app.RetrievalService
 	organisation    app.OrganisationService
+	relationships   app.RelationshipService
+	relationStore   *postgres.RelationshipRuntime
 	print           app.PrintService
 	pageSizeDefault string
 	local           authn.Local
@@ -153,6 +155,15 @@ func newOperatorRuntime() (web.Runtime, error) {
 	}
 	r.organisation = app.OrganisationService{Backend: organisationBackend}
 	r.incident = app.IncidentService{Backend: incidentBackend, Severity: r.organisation}
+	relationStore, err := postgres.NewRelationshipRuntime(kernel, signer)
+	if err != nil {
+		return fail(err)
+	}
+	r.relationStore = relationStore
+	r.relationships = app.RelationshipService{Backend: relationStore, Exists: func(ctx context.Context, id string) (bool, error) {
+		_, found, err := incidents.CommonOperatingPicture(ctx, id)
+		return found, err
+	}}
 	r.accessService = app.AccessService{Backend: accessBackend}
 	r.evidence = app.EvidenceService{Backend: evidenceBackend}
 	r.communication = app.CommunicationService{Backend: communicationBackend, Incident: r.incident, Notifier: notifier.Sender{}, Channels: channels}
