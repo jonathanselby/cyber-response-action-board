@@ -74,6 +74,35 @@ A green automated preflight is repository evidence. Human visual sign-off remain
 - reports need a simpler print preview that shows the finished PDF;
 - six product gaps, all already required by PRD V0.2 and several already routed in `UI-SHELL-BUILD-NOTES.md` §19/§22: time authority (G-9), organisation emergency configuration for the paper pack, related incidents (AC-84), single-person window (G-6, AC-07), governed severity scale (G-1, AC-71), governed checklist templates (G-7).
 
+**Environment:** Linux laptop, Intel Core Ultra 9, 32 GB unified RAM.
+
+**Functional result:** every flow exercised worked. No functional, security or workflow defect was reported. The feedback is UAT direction on visual quality and product completeness, not defects in the Slice 15 build.
+
+| Row | Result |
+|---|---|
+| T-187 phone capture | pass (functional) |
+| T-188 keyboard and zoom | pass (functional) |
+| T-189 colour independence | pass (functional) |
+| T-190 responsive frame | pass (functional) |
+| T-191 operating picture comprehension | pass (functional) |
+| T-192 approval comprehension | pass (functional) |
+
+**Verdict:** AC-43 stays open only because the UAT owner has set a new locked visual direction (Storm Blue). The rows above are re-run against that build together with T-211 to T-213.
+
+**Response:** Slice 15 — rebuild the presentation tier on `go-app-shell` v0.1.0 per `UI-SHELL-BUILD-NOTES.md`. No PRD or EDD change. Tests T-166 to T-192 added in `TEST-ACCEPTANCE-NOTES.md` §3. Re-run this human review after S15.3, record results here, and sign off only when they pass.
+
+### Phase 2 human UAT — NOT ACCEPTED (AC-43 remains open)
+
+**Date:** 26 October 2026 (feedback file is labelled `20261028`).  
+**Build:** `78bfd4a`, 0.0.15-dev.  
+**Reviewer finding:** the Slice 15 frame is structurally accepted, but the visual layer is not. The UAT owner supplied a locked design direction — *CRAB Visual Design Handover — Storm Blue Locked* (v2), a UI design guide, a handover guide, a Command Summary mockup and a new logo — and asked for the interface to be brought to it.
+
+**Additional UAT findings recorded with this review:**
+- password setup lacks a special-character requirement (upper and lower case also required);
+- a summary page is needed that users see after sign-in and use as their home;
+- reports need a simpler print preview that shows the finished PDF;
+- six product gaps, all already required by PRD V0.2 and several already routed in `UI-SHELL-BUILD-NOTES.md` §19/§22: time authority (G-9), organisation emergency configuration for the paper pack, related incidents (AC-84), single-person window (G-6, AC-07), governed severity scale (G-1, AC-71), governed checklist templates (G-7).
+
 **Human rows:** T-187 to T-192 were not individually scored in the feedback. They are recorded as *not signed off* and will be re-run against the Storm Blue build.
 
 | Row | Result |

@@ -210,7 +210,7 @@ Each slice keeps CI green, Bafflewick 8/8 and the visual preflight passing. Each
 
 ### S17 — Storm Blue presentation (0.0.17-dev)
 
-1. U-4, U-5, U-6 and U-8 are decided. Confirm U-3 before starting.
+1. U-3, U-4, U-5, U-6 and U-8 are decided.
 2. `crab.css` tokens light and dark; contrast test.
 3. Logo: SVG icon and lockup under `static/`; PWA icon, favicon, theme colour; sign-in/setup and offline page.
 4. Command Summary replaces the Incidents page at `/`.
@@ -251,7 +251,7 @@ Each slice keeps CI green, Bafflewick 8/8 and the visual preflight passing. Each
 
 | ID | Decision | Recommendation |
 |---|---|---|
-| U-3 | Phase 2 scores for T-187 to T-192 | Recorded as *not scored*; confirm, or supply individual results |
+| U-3 | Phase 2 scores for T-187 to T-192 | **Decided 26 Oct:** all flows worked on a Linux laptop (Intel Core Ultra 9, 32 GB). Recorded as functional pass; feedback is UAT direction, not defects |
 | U-4 | Dark mode | **Decided 26 Oct:** keep dark mode. Derive Storm Blue dark tokens (dark slate surfaces, lightened Storm Blue accent) and show them for approval in S17 |
 | U-5 | Contrast failures in the locked palette | **Decided 26 Oct:** as recommended, keeping visual continuity. Text sits on white panels, Paper is page background only (Slate 4.59 passes). Amber is a fill/border colour only; warning text uses Deep Ink. Input borders use Slate, dividers use Mist |
 | U-6 | Logo source | **Done 26 Oct:** single-crab assets traced from the supplied PNG in `docs/design/logo/` — lockup PNG (light and dark), icon PNG at 512/192/32, app icon on Paper, icon SVG. Wired into the app in S17 |
