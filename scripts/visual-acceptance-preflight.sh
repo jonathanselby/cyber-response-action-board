@@ -7,7 +7,8 @@ cd "$ROOT"
 echo "CRAB visual/accessibility preflight"
 
 echo "[1/3] Web semantic, mobile and accessibility contracts"
-go test -count=1 ./internal/presentation/web -run '^(TestVisualAccessibilityContract|TestIntakeSurfaceSupportsPhoneCapture|TestOperationsSurfaceShowsContinuityAndGovernedSeverity|TestOperatorNavigationExposesContinuitySurfaces)$'
+go test -count=1 ./internal/presentation/web -run '^(TestVisualAccessibilityContract|TestIntakeSurfaceSupportsPhoneCapture|TestOperationsSurfaceShowsContinuityAndGovernedSeverity|TestOperatorNavigationExposesContinuitySurfaces|TestSingleTemplateTrustPoint|TestModeAndExerciseMarkingOnEveryIncidentPage|TestStatusLineShowsAbnormalStatesAsText|TestUnauthorisedIncidentIsNotNamed|TestDecideRefusesUnknownKindBeforeServiceCall|TestDecidePassesExactVersionAndShowsRefusal|TestApprovalShowsChangeInOperatorLanguage|TestNoClientRuntime|TestServiceWorkerBoundary|TestIncidentBriefDownload|TestLocalTimeParsing|TestCompartmentSelectorOffersOnlyReadableCompartments|TestRefusalPreservesInput|TestEveryScreenRendersInShell|TestBoardKeepsFactsUnknownsAndHypothesesDistinct|TestBoardCarriesHandoverSections)$'
+go test -count=1 ./internal/architecture -run '^TestTierImportBoundaries$'
 
 echo "[2/3] Print geometry, monochrome/exercise and deterministic rendering"
 go test -count=1 ./internal/presentation/pdf -run '^(TestIncidentBriefRendersA4AndLetterLocally|TestExerciseMarkerAndMonochromeDoNotDependOnColour|TestRendererIsDeterministicForFixedInputs)$'

@@ -1,0 +1,34 @@
+{{define "evidence"}}{{template "feedback" .}}
+{{with .Data}}
+{{if gt (len .Compartments) 1}}<form class="gas-cluster" method="get" action="">
+<div class="gas-field"><label for="ev-comp">Compartment</label><select id="ev-comp" name="compartment">{{range .Compartments}}<option value="{{.}}"{{if eq . $.Data.Compartment}} selected{{end}}>{{.}}</option>{{end}}</select></div>
+<button class="gas-button">Show</button></form>{{end}}
+<details id="add" class="gas-panel"{{if eq $.Open "add"}} open{{end}}>
+<summary><h2>Add evidence</h2></summary>
+<p class="gas-help">The original bytes are preserved unchanged and hashed. CRAB never opens or runs the file.</p>
+<form class="gas-form gas-stack" method="post" action="{{incidentURL .IncidentID "/evidence"}}" enctype="multipart/form-data">
+<input type="hidden" name="_form" value="add">
+<input type="hidden" name="compartment" value="{{.Compartment}}">
+<div class="gas-field"><label for="e-camera">Take photo</label><input id="e-camera" type="file" name="camera" accept="image/*" capture="environment"></div>
+<div class="gas-field"><label for="e-audio">Record audio</label><input id="e-audio" type="file" name="audio" accept="audio/*" capture></div>
+<div class="gas-field"><label for="e-video">Record video</label><input id="e-video" type="file" name="video" accept="video/*" capture></div>
+<div class="gas-field"><label for="e-file">Choose file</label><input id="e-file" type="file" name="evidence"></div>
+<div class="gas-field"><label for="e-desc">Description</label><textarea id="e-desc" name="description" rows="3">{{$.Form.Get "description"}}</textarea></div>
+<div class="gas-field"><label for="e-collector">Collected by</label><input id="e-collector" name="collector" required value="{{if $.Form}}{{$.Form.Get "collector"}}{{else}}{{$.Frame.HumanID}}{{end}}"></div>
+<div class="gas-field"><label for="e-source">Source</label><input id="e-source" name="source" required value="{{$.Form.Get "source"}}"><p class="gas-help">Where it came from, for example the affected laptop or a supplier report.</p></div>
+<div class="gas-field"><label for="e-handler">Current handler</label><input id="e-handler" name="current_handler" required value="{{if $.Form}}{{$.Form.Get "current_handler"}}{{else}}{{$.Frame.HumanID}}{{end}}"></div>
+<div class="gas-field"><label for="e-collected">Collected at</label><input id="e-collected" type="datetime-local" name="collected_at" value="{{$.Form.Get "collected_at"}}">{{template "time-help"}}</div>
+<div class="gas-field"><label for="e-occurred">Occurred at</label><input id="e-occurred" type="datetime-local" name="occurred_at" value="{{$.Form.Get "occurred_at"}}"></div>
+<div class="gas-field"><label for="e-location">Storage location</label><input id="e-location" name="source_location" value="{{$.Form.Get "source_location"}}"></div>
+<div class="gas-field"><label for="e-related">Related fact, decision or action</label><input id="e-related" name="related_ref" value="{{$.Form.Get "related_ref"}}"></div>
+<button class="gas-button gas-button--primary">Preserve evidence</button>
+</form>
+</details>
+<section class="gas-panel gas-stack" aria-labelledby="register">
+<h2 id="register">Evidence register</h2>
+{{if .Items}}<div class="gas-table-wrap"><table>
+<thead><tr><th scope="col">Item</th><th scope="col">Collected</th><th scope="col">Size</th><th scope="col">Type</th><th scope="col">Handler</th></tr></thead>
+<tbody>{{range .Items}}<tr><th scope="row"><a href="/evidence/{{pathEscape .EvidenceID}}">{{.Evidence.OriginalFilename}}</a><br><span class="gas-muted">{{.EvidenceID}}{{if ne .Compartment "GENERAL"}} · {{.Compartment}}{{end}}</span></th><td>{{whenPtr .Evidence.CollectedAt}}</td><td>{{size .Evidence.SizeBytes}}</td><td>{{.Evidence.DetectedMediaType}}</td><td>{{.Evidence.CurrentHandler}}</td></tr>{{end}}</tbody>
+</table></div>{{else}}<p class="gas-empty">No evidence in this compartment.</p>{{end}}
+</section>
+{{end}}{{end}}

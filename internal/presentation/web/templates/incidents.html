@@ -1,0 +1,35 @@
+{{define "incidents"}}{{template "feedback" .}}
+{{with .Data}}
+<section class="gas-panel gas-stack" aria-labelledby="assigned">
+<h2 id="assigned">Assigned incidents</h2>
+{{if .Incidents}}<div class="gas-table-wrap"><table>
+<thead><tr><th scope="col">Incident</th><th scope="col">Mode</th><th scope="col">Phase</th><th scope="col">Severity</th><th scope="col">Waiting for you</th></tr></thead>
+<tbody>{{range .Incidents}}<tr>
+<td><a href="{{incidentURL .IncidentID ""}}"><strong>{{.Title}}</strong></a><br><span class="gas-muted">{{.IncidentID}}</span></td>
+<td>{{template "mode-badge" .Mode}}</td>
+<td>{{if .Phase}}{{.Phase}}{{else}}—{{end}}</td>
+<td>{{.Severity}}</td>
+<td>{{if .Pending}}<a href="/approvals?incident={{.IncidentID}}">{{.Pending}} to decide</a>{{else}}<span class="gas-muted">None</span>{{end}}</td>
+</tr>{{end}}</tbody></table></div>
+{{else}}<p class="gas-empty">You are not assigned to any incident yet.</p>{{end}}
+</section>
+{{if .PendingDeclarations}}<p class="gas-notice gas-notice--info">{{len .PendingDeclarations}} incident declaration{{if gt (len .PendingDeclarations) 1}}s are{{else}} is{{end}} waiting for a second person. <a href="/approvals">Review in Approvals</a></p>{{end}}
+{{if .CanDeclare}}
+<details id="declare" class="gas-panel"{{if eq $.Open "declare"}} open{{end}}>
+<summary><h2>Declare incident</h2></summary>
+{{template "write-governed"}}
+<form class="gas-form gas-stack" method="post" action="/incident">
+<input type="hidden" name="_form" value="declare">
+<div class="gas-field"><label for="d-id">Incident reference</label><input id="d-id" name="incident_id" required value="{{$.Form.Get "incident_id"}}"><p class="gas-help">A short reference people will say out loud, for example INC-2026-014.</p></div>
+<fieldset class="gas-field"><legend>Mode</legend>
+<label><input type="radio" name="mode" value="live"{{if not (eq ($.Form.Get "mode") "exercise")}} checked{{end}}> Live incident</label>
+<label><input type="radio" name="mode" value="exercise"{{if eq ($.Form.Get "mode") "exercise"}} checked{{end}}> Exercise — no real obligations or external notifications, and it can never become live</label>
+</fieldset>
+<div class="gas-field"><label for="d-title">Title</label><input id="d-title" name="title" required value="{{$.Form.Get "title"}}"></div>
+<div class="gas-field"><label for="d-summary">What is happening</label><textarea id="d-summary" name="summary" rows="4" required>{{$.Form.Get "summary"}}</textarea></div>
+<div class="gas-field"><label for="d-severity">Severity</label><input id="d-severity" name="severity" required value="{{$.Form.Get "severity"}}"><p class="gas-help">Use your organisation's severity scale.</p></div>
+<div class="gas-cluster"><button class="gas-button gas-button--primary">Propose declaration</button></div>
+</form>
+</details>
+{{end}}
+{{end}}{{end}}

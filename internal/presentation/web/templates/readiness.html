@@ -1,0 +1,9 @@
+{{define "readiness"}}{{template "feedback" .}}
+{{with .Data}}
+<p class="gas-notice {{if .Ready}}gas-notice--success{{else}}gas-notice--warning{{end}}" role="status"><strong>{{if .Ready}}READY{{else}}NEEDS ATTENTION{{end}}</strong> — {{if .Ready}}every required check passes.{{else}}one or more checks need action before CRAB can be relied on.{{end}}</p>
+<section class="gas-panel"><div class="gas-table-wrap"><table>
+<thead><tr><th scope="col">Check</th><th scope="col">Result</th><th scope="col">Detail</th></tr></thead>
+<tbody>{{range .Checks}}<tr><th scope="row">{{.Name}}</th><td><span class="gas-badge gas-badge--{{statusBadge .Status}}">{{upper .Status}}</span></td><td>{{.Message}}</td></tr>{{end}}</tbody>
+</table></div></section>
+<p class="gas-help">External notification tests are explicit operator actions and are never sent by this page.</p>
+{{end}}{{end}}

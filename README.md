@@ -6,7 +6,7 @@ CRAB is a single Go application for running a cyber incident from first report t
 
 ## Build status
 
-**0.0.14-dev — release-candidate checkpoint; automated acceptance complete.**
+**0.0.15-dev — Slice 15 browser presentation rebuilt on `go-app-shell` after Phase 1 UAT; awaiting Phase 2 human UAT.**
 
 The frozen product contract is PRD V0.2 and EDD V0.4. The implementation may simplify mechanisms; it may not silently weaken product outcomes, security boundaries or degraded-operation behaviour.
 
@@ -30,7 +30,7 @@ CI-proven now:
 - atomic last-good primary/secondary derived-copy handling;
 - paper-era reconciliation that preserves original occurrence time separately from later digital transcription time;
 - recovery coordination, stand-down, PIR, retention/disposition and closure, with closed incidents read-only;
-- secure operator browser path for bootstrap, login, incident declaration, fact recording, action proposal and maker-checker decisions;
+- server-rendered browser interface on `go-app-shell`: phone drawer, tablet and desktop rails, light/dark, zero required JavaScript, static-only PWA with a paper-first offline page, one Approvals surface and one decision path, Board as operating picture and live handover, Close-out and PDF paper downloads;
 - local JSON API and authenticated MCP stdio adapter on the same operator runtime and application controls;
 - authenticated CLI print using a private operator-session file;
 - PostgreSQL-native backup, SHA-256 metadata, replacement-host restore, independent ledger verification and deterministic projection rebuild;
@@ -155,7 +155,10 @@ PostgreSQL RLS was empirically tested. It was not retained in V0.4 because the e
 - `BUILD-NOTES.md` — implementation sequencing and build discipline.
 - `TEST-ACCEPTANCE-NOTES.md` — behavioural/security acceptance catalogue.
 - `UX-PRINT-BUILD-NOTES.md` — web, accessibility and print quality requirements.
+- `UI-SHELL-BUILD-NOTES.md` — Slice 15 browser presentation rebuild on `go-app-shell` (Phase 1 UAT response).
+- `docs/go-app-shell-dependency-decision.md` — EDD §26 dependency decision for `go-app-shell`.
 - `docs/build-evidence-0.0.14-dev.md` — code-complete implementation checkpoint evidence.
+- `docs/build-evidence-0.0.15-dev.md` — Slice 15 browser presentation rebuild evidence.
 - `docs/bafflewick-acceptance.md` — explicit operational regression gate.
 - `docs/generated-codebase-edd.md` and `docs/edd-drift-review.md` — recovered implementation architecture and frozen-EDD comparison.
 - `docs/visual-acceptance.md` — automated preflight plus human rendered-review contract.

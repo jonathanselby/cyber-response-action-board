@@ -28,6 +28,22 @@ func TestTierImportBoundaries(t *testing.T) {
 		}
 	})
 
+	// T-166: the presentation shell dependency stays inside the web tier.
+	for _, tier := range []string{"app", "domain", "security", "data", "ledger", "adapters"} {
+		checkTree(t, filepath.Join(root, "internal", tier), func(path, imp string) {
+			if strings.Contains(imp, "github.com/jonathanselby/go-app-shell") {
+				t.Errorf("go-app-shell may only be imported by internal/presentation/web: %s -> %s", path, imp)
+			}
+		})
+	}
+	for _, other := range []string{"pdf", "mcp"} {
+		checkTree(t, filepath.Join(root, "internal", "presentation", other), func(path, imp string) {
+			if strings.Contains(imp, "github.com/jonathanselby/go-app-shell") {
+				t.Errorf("go-app-shell may only be imported by internal/presentation/web: %s -> %s", path, imp)
+			}
+		})
+	}
+
 	checkTree(t, filepath.Join(root, "internal", "app"), func(path, imp string) {
 		if strings.Contains(imp, "github.com/jackc/pgx") || strings.Contains(imp, "/internal/data/postgres") {
 			t.Errorf("application tier illegally imports concrete PostgreSQL: %s -> %s", path, imp)

@@ -32,7 +32,7 @@ func (r *operatorRuntime) Intake(ctx context.Context, token string) (web.IntakeV
 			ReportID:        value.ReportID,
 			Reporter:        value.Report.Reporter,
 			ContactRoute:    value.Report.ContactRoute,
-			ReceivedAt:      value.Report.ReceivedAt.UTC().Format(time.RFC3339),
+			ReceivedAt:      value.Report.ReceivedAt.UTC().Format(displayTime),
 			Description:     value.Report.Description,
 			Affected:        value.Report.Affected,
 			ImmediateImpact: value.Report.ImmediateImpact,
@@ -40,7 +40,7 @@ func (r *operatorRuntime) Intake(ctx context.Context, token string) (web.IntakeV
 			TriageStatus:    value.Report.TriageStatus,
 			AttachmentCount: len(value.Report.Attachments),
 			Maker:           value.Maker,
-			RecordedAt:      value.RecordedAt.UTC().Format(time.RFC3339),
+			RecordedAt:      value.RecordedAt.UTC().Format(displayTime),
 		}
 		if value.Disposition != nil {
 			row.Decision = value.Disposition.Decision
@@ -142,7 +142,7 @@ func (r *operatorRuntime) Operations(ctx context.Context, token, incidentID stri
 			Confidence:            value.Assessment.Confidence,
 			ReasonEvidence:        value.Assessment.ReasonEvidence,
 			Maker:                 value.Maker,
-			RecordedAt:            value.RecordedAt.UTC().Format(time.RFC3339),
+			RecordedAt:            value.RecordedAt.UTC().Format(displayTime),
 		})
 	}
 
@@ -151,7 +151,7 @@ func (r *operatorRuntime) Operations(ctx context.Context, token, incidentID stri
 		return web.OperationsView{}, false, err
 	}
 	for _, value := range severity {
-		out.SeverityHistory = append(out.SeverityHistory, web.SeverityChangeRow{Severity: value.Change.Severity, ReasonEvidence: value.Change.ReasonEvidence, Maker: value.Maker, Confirmer: value.Confirmer, RecordedAt: value.ConfirmedAt.UTC().Format(time.RFC3339)})
+		out.SeverityHistory = append(out.SeverityHistory, web.SeverityChangeRow{Severity: value.Change.Severity, ReasonEvidence: value.Change.ReasonEvidence, Maker: value.Maker, Confirmer: value.Confirmer, RecordedAt: value.ConfirmedAt.UTC().Format(displayTime)})
 	}
 
 	pending, err := service.PendingSeverityChanges(ctx, principal, incidentID, compartment)
@@ -167,7 +167,7 @@ func (r *operatorRuntime) Operations(ctx context.Context, token, incidentID stri
 		if err != nil {
 			return web.OperationsView{}, false, err
 		}
-		out.PendingSeverity = append(out.PendingSeverity, web.PendingSeverityRow{RecordID: proposal.RecordID, Version: version, Maker: proposal.Maker, Severity: change.Severity, ReasonEvidence: change.ReasonEvidence, ProposedAt: proposal.Timestamp.UTC().Format(time.RFC3339)})
+		out.PendingSeverity = append(out.PendingSeverity, web.PendingSeverityRow{RecordID: proposal.RecordID, Version: version, Maker: proposal.Maker, Severity: change.Severity, ReasonEvidence: change.ReasonEvidence, ProposedAt: proposal.Timestamp.UTC().Format(displayTime)})
 	}
 
 	handovers, err := service.Handovers(ctx, principal, incidentID, compartment)
@@ -185,7 +185,7 @@ func (r *operatorRuntime) Operations(ctx context.Context, token, incidentID stri
 			NextObjectives:           strings.Join(value.Handover.NextObjectives, " · "),
 			CommunicationCommitments: strings.Join(value.Handover.CommunicationCommitments, " · "),
 			Maker:                    value.Maker,
-			RecordedAt:               value.RecordedAt.UTC().Format(time.RFC3339),
+			RecordedAt:               value.RecordedAt.UTC().Format(displayTime),
 		})
 	}
 
@@ -204,7 +204,7 @@ func (r *operatorRuntime) Operations(ctx context.Context, token, incidentID stri
 			AuthoritySource: value.Request.AuthoritySource,
 			Notes:           value.Request.Notes,
 			Maker:           value.Maker,
-			RecordedAt:      value.RecordedAt.UTC().Format(time.RFC3339),
+			RecordedAt:      value.RecordedAt.UTC().Format(displayTime),
 		})
 	}
 	return out, true, nil

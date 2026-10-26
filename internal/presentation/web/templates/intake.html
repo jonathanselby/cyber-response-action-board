@@ -1,0 +1,45 @@
+{{define "intake"}}{{template "feedback" .}}
+<section class="gas-panel gas-stack" id="report" aria-labelledby="record-report">
+<h2 id="record-report">Record first report</h2>
+{{template "write-record"}}
+<form class="gas-form gas-stack" method="post" action="/intake" enctype="multipart/form-data">
+<input type="hidden" name="_form" value="report">
+<div class="gas-field"><label for="r-desc">What was reported</label><textarea id="r-desc" name="description" rows="4" required>{{.Form.Get "description"}}</textarea></div>
+<div class="gas-field"><label for="r-camera">Take photo</label><input id="r-camera" type="file" name="camera" accept="image/*" capture="environment"></div>
+<div class="gas-field"><label for="r-audio">Record audio</label><input id="r-audio" type="file" name="audio" accept="audio/*" capture></div>
+<div class="gas-field"><label for="r-video">Record video</label><input id="r-video" type="file" name="video" accept="video/*" capture></div>
+<div class="gas-field"><label for="r-file">Choose file</label><input id="r-file" type="file" name="attachment" multiple></div>
+<div class="gas-field"><label for="r-reporter">Reported by</label><input id="r-reporter" name="reporter" value="{{.Form.Get "reporter"}}"></div>
+<div class="gas-field"><label for="r-contact">How to reach them</label><input id="r-contact" name="contact_route" value="{{.Form.Get "contact_route"}}"></div>
+<div class="gas-field"><label for="r-channel">Received via</label><input id="r-channel" name="source_channel" list="channels" value="{{.Form.Get "source_channel"}}"><datalist id="channels"><option value="phone"><option value="in person"><option value="email"><option value="helpdesk"><option value="supplier"><option value="customer"></datalist></div>
+<div class="gas-field"><label for="r-received">Received at</label><input id="r-received" type="datetime-local" name="received_at" value="{{.Form.Get "received_at"}}">{{template "time-help"}}<p class="gas-help">Leave blank to use the time you submit.</p></div>
+{{template "time-confidence" "r"}}
+<div class="gas-field"><label for="r-affected">Affected or suspected service</label><input id="r-affected" name="affected" value="{{.Form.Get "affected"}}"></div>
+<div class="gas-field"><label for="r-impact">Immediate impact</label><input id="r-impact" name="immediate_impact" value="{{.Form.Get "immediate_impact"}}"></div>
+<button class="gas-button gas-button--primary">Record first report</button>
+</form>
+</section>
+{{with .Data}}
+<section class="gas-stack" aria-labelledby="triage">
+<h2 id="triage">Reports</h2>
+{{range .Intake.Reports}}<article class="gas-panel gas-stack">
+<div class="gas-cluster">{{if .Decision}}<span class="gas-badge gas-badge--info">TRIAGED</span>{{else}}<span class="gas-badge gas-badge--warning">AWAITING TRIAGE</span>{{end}}<span class="gas-muted">{{.ReceivedAt}} · {{.SourceChannel}}{{if .AttachmentCount}} · {{.AttachmentCount}} attachment{{if gt .AttachmentCount 1}}s{{end}}{{end}}</span></div>
+<p>{{.Description}}</p>
+<dl class="gas-kv">{{if .Reporter}}<dt>Reported by</dt><dd>{{.Reporter}}{{if .ContactRoute}} ({{.ContactRoute}}){{end}}</dd>{{end}}{{if .Affected}}<dt>Affected</dt><dd>{{.Affected}}</dd>{{end}}{{if .ImmediateImpact}}<dt>Impact</dt><dd>{{.ImmediateImpact}}</dd>{{end}}{{if .Decision}}<dt>Triage</dt><dd>{{.Decision}}{{if .IncidentID}} → {{.IncidentID}}{{end}}{{if .Reason}} — {{.Reason}}{{end}}</dd>{{end}}</dl>
+{{if and $.Data.Intake.CanTriage (not .Decision)}}<details><summary>Triage this report</summary>
+<form class="gas-form gas-stack" method="post" action="/intake/{{pathEscape .ReportID}}/triage">
+<input type="hidden" name="_form" value="triage">
+<fieldset class="gas-field"><legend>Decision</legend>
+<label><input type="radio" name="decision" value="associate" required> Associate with an existing incident</label>
+<label><input type="radio" name="decision" value="propose_declaration"> Use to propose a new incident</label>
+<label><input type="radio" name="decision" value="retain"> Retain — not an incident</label>
+<label><input type="radio" name="decision" value="reject"> Reject as an incident trigger</label>
+</fieldset>
+<div class="gas-field"><label for="t-inc-{{.ReportID}}">Incident (for associate or propose)</label><input id="t-inc-{{.ReportID}}" name="incident_id" list="assigned-incidents"></div>
+<div class="gas-field"><label for="t-reason-{{.ReportID}}">Reason</label><input id="t-reason-{{.ReportID}}" name="reason" required></div>
+<button class="gas-button gas-button--primary">Record triage</button>
+</form></details>{{end}}
+</article>{{else}}<p class="gas-empty">No first reports recorded.</p>{{end}}
+<datalist id="assigned-incidents">{{range .Incidents}}<option value="{{.IncidentID}}">{{.Title}}</option>{{end}}</datalist>
+</section>
+{{end}}{{end}}

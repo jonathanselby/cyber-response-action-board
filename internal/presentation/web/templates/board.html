@@ -1,0 +1,236 @@
+{{define "board"}}{{template "feedback" .}}
+{{with .Data}}{{$b := .Board}}{{$p := $b.Picture}}{{$id := $p.Incident.IncidentID}}
+{{if gt (len $.Frame.Incident.Compartments) 1}}<form class="gas-cluster" method="get" action="">
+<div class="gas-field"><label for="bd-comp">Compartment</label><select id="bd-comp" name="compartment">{{range $.Frame.Incident.Compartments}}<option value="{{.}}"{{if eq . $b.Compartment}} selected{{end}}>{{.}}</option>{{end}}</select></div>
+<button class="gas-button">Show</button></form>{{end}}
+
+<section class="gas-panel gas-stack" aria-labelledby="situation">
+<h2 id="situation">Situation now</h2>
+<p>{{$p.Incident.Summary}}</p>
+<dl class="gas-kv">
+<dt>Severity</dt><dd><strong>{{$p.Incident.Severity}}</strong>{{with $b.SeverityHistory}}{{with index . 0}} <span class="gas-muted">· last set by {{.Maker}}, confirmed by {{.Confirmer}}, {{when .ConfirmedAt}}</span>{{end}}{{end}}</dd>
+<dt>Phase</dt><dd>{{if $b.Phase}}{{$b.Phase}}{{else}}Active response{{end}}</dd>
+<dt>Declared</dt><dd>{{when $p.Incident.DeclaredAt}}</dd>
+{{with $b.LatestScope}}<dt>Impact</dt><dd>{{.Assessment.Impact}} <span class="gas-muted">(confidence {{.Assessment.Confidence}})</span></dd>
+{{if .Assessment.AffectedServices}}<dt>Services</dt><dd>{{join .Assessment.AffectedServices ", "}}</dd>{{end}}
+{{if .Assessment.AffectedAssets}}<dt>Assets</dt><dd>{{join .Assessment.AffectedAssets ", "}}</dd>{{end}}
+{{if .Assessment.PeopleDataPopulations}}<dt>People and data</dt><dd>{{join .Assessment.PeopleDataPopulations ", "}}</dd>{{end}}
+{{if .Assessment.Locations}}<dt>Locations</dt><dd>{{join .Assessment.Locations ", "}}</dd>{{end}}
+{{if .Assessment.Suppliers}}<dt>Suppliers</dt><dd>{{join .Assessment.Suppliers ", "}}</dd>{{end}}{{end}}
+</dl>
+<details{{if eq $.Open "severity"}} open{{end}}><summary>Propose severity change</summary>
+{{template "write-governed"}}
+<form class="gas-form gas-stack" method="post" action="{{incidentURL $id "/severity"}}">
+<input type="hidden" name="_form" value="severity">
+<div class="gas-field"><label for="sv-value">New severity</label><input id="sv-value" name="severity" required list="severity-values" value="{{$.Form.Get "severity"}}"><datalist id="severity-values">{{range $b.SeverityValues}}<option value="{{.}}">{{end}}</datalist><p class="gas-help">Use your organisation's severity scale. Currently {{$p.Incident.Severity}}.</p></div>
+<div class="gas-field"><label for="sv-reason">Reason and evidence</label><textarea id="sv-reason" name="reason_evidence" rows="3" required>{{$.Form.Get "reason_evidence"}}</textarea></div>
+<button class="gas-button gas-button--primary">Propose severity change</button>
+</form></details>
+<details{{if eq $.Open "scope"}} open{{end}}><summary>Update scope and impact</summary>
+{{template "write-record"}}
+<form class="gas-form gas-stack" method="post" action="{{incidentURL $id "/scope"}}">
+<input type="hidden" name="_form" value="scope">
+<div class="gas-field"><label for="sc-impact">Impact</label><input id="sc-impact" name="impact" required value="{{$.Form.Get "impact"}}"></div>
+<div class="gas-field"><label for="sc-conf">Confidence</label><select id="sc-conf" name="confidence"><option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option></select></div>
+<div class="gas-field"><label for="sc-svc">Affected or suspected services (one per line)</label><textarea id="sc-svc" name="affected_services" rows="2">{{$.Form.Get "affected_services"}}</textarea></div>
+<div class="gas-field"><label for="sc-assets">Assets (one per line)</label><textarea id="sc-assets" name="affected_assets" rows="2">{{$.Form.Get "affected_assets"}}</textarea></div>
+<div class="gas-field"><label for="sc-people">People and data populations (one per line)</label><textarea id="sc-people" name="people_data_populations" rows="2">{{$.Form.Get "people_data_populations"}}</textarea></div>
+<div class="gas-field"><label for="sc-loc">Locations (one per line)</label><textarea id="sc-loc" name="locations" rows="2">{{$.Form.Get "locations"}}</textarea></div>
+<div class="gas-field"><label for="sc-sup">Suppliers (one per line)</label><textarea id="sc-sup" name="suppliers" rows="2">{{$.Form.Get "suppliers"}}</textarea></div>
+<div class="gas-field"><label for="sc-reason">Reason and evidence</label><textarea id="sc-reason" name="reason_evidence" rows="2" required>{{$.Form.Get "reason_evidence"}}</textarea></div>
+<button class="gas-button gas-button--primary">Record scope</button>
+</form></details>
+</section>
+
+<section class="gas-panel gas-stack" aria-labelledby="knowledge">
+<h2 id="knowledge">What we know</h2>
+<h3>Facts</h3>
+{{if $p.Facts}}<ul class="gas-stack">{{range $p.Facts}}<li><span class="gas-badge gas-badge--info">FACT</span> {{.Fact.Statement}}<br><span class="gas-muted">{{if .Fact.Source}}{{.Fact.Source}} · {{end}}recorded {{when .RecordedAt}} by {{.Maker}}{{if .Fact.OccurredAt}} · occurred {{whenPtr .Fact.OccurredAt}}{{end}}{{if .Fact.FlaggedAt}} · flagged {{whenPtr .Fact.FlaggedAt}}{{end}}</span></li>{{end}}</ul>{{else}}<p class="gas-empty">No facts recorded.</p>{{end}}
+<h3>Unknowns</h3>
+{{if $p.Unknowns}}<ul class="gas-stack">{{range $p.Unknowns}}<li><span class="gas-badge gas-badge--warning">UNKNOWN</span> {{.Uncertainty.Statement}} <span class="gas-muted">· {{.Maker}}</span></li>{{end}}</ul>{{else}}<p class="gas-empty">No open questions recorded.</p>{{end}}
+<h3>Hypotheses</h3>
+{{if $p.Hypotheses}}<ul class="gas-stack">{{range $p.Hypotheses}}<li><span class="gas-badge gas-badge--warning">HYPOTHESIS</span> {{.Uncertainty.Statement}} <span class="gas-muted">· {{.Maker}} · not confirmed</span></li>{{end}}</ul>{{else}}<p class="gas-empty">No hypotheses recorded.</p>{{end}}
+<details id="record-fact"{{if eq $.Open "record-fact"}} open{{end}}><summary>Record fact</summary>
+{{template "write-record"}}
+<form class="gas-form gas-stack" method="post" action="{{incidentURL $id "/fact"}}">
+<input type="hidden" name="_form" value="record-fact">
+<div class="gas-field"><label for="f-stmt">Fact</label><textarea id="f-stmt" name="statement" rows="3" required>{{$.Form.Get "statement"}}</textarea></div>
+<div class="gas-field"><label for="f-src">Source</label><input id="f-src" name="source" required value="{{$.Form.Get "source"}}"><p class="gas-help">Who or what established this.</p></div>
+<button class="gas-button gas-button--primary">Record fact</button>
+</form></details>
+<details{{if eq $.Open "uncertainty"}} open{{end}}><summary>Record unknown or hypothesis</summary>
+{{template "write-record"}}
+<form class="gas-form gas-stack" method="post" action="{{incidentURL $id "/uncertainty"}}">
+<input type="hidden" name="_form" value="uncertainty">
+<fieldset class="gas-field"><legend>This is</legend><label><input type="radio" name="kind" value="unknown" checked> An unknown — a question we need answered</label><label><input type="radio" name="kind" value="hypothesis"> A hypothesis — what we think may be true</label></fieldset>
+<div class="gas-field"><label for="u-stmt">Statement</label><textarea id="u-stmt" name="statement" rows="3" required>{{$.Form.Get "statement"}}</textarea></div>
+<button class="gas-button gas-button--primary">Record</button>
+</form></details>
+</section>
+
+<section class="gas-panel gas-stack" aria-labelledby="command">
+<h2 id="command">Who is in charge</h2>
+{{if $p.OperationalRoles}}<div class="gas-table-wrap"><table><thead><tr><th scope="col">Role</th><th scope="col">Person</th><th scope="col">Since</th></tr></thead>
+<tbody>{{range $p.OperationalRoles}}<tr><th scope="row">{{.Assignment.RoleName}}{{if .Assignment.Deputy}} (deputy){{end}}</th><td>{{.Assignment.HumanID}}</td><td>{{when .ConfirmedAt}}</td></tr>{{end}}</tbody></table></div>
+{{else}}<p class="gas-empty">No operational roles assigned.</p>{{end}}
+<p class="gas-help">Operational roles are your organisation's titles. They are separate from CRAB permissions.</p>
+<details{{if eq $.Open "role"}} open{{end}}><summary>Assign role</summary>
+{{template "write-governed"}}
+<form class="gas-form gas-stack" method="post" action="{{incidentURL $id "/role"}}">
+<input type="hidden" name="_form" value="role">
+<div class="gas-field"><label for="ro-name">Role</label><input id="ro-name" name="role_name" required list="role-names" value="{{$.Form.Get "role_name"}}"><datalist id="role-names">{{range $p.OperationalRoles}}<option value="{{.Assignment.RoleName}}">{{end}}</datalist></div>
+<div class="gas-field"><label for="ro-human">Person (CRAB ID)</label><input id="ro-human" name="human_id" required list="members" value="{{$.Form.Get "human_id"}}"></div>
+<fieldset class="gas-field"><legend>Holder or deputy</legend><label><input type="radio" name="deputy" value="false" checked> Role holder</label><label><input type="radio" name="deputy" value="true"> Deputy</label></fieldset>
+<button class="gas-button gas-button--primary">Propose role assignment</button>
+</form></details>
+</section>
+
+<section class="gas-panel gas-stack" aria-labelledby="actions">
+<h2 id="actions">Critical actions</h2>
+{{if $p.Actions}}<div class="gas-table-wrap"><table><thead><tr><th scope="col">Action</th><th scope="col">Owner</th><th scope="col">Status</th><th scope="col">Due</th><th scope="col">Update</th></tr></thead>
+<tbody>{{range $p.Actions}}<tr>
+<th scope="row">{{.Action.Title}}<br><span class="gas-muted">{{.Action.Priority}}{{if .Action.SourceRef}} · {{.Action.SourceRef}}{{end}}{{if .Action.ChecklistTemplateID}} · checklist {{.Action.ChecklistTemplateID}}{{end}}</span></th>
+<td>{{.Action.OwnerHumanID}}</td>
+<td><span class="gas-badge gas-badge--{{statusBadge .Action.Status}}">{{upper (actionStatus .Action.Status)}}</span>{{if .Overdue}} <span class="gas-badge gas-badge--danger">OVERDUE</span>{{end}}{{if .Action.SkipReason}}<br><span class="gas-muted">{{.Action.SkipReason}}</span>{{end}}</td>
+<td>{{whenPtr .Action.DueAt}}</td>
+<td>{{if and (ne .Action.Status "complete") (ne .Action.Status "skipped")}}<form class="gas-stack" method="post" action="{{incidentURL $id "/action/status"}}"><input type="hidden" name="_form" value="action-status"><input type="hidden" name="action_id" value="{{.RecordID}}">
+<label class="gas-help" for="as-{{.RecordID}}">New status</label><select id="as-{{.RecordID}}" name="status"><option value="in_progress">In progress</option><option value="complete">Complete</option><option value="skipped">Skip</option></select>
+<label class="gas-help" for="sr-{{.RecordID}}">Reason (needed to skip)</label><input id="sr-{{.RecordID}}" name="skip_reason">
+<button class="gas-button">Propose</button></form>{{else}}—{{end}}</td>
+</tr>{{end}}</tbody></table></div>
+{{else}}<p class="gas-empty">No confirmed actions.</p>{{end}}
+<details{{if eq $.Open "action"}} open{{end}}><summary>Add action</summary>
+{{template "write-governed"}}
+<form class="gas-form gas-stack" method="post" action="{{incidentURL $id "/action"}}">
+<input type="hidden" name="_form" value="action">
+<div class="gas-field"><label for="a-title">Action</label><input id="a-title" name="title" required value="{{$.Form.Get "title"}}"></div>
+<div class="gas-field"><label for="a-owner">Owner (CRAB ID)</label><input id="a-owner" name="owner" required list="members" value="{{$.Form.Get "owner"}}"></div>
+<div class="gas-field"><label for="a-prio">Priority</label><input id="a-prio" name="priority" required list="action-prios" value="{{if $.Form}}{{$.Form.Get "priority"}}{{else}}P1{{end}}"><datalist id="action-prios"><option value="P1"><option value="P2"><option value="P3"></datalist></div>
+<div class="gas-field"><label for="a-src">Source</label><input id="a-src" name="source_ref" required value="{{$.Form.Get "source_ref"}}"><p class="gas-help">The decision, checklist or runbook this comes from.</p></div>
+<button class="gas-button gas-button--primary">Propose action</button>
+</form></details>
+<datalist id="members">{{range $b.Members}}<option value="{{.}}">{{end}}</datalist>
+</section>
+
+<section class="gas-panel gas-stack" aria-labelledby="decisions">
+<h2 id="decisions">Pending decisions</h2>
+{{if $p.Pending}}<ul class="gas-stack">{{range $p.Pending}}<li><a href="/approvals?incident={{$id}}#{{.RecordID}}">{{humanType .RecordType}}</a> <span class="gas-muted">proposed by {{.Maker}}, {{when .ProposedAt}}</span></li>{{end}}</ul>{{else}}<p class="gas-empty">Nothing waiting.</p>{{end}}
+{{if $p.Decisions}}<h3>Recent confirmed decisions</h3><ul class="gas-stack">{{range $p.Decisions}}<li><strong>{{.Decision.Decision}}</strong>{{if .Decision.Rationale}} — {{.Decision.Rationale}}{{end}}<br><span class="gas-muted">{{.Maker}} proposed · {{.Confirmer}} confirmed · {{when .ConfirmedAt}}</span></li>{{end}}</ul>{{end}}
+<details{{if eq $.Open "decision"}} open{{end}}><summary>Record decision</summary>
+{{template "write-governed"}}
+<form class="gas-form gas-stack" method="post" action="{{incidentURL $id "/decision"}}">
+<input type="hidden" name="_form" value="decision">
+<div class="gas-field"><label for="dc-text">Decision</label><textarea id="dc-text" name="decision" rows="3" required>{{$.Form.Get "decision"}}</textarea></div>
+<div class="gas-field"><label for="dc-why">Rationale</label><textarea id="dc-why" name="rationale" rows="3">{{$.Form.Get "rationale"}}</textarea></div>
+<button class="gas-button gas-button--primary">Propose decision</button>
+</form></details>
+</section>
+
+<section class="gas-panel gas-stack" aria-labelledby="clocks">
+<h2 id="clocks">Active clocks</h2>
+{{if $b.Clocks}}<div class="gas-table-wrap"><table><thead><tr><th scope="col">Obligation</th><th scope="col">Deadline</th><th scope="col">Status</th><th scope="col">Recipient</th><th scope="col">Owner</th></tr></thead>
+<tbody>{{range $b.Clocks}}<tr><th scope="row">{{.Name}}<br><span class="gas-muted">{{.ClockID}}</span></th><td>{{when .Deadline}}{{if ne .TimeStatus "trusted"}} <span class="gas-badge gas-badge--warning">TIME UNVERIFIED</span>{{end}}{{if not (sameTime .Deadline .OriginalDeadline)}}<br><span class="gas-muted">originally {{when .OriginalDeadline}}</span>{{end}}</td>
+<td><span class="gas-badge gas-badge--{{statusBadge .Lifecycle}}">{{upper .Lifecycle}}</span> {{if .Overdue}}<span class="gas-badge gas-badge--danger">OVERDUE</span>{{else}}{{actionStatus .Status}}{{end}}{{if .Simulated}} <span class="gas-badge gas-badge--warning">EXERCISE</span>{{end}}</td>
+<td>{{.Recipient}}</td><td>{{.Owner}}</td></tr>{{end}}</tbody></table></div>
+{{else}}<p class="gas-empty">No obligation clocks running.</p>{{end}}
+<details{{if eq $.Open "trigger"}} open{{end}}><summary>Record trigger</summary>
+<p class="gas-help">Starts a provisional clock now; it becomes firm when another eligible person confirms.</p>
+<form class="gas-form gas-stack" method="post" action="{{incidentURL $id "/obligation/trigger"}}">
+<input type="hidden" name="_form" value="trigger"><input type="hidden" name="compartment" value="{{$b.Compartment}}">
+<div class="gas-field"><label for="tr-def">Obligation (definition ID)</label><input id="tr-def" name="definition_id" required value="{{$.Form.Get "definition_id"}}"><p class="gas-help">From the <a href="/obligations">obligation library</a>.</p></div>
+<div class="gas-field"><label for="tr-at">Trigger time</label><input id="tr-at" type="datetime-local" name="trigger_at" required value="{{$.Form.Get "trigger_at"}}">{{template "time-help"}}</div>
+<div class="gas-field"><label for="tr-field">Trigger field</label><input id="tr-field" name="source_field" required list="trigger-fields" value="{{$.Form.Get "source_field"}}"><datalist id="trigger-fields"><option value="awareness"><option value="determination"><option value="occurred"><option value="flagged"></datalist></div>
+<div class="gas-field"><label for="tr-src">Source record</label><input id="tr-src" name="source_record_id" required value="{{$.Form.Get "source_record_id"}}"></div>
+<div class="gas-field"><label for="tr-why">Why it applies</label><input id="tr-why" name="applicability_reason" required value="{{$.Form.Get "applicability_reason"}}"></div>
+<button class="gas-button gas-button--primary">Propose trigger</button>
+</form></details>
+<details{{if eq $.Open "clock-change"}} open{{end}}><summary>Amend, extend, waive or replace a clock</summary>
+<p class="gas-help">The original rule and deadline are preserved.</p>
+<form class="gas-form gas-stack" method="post" action="{{incidentURL $id "/obligation/change"}}">
+<input type="hidden" name="_form" value="clock-change"><input type="hidden" name="compartment" value="{{$b.Compartment}}">
+<div class="gas-field"><label for="ch-clock">Clock</label><select id="ch-clock" name="clock_id">{{range $b.Clocks}}<option value="{{.ClockID}}">{{.Name}} — {{when .Deadline}}</option>{{end}}</select></div>
+<div class="gas-field"><label for="ch-kind">Change</label><select id="ch-kind" name="kind"><option value="extend">Extend</option><option value="amend">Amend</option><option value="waive">Waive</option><option value="replace">Replace</option></select></div>
+<div class="gas-field"><label for="ch-dl">New deadline (extend or amend)</label><input id="ch-dl" type="datetime-local" name="new_deadline" value="{{$.Form.Get "new_deadline"}}">{{template "time-help"}}</div>
+<div class="gas-field"><label for="ch-rep">Replacement obligation ID (replace)</label><input id="ch-rep" name="replacement_definition_id" value="{{$.Form.Get "replacement_definition_id"}}"></div>
+<div class="gas-field"><label for="ch-auth">Authority</label><input id="ch-auth" name="authority" required value="{{$.Form.Get "authority"}}"></div>
+<div class="gas-field"><label for="ch-reason">Reason</label><textarea id="ch-reason" name="reason" rows="2" required>{{$.Form.Get "reason"}}</textarea></div>
+<button class="gas-button gas-button--primary">Propose change</button>
+</form></details>
+</section>
+
+<section class="gas-panel gas-stack" aria-labelledby="comms">
+<h2 id="comms">Communications commitments</h2>
+<dl class="gas-kv">
+<dt>Next situation report</dt><dd>{{if $b.NextReportDue}}{{$b.NextReportDue}}{{else}}No cadence set{{end}}</dd>
+<dt>Open enquiries</dt><dd>{{$b.OpenEnquiries}}</dd>
+</dl>
+{{if $b.IssuedRecently}}<ul class="gas-stack">{{range $b.IssuedRecently}}<li><span class="gas-badge gas-badge--success">ISSUED</span> {{.Issue.Subject}} <span class="gas-muted">· {{when .IssuedAt}}</span></li>{{end}}</ul>{{end}}
+<p><a href="{{incidentURL $id "/communications"}}">Open communications</a></p>
+</section>
+
+<section class="gas-panel gas-stack" aria-labelledby="recent">
+<h2 id="recent">Recent change</h2>
+{{if $p.Timeline}}<ul class="gas-stack">{{range $i, $e := $p.Timeline}}{{if lt $i 10}}<li>{{$e.Summary}} <span class="gas-muted">· {{humanType $e.RecordType}} · {{when $e.RecordedAt}}</span></li>{{end}}{{end}}</ul>
+<p><a href="#timeline">Full timeline</a></p>{{else}}<p class="gas-empty">Nothing recorded yet.</p>{{end}}
+</section>
+
+<section class="gas-panel gas-stack" aria-labelledby="objectives">
+<h2 id="objectives">Next objectives</h2>
+{{with $b.LatestHandover}}{{if .Handover.NextObjectives}}<ol>{{range .Handover.NextObjectives}}<li>{{.}}</li>{{end}}</ol>{{end}}
+{{if .Handover.CommunicationCommitments}}<h3>Committed communications</h3><ul class="gas-stack">{{range .Handover.CommunicationCommitments}}<li>{{.}}</li>{{end}}</ul>{{end}}
+<p class="gas-muted">From the handover recorded by {{.Maker}}, {{when .RecordedAt}}.</p>{{else}}<p class="gas-empty">No handover recorded yet.</p>{{end}}
+<details id="handover"{{if eq $.Open "handover"}} open{{end}}><summary>Record handover</summary>
+<p class="gas-help">Captures this Board as an immutable handover record with the objectives and commitments below. Print this page for the paper handover.</p>
+<form class="gas-form gas-stack" method="post" action="{{incidentURL $id "/handover"}}">
+<input type="hidden" name="_form" value="handover">
+<div class="gas-field"><label for="ho-obj">Next objectives (one per line)</label><textarea id="ho-obj" name="next_objectives" rows="4" required>{{$.Form.Get "next_objectives"}}</textarea></div>
+<div class="gas-field"><label for="ho-com">Communication commitments (one per line)</label><textarea id="ho-com" name="communication_commitments" rows="3">{{$.Form.Get "communication_commitments"}}</textarea></div>
+<button class="gas-button gas-button--primary">Record handover</button>
+</form></details>
+</section>
+
+<section class="gas-panel gas-stack" aria-labelledby="resilience">
+<h2 id="resilience">Resilience</h2>
+{{if $b.Readiness}}<ul class="gas-stack">{{range $b.Readiness}}<li><span class="gas-badge gas-badge--{{statusBadge .Status}}">{{upper .Status}}</span> {{.Name}} — {{.Message}}</li>{{end}}</ul>{{else}}<p class="gas-muted">No readiness warnings for this incident.</p>{{end}}
+<form class="gas-cluster" method="get" action="{{incidentURL $id "/brief.pdf"}}">
+<div class="gas-field"><label for="br-size">Page size</label><select id="br-size" name="size"><option value="A4">A4</option><option value="LETTER">US Letter</option></select></div>
+<div class="gas-field"><label for="br-mode">Print</label><select id="br-mode" name="mode"><option value="colour">Colour</option><option value="monochrome">Black and white</option></select></div>
+<button class="gas-button gas-button--primary">Download Incident Brief</button>
+</form>
+</section>
+
+<section class="gas-panel gas-stack" aria-labelledby="guidance">
+<h2 id="guidance">Ask the runbooks</h2>
+<form class="gas-cluster" method="get" action="#guidance">
+<div class="gas-field"><label for="gq">Question</label><input id="gq" name="q" value="{{with .Guidance}}{{.Question}}{{end}}"></div>
+<button class="gas-button">Search</button></form>
+{{with .Guidance}}{{if .Refused}}<p class="gas-notice gas-notice--info">{{if .Reason}}{{.Reason}}{{else}}The approved runbooks do not answer this question.{{end}}</p>{{else}}<ol class="gas-stack">{{range .Citations}}<li><strong>{{.Title}}</strong> <span class="gas-muted">· {{.Locator}}</span><br>{{.Passage}}</li>{{end}}</ol>{{end}}{{end}}
+<p class="gas-help">Searches only approved runbook material you are allowed to see. No model is used.</p>
+</section>
+
+{{if $b.Resources}}<section class="gas-panel gas-stack" aria-labelledby="resources">
+<h2 id="resources">Resource requests</h2>
+<div class="gas-table-wrap"><table><thead><tr><th scope="col">Request</th><th scope="col">Category</th><th scope="col">Owner</th><th scope="col">Priority</th><th scope="col">Status</th><th scope="col">Authority</th></tr></thead>
+<tbody>{{range $b.Resources}}<tr><th scope="row">{{.Request.Request}}</th><td>{{.Request.Category}}</td><td>{{.Request.OwnerHumanID}}</td><td>{{.Request.Priority}}</td><td>{{.Request.Status}}</td><td>{{.Request.AuthoritySource}}</td></tr>{{end}}</tbody></table></div>
+</section>{{end}}
+<details class="gas-panel"{{if eq $.Open "resource"}} open{{end}}><summary><h2>Record resource request</h2></summary>
+{{template "write-record"}}
+<form class="gas-form gas-stack" method="post" action="{{incidentURL $id "/resource"}}">
+<input type="hidden" name="_form" value="resource">
+<div class="gas-field"><label for="rr-req">What is needed</label><input id="rr-req" name="request" required value="{{$.Form.Get "request"}}"></div>
+<div class="gas-field"><label for="rr-cat">Category</label><input id="rr-cat" name="category" required list="rr-cats" value="{{$.Form.Get "category"}}"><datalist id="rr-cats"><option value="people"><option value="specialist"><option value="equipment"><option value="funding"><option value="logistics"></datalist></div>
+<div class="gas-field"><label for="rr-owner">Owner</label><input id="rr-owner" name="owner" required list="members" value="{{$.Form.Get "owner"}}"></div>
+<div class="gas-field"><label for="rr-prio">Priority</label><input id="rr-prio" name="priority" required value="{{$.Form.Get "priority"}}"></div>
+<div class="gas-field"><label for="rr-status">Status</label><input id="rr-status" name="status" required value="{{if $.Form}}{{$.Form.Get "status"}}{{else}}requested{{end}}"></div>
+<div class="gas-field"><label for="rr-auth">Authorised by</label><input id="rr-auth" name="authority_source" required value="{{$.Form.Get "authority_source"}}"></div>
+<div class="gas-field"><label for="rr-notes">Notes</label><textarea id="rr-notes" name="notes" rows="2">{{$.Form.Get "notes"}}</textarea></div>
+<button class="gas-button gas-button--primary">Record request</button>
+</form></details>
+
+<section class="gas-panel gas-stack" aria-labelledby="timeline">
+<h2 id="timeline">Timeline</h2>
+{{if $p.Timeline}}<div class="gas-table-wrap"><table><thead><tr><th scope="col">Recorded</th><th scope="col">Occurred</th><th scope="col">Flagged</th><th scope="col">What</th><th scope="col">Kind</th></tr></thead>
+<tbody>{{range $p.Timeline}}<tr><td>{{when .RecordedAt}}{{if ne .TimeStatus "trusted"}} <span class="gas-badge gas-badge--warning">TIME UNVERIFIED</span>{{end}}</td><td>{{whenPtr .OccurredAt}}</td><td>{{whenPtr .FlaggedAt}}</td><td>{{.Summary}}</td><td>{{humanType .RecordType}} <span class="gas-muted">· {{.Governance}}</span></td></tr>{{end}}</tbody></table></div>
+{{else}}<p class="gas-empty">No timeline entries.</p>{{end}}
+</section>
+{{end}}{{end}}
