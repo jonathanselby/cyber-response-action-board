@@ -10,6 +10,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"regexp"
 	"sort"
 	"strings"
 	"time"
@@ -149,7 +150,7 @@ func (r *operatorRuntime) Board(ctx context.Context, token, incidentID, compartm
 			out.Resources = resources
 		}
 	}
-	out.SeverityValues = severitySuggestions(picture.Incident.Severity, out.SeverityHistory)
+	out.SeverityValues = r.severityLabels(ctx)
 
 	if store, err := postgres.NewCommunicationStoreFromKernel(r.kernel); err == nil {
 		if cadences, err := store.Cadences(ctx, incidentID, compartment); err == nil {
@@ -211,25 +212,18 @@ func humanCheckName(name string) string {
 	case "time_status":
 		return "Time"
 	}
-	return strings.ReplaceAll(name, "_", " ")
+	name = strings.ReplaceAll(name, "_", " ")
+	return strings.ToUpper(name[:1]) + name[1:]
 }
 
-// severitySuggestions offers values already confirmed for this incident. No
-// severity scale is hard-coded; a governed organisation scale is gap G-1.
-func severitySuggestions(current string, history []domain.SeverityChangeView) []string {
-	seen := map[string]bool{}
-	var out []string
-	add := func(v string) {
-		if v = strings.TrimSpace(v); v != "" && !seen[v] {
-			seen[v] = true
-			out = append(out, v)
-		}
+// severityLabels returns the organisation's confirmed scale, least severe
+// first. Responders choose only from it (T-202).
+func (r *operatorRuntime) severityLabels(ctx context.Context) []string {
+	scale, found, err := r.organisation.SeverityScale(ctx)
+	if err != nil || !found {
+		return nil
 	}
-	add(current)
-	for _, h := range history {
-		add(h.Change.Severity)
-	}
-	return out
+	return scale.Labels()
 }
 
 // ---- incident writes ----------------------------------------------------------
@@ -838,6 +832,9 @@ func fieldName(key string) string {
 	return strings.ToUpper(key[:1]) + key[1:]
 }
 
+// machineWord matches stored enum values such as not_started.
+var machineWord = regexp.MustCompile(`^[a-z]+(_[a-z]+)+$`)
+
 func fieldText(v any) string {
 	switch t := v.(type) {
 	case nil:
@@ -845,6 +842,9 @@ func fieldText(v any) string {
 	case string:
 		if parsed, err := time.Parse(time.RFC3339Nano, t); err == nil {
 			return parsed.UTC().Format(displayTime)
+		}
+		if machineWord.MatchString(t) {
+			return strings.ReplaceAll(t, "_", " ")
 		}
 		return t
 	case bool:

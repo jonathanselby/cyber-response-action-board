@@ -32,7 +32,7 @@
 </fieldset>
 <div class="gas-field"><label for="d-title">Title</label><input id="d-title" name="title" required value="{{$.Form.Get "title"}}"></div>
 <div class="gas-field"><label for="d-summary">What is happening</label><textarea id="d-summary" name="summary" rows="4" required>{{$.Form.Get "summary"}}</textarea></div>
-<div class="gas-field"><label for="d-severity">Severity</label><input id="d-severity" name="severity" required value="{{$.Form.Get "severity"}}"><p class="gas-help">Use your organisation's severity scale.</p></div>
+<div class="gas-field"><label for="d-severity">Severity</label>{{if .SeverityValues}}<select id="d-severity" name="severity" required>{{range .SeverityValues}}<option value="{{.}}"{{if eq ($.Form.Get "severity") .}} selected{{end}}>{{.}}</option>{{end}}</select><p class="gas-help">Your organisation's severity scale, least severe first.</p>{{else}}<p class="gas-notice gas-notice--warning">Define the severity scale first, under <a href="/organisation">Organisation</a>.</p>{{end}}</div>
 <div class="gas-cluster"><button class="gas-button gas-button--primary">Propose declaration</button></div>
 </form>
 </details>

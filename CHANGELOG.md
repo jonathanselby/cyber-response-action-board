@@ -1,5 +1,16 @@
 # Changelog
 
+## Unreleased — 0.0.17-dev
+
+UAT Phase 2 response, Stage 2: Storm Blue.
+
+- Locked Storm Blue palette in light and dark through shell tokens only; status colours used only for state; contrast checked automatically (T-200).
+- New CRAB logo on sign-in and setup, PWA icons and favicon.
+- Command Summary is the home page: what needs attention (approvals, first reports, stale paper pack) and my active incidents, scoped to what the user may see (T-198, T-199).
+- PDFs restyled: CRAB masthead on every page, compact metadata bar, readable tables, writable ruled forms, monochrome-safe meaning (T-201).
+- Print and download permissions can now be granted and withdrawn by two Custodians in Access admin; previously there was no path at all.
+- Visual capture workflow and end-to-end test harness against PostgreSQL.
+
 ## Unreleased — 0.0.16-dev
 
 UAT Phase 2 response, Stage 1: quick corrections.

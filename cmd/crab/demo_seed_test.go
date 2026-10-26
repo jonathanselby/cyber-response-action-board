@@ -47,10 +47,13 @@ func seedDemo(t *testing.T, e *e2e) (alice, bob string) {
 	alice, bob = e.bootstrap()
 	e.grantOutputs(alice, bob, "alice")
 	e.grantOutputs(bob, alice, "bob")
-	e.declare(alice, bob, "INC-014", "Payment outage", "High")
-	e.declare(alice, bob, "INC-011", "Credential compromise", "Medium")
+	e.declare(alice, bob, "INC-014", "Payment outage", "Severity level 3")
+	e.declare(alice, bob, "INC-011", "Credential compromise", "Severity level 2")
 
 	inc := "/incident/INC-014"
+	// bob joins INC-014 so the second person can confirm its proposals.
+	e.post(inc+"/access/member", alice, url.Values{"human_id": {"bob"}, "active": {"true"}, "reason": {"Technical lead for the response"}})
+	e.approveAll(bob)
 	e.post(inc+"/fact", alice, url.Values{"statement": {"Payroll file share FS-02 encrypted at 07:42 UTC"}, "source": {"EDR console"}})
 	e.post(inc+"/fact", alice, url.Values{"statement": {"Card payments failing on the web portal"}, "source": {"Service desk"}})
 	e.post(inc+"/uncertainty", alice, url.Values{"kind": {"unknown"}, "statement": {"Initial access vector"}})
@@ -66,7 +69,7 @@ func seedDemo(t *testing.T, e *e2e) (alice, bob string) {
 	e.approveAll(bob)
 
 	e.post(inc+"/scope", alice, url.Values{"affected_services": {"Payments\nPayroll"}, "impact": {"Customers cannot pay by card"}, "confidence": {"medium"}, "reason_evidence": {"Service desk tickets"}})
-	e.post(inc+"/severity", alice, url.Values{"severity": {"Critical"}, "reason_evidence": {"Customer-facing outage"}})
+	e.post(inc+"/severity", alice, url.Values{"severity": {"Severity level 4"}, "reason_evidence": {"Customer-facing outage"}})
 	e.post(inc+"/decision", alice, url.Values{"decision": {"Engage external forensics firm"}, "rationale": {"Retainer in place"}})
 
 	e.postMultipart("/intake", alice, map[string]string{
@@ -88,5 +91,8 @@ func TestDemoSeedRuns(t *testing.T) {
 		if !strings.Contains(board, want) {
 			t.Fatalf("board missing %q", want)
 		}
+	}
+	if strings.Contains(board, "No operational roles assigned") {
+		t.Fatal("seeded roles were not confirmed by the second person")
 	}
 }

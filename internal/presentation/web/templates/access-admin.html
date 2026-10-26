@@ -35,7 +35,7 @@
 <section class="gas-panel gas-stack" aria-labelledby="restricted">
 <h2 id="restricted">Restricted compartments</h2>
 {{if or .Controllers .CompartmentMemberships}}<div class="gas-table-wrap"><table><thead><tr><th scope="col">Person</th><th scope="col">Compartment</th><th scope="col">Role</th><th scope="col">Status</th><th scope="col">Expires</th></tr></thead>
-<tbody>{{range .Controllers}}<tr><th scope="row">{{.HumanID}}</th><td>{{.Compartment}}</td><td>Controller</td><td>—</td><td>—</td></tr>{{end}}{{range .CompartmentMemberships}}<tr><th scope="row">{{.HumanID}}</th><td>{{.Compartment}}</td><td>Read in</td><td><span class="gas-badge gas-badge--{{statusBadge .Status}}">{{upper .Status}}</span></td><td>{{if .ExpiresAt}}{{.ExpiresAt}}{{else}}No expiry{{end}}</td></tr>{{end}}</tbody></table></div>
+<tbody>{{range .Controllers}}<tr><th scope="row">{{.HumanID}}</th><td>{{.Compartment}}</td><td>Controller</td><td>—</td><td>—</td></tr>{{end}}{{range .CompartmentMemberships}}{{if ne .Compartment "GENERAL"}}<tr><th scope="row">{{.HumanID}}</th><td>{{.Compartment}}</td><td>Read in</td><td><span class="gas-badge gas-badge--{{statusBadge .Status}}">{{upper .Status}}</span></td><td>{{if .ExpiresAt}}{{.ExpiresAt}}{{else}}No expiry{{end}}</td></tr>{{end}}{{end}}</tbody></table></div>
 {{else}}<p class="gas-empty">No restricted compartments visible.</p>{{end}}
 </section>
 <section class="gas-panel gas-stack" aria-labelledby="sponsors">

@@ -221,3 +221,15 @@ All are `governed`, `SYSTEM` compartment, Propose → Decide through the one `/d
 - Inline PDFs carry `frame-ancestors 'none'` rather than the HTML policy, so built-in PDF viewers are not blocked by `object-src 'none'`.
 - The PDF footer states `TIME VERIFIED`, `TIME DRIFTING` or `TIME UNVERIFIED` in words.
 - Evidence: `docs/build-evidence-0.0.16-dev.md`.
+
+### Stage 2 — 0.0.17-dev
+
+- Panels are white (`--gas-surface`) on a Paper page background (`body`); `--gas-surface-raised` is Paper for navigation, table headers and hover. Text that sits directly on Paper (page summary, navigation group labels) uses Deep Ink so Slate only appears on white (U-5).
+- `crab.css` adds four small native-element rules beyond tokens: page background, wordmark weight, Deep Ink on Paper text and Slate input borders. No layout rule, no `url(`.
+- The shell offers no logo slot, so the header keeps the text wordmark; the logo appears on sign-in, setup, app icons and PDFs.
+- The Command Summary replaced the Incidents page instead of adding a screen; the screen count is unchanged.
+- **Gap closed:** output permissions had no grant path. `AccessService.ProposeOutputPermission` (Custodian maker, Custodian confirmer, print and download only) and an Access admin section were added.
+- Organisation-level governed records use `domain.ProposeSystemGoverned` (SYSTEM compartment, no incident).
+- PDF masthead, metadata bar and tables are drawn by the existing gopdf renderer with Go Regular and Go Bold from the already-pinned `golang.org/x/image`.
+- Visual capture: `cmd/crab` end-to-end harness (own database `crab_e2e`), `scripts/visual-capture.sh`, `.github/workflows/visual-capture.yml` publishing to `ci/visual-capture`.
+- Evidence: `docs/build-evidence-0.0.17-dev.md`.

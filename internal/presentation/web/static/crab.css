@@ -7,7 +7,8 @@ body{background:var(--crab-page)}
 .gas-empty{background:var(--gas-surface)}
 .gas-field>input,.gas-field>select,.gas-field>textarea{border-color:var(--crab-line)}
 form.gas-cluster{align-items:flex-end}
-summary{cursor:pointer;font-weight:650;min-height:2.75rem;display:flex;align-items:center;gap:.5rem}
+summary{cursor:pointer;font-weight:650;min-height:2.75rem;display:flex;align-items:center;gap:.5rem;color:var(--gas-accent)}
+summary::before{content:"+";font-weight:700}details[open]>summary::before{content:"−"}
 summary h2{display:inline;margin:0;font-size:1.15rem}
 details[open]>summary{margin-bottom:1rem}
 fieldset.gas-field{border:0;padding:0;margin:0}

@@ -130,9 +130,9 @@ func (s *Server) setup(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	input := BootstrapInput{PreparedBy: formValue(r, "prepared_by"), PreparedPassword: r.FormValue("prepared_password"), ConfirmedBy: formValue(r, "confirmed_by"), ConfirmedPassword: r.FormValue("confirmed_password")}
+	input := BootstrapInput{PreparedBy: formValue(r, "prepared_by"), PreparedPassword: r.FormValue("prepared_password"), ConfirmedBy: formValue(r, "confirmed_by"), ConfirmedPassword: r.FormValue("confirmed_password"), SeverityLevels: lines(r.FormValue("severity_levels"))}
 	setupScreen := screen{title: "First-run setup", summary: "Two different people create the first accounts together.", tmpl: "setup"}
-	keep := url.Values{"prepared_by": {input.PreparedBy}, "confirmed_by": {input.ConfirmedBy}}
+	keep := url.Values{"prepared_by": {input.PreparedBy}, "confirmed_by": {input.ConfirmedBy}, "severity_levels": {r.FormValue("severity_levels")}}
 	if input.PreparedBy == "" || input.ConfirmedBy == "" || input.PreparedBy == input.ConfirmedBy {
 		s.page(w, http.StatusUnprocessableEntity, setupScreen, pageData{Error: "Two distinct people are required.", Form: keep}, nil)
 		return

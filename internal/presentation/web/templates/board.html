@@ -22,7 +22,7 @@
 {{template "write-governed"}}
 <form class="gas-form gas-stack" method="post" action="{{incidentURL $id "/severity"}}">
 <input type="hidden" name="_form" value="severity">
-<div class="gas-field"><label for="sv-value">New severity</label><input id="sv-value" name="severity" required list="severity-values" value="{{$.Form.Get "severity"}}"><datalist id="severity-values">{{range $b.SeverityValues}}<option value="{{.}}">{{end}}</datalist><p class="gas-help">Use your organisation's severity scale. Currently {{$p.Incident.Severity}}.</p></div>
+<div class="gas-field"><label for="sv-value">New severity</label><select id="sv-value" name="severity" required>{{range $b.SeverityValues}}<option value="{{.}}"{{if eq . $p.Incident.Severity}} selected{{end}}>{{.}}</option>{{end}}</select><p class="gas-help">Your organisation's scale, least severe first. Currently {{$p.Incident.Severity}}.</p></div>
 <div class="gas-field"><label for="sv-reason">Reason and evidence</label><textarea id="sv-reason" name="reason_evidence" rows="3" required>{{$.Form.Get "reason_evidence"}}</textarea></div>
 <button class="gas-button gas-button--primary">Propose severity change</button>
 </form></details>

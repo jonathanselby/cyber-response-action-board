@@ -190,7 +190,7 @@ func (r *operatorRuntime) Readiness(ctx context.Context, token string) (web.Read
 	value = app.FinaliseReadiness(value)
 	out := web.ReadinessPage{Ready: value.Ready}
 	for _, item := range value.Checks {
-		out.Checks = append(out.Checks, web.ReadinessCheckView{Name: item.Name, Status: item.Status, Message: item.Message})
+		out.Checks = append(out.Checks, web.ReadinessCheckView{Name: humanCheckName(item.Name), Status: item.Status, Message: item.Message})
 	}
 	return out, nil
 }

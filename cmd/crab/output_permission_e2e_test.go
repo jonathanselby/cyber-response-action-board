@@ -25,7 +25,7 @@ func (e *e2e) grantOutputs(maker, confirmer string, people ...string) {
 func TestOutputPermissionIsGovernedAndEnablesPrint(t *testing.T) {
 	e := newE2E(t)
 	alice, bob := e.bootstrap()
-	e.declare(alice, bob, "INC-P", "Print test", "High")
+	e.declare(alice, bob, "INC-P", "Print test", "Severity level 3")
 	if w := e.do(http.MethodGet, "/incident/INC-P/brief.pdf?view=inline", alice, nil); w.Code != http.StatusForbidden {
 		t.Fatalf("print before permission: code=%d", w.Code)
 	}

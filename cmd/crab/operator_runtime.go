@@ -44,6 +44,7 @@ type operatorRuntime struct {
 	communication   app.CommunicationService
 	recovery        app.RecoveryService
 	retrieval       app.RetrievalService
+	organisation    app.OrganisationService
 	print           app.PrintService
 	pageSizeDefault string
 	local           authn.Local
@@ -146,7 +147,12 @@ func newOperatorRuntime() (web.Runtime, error) {
 	r := &operatorRuntime{kernel: kernel, signer: signer, security: security, access: accessStore, incidents: incidents}
 	r.local = authn.Local{Store: security}
 	r.sessions = authn.Sessions{Store: security, TTL: operatorSessionTTL}
-	r.incident = app.IncidentService{Backend: incidentBackend}
+	organisationBackend, err := postgres.NewOrganisationRuntime(kernel, signer)
+	if err != nil {
+		return fail(err)
+	}
+	r.organisation = app.OrganisationService{Backend: organisationBackend}
+	r.incident = app.IncidentService{Backend: incidentBackend, Severity: r.organisation}
 	r.accessService = app.AccessService{Backend: accessBackend}
 	r.evidence = app.EvidenceService{Backend: evidenceBackend}
 	r.communication = app.CommunicationService{Backend: communicationBackend, Incident: r.incident, Notifier: notifier.Sender{}, Channels: channels}
@@ -166,7 +172,7 @@ func newOperatorRuntime() (web.Runtime, error) {
 		if err != nil {
 			return fail(err)
 		}
-		r.print = app.PrintService{Incident: r.incident, Evidence: printEvidenceReader{store: evidenceStore}, Source: printSource, Renderer: pdfpresentation.Renderer{}, Artifacts: artifactStore, ConfigurationVersion: buildinfo.Version, TimeStatus: func() string { return kernel.Clock().Read().Status }}
+		r.print = app.PrintService{Incident: r.incident, Evidence: printEvidenceReader{store: evidenceStore}, Source: printSource, Renderer: pdfpresentation.Renderer{}, Artifacts: artifactStore, ConfigurationVersion: buildinfo.Version, TimeStatus: func() string { return kernel.Clock().Read().Status }, Organisation: r.organisation}
 	}
 	return r, nil
 }
@@ -243,7 +249,7 @@ func (r *operatorRuntime) Bootstrap(ctx context.Context, input web.BootstrapInpu
 		},
 		BreakGlassKeyholderIDs: []string{input.PreparedBy, input.ConfirmedBy},
 	}
-	records, err := ceremony.BootstrapRecords(plan, time.Now().UTC())
+	records, err := ceremony.BootstrapRecords(plan, r.kernel.Clock().Read().Now)
 	if err != nil {
 		return err
 	}
@@ -255,7 +261,37 @@ func (r *operatorRuntime) Bootstrap(ctx context.Context, input web.BootstrapInpu
 			records[i].ConfirmerSignature.MissingReason = "confirmer authenticated in two-person bootstrap ceremony"
 		}
 	}
-	_, err = r.kernel.AppendBatch(ctx, records, r.signer, postgres.AccessProjection{})
+	// The two setup people also confirm the first severity scale, so every
+	// incident is classified in the organisation's own language (T-202).
+	scale := domain.DefaultSeverityScale()
+	if len(input.SeverityLevels) > 0 {
+		scale = domain.SeverityScale{}
+		for i, label := range input.SeverityLevels {
+			level := domain.SeverityLevel{Label: label}
+			if i == 0 {
+				level.Description = "Least severe"
+			} else if i == len(input.SeverityLevels)-1 {
+				level.Description = "Most severe"
+			}
+			scale.Levels = append(scale.Levels, level)
+		}
+	}
+	now := r.kernel.Clock().Read().Now
+	proposal, err := domain.ProposeSeverityScale(newOperatorID("SCALE"), input.PreparedBy, now, scale)
+	if err != nil {
+		return err
+	}
+	version, err := domain.ProposalVersion(proposal)
+	if err != nil {
+		return err
+	}
+	scaleConfirmed, err := domain.Decide(proposal, version, input.ConfirmedBy, "confirmed", now)
+	if err != nil {
+		return err
+	}
+	scaleConfirmed.ConfirmerSignature = ledger.Signature{MissingReason: "confirmer authenticated in two-person bootstrap ceremony"}
+	records = append(records, proposal, scaleConfirmed)
+	_, err = r.kernel.AppendBatch(ctx, records, r.signer, postgres.AccessProjection{}, postgres.OrganisationProjection{})
 	return err
 }
 
@@ -297,7 +333,7 @@ func (r *operatorRuntime) Home(ctx context.Context, token string) (web.HomeView,
 		ids = append(ids, id)
 	}
 	sort.Strings(ids)
-	home := web.HomeView{HumanID: principal.HumanID, Role: string(principal.Role), CanDeclare: principal.Role == authz.RoleMajor}
+	home := web.HomeView{HumanID: principal.HumanID, Role: string(principal.Role), CanDeclare: principal.Role == authz.RoleMajor, SeverityValues: r.severityLabels(ctx)}
 	for _, id := range ids {
 		picture, found, err := r.incident.CommonOperatingPicture(ctx, principal, id, "GENERAL")
 		if err != nil {

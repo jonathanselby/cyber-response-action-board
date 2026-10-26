@@ -41,6 +41,7 @@ type pendingSeverityByIDReader interface {
 type ContinuityService struct {
 	Backend  ContinuityBackend
 	Incident IncidentPictureReader
+	Severity SeverityPolicy
 }
 
 func (s ContinuityService) CaptureFirstReport(ctx context.Context, principal authz.Principal, reportID string, report domain.FirstReport, attachments []FirstReportAttachmentInput, now time.Time) (ledger.Record, error) {
@@ -104,6 +105,11 @@ func (s ContinuityService) RecordScopeAssessment(ctx context.Context, principal 
 func (s ContinuityService) ProposeSeverityChange(ctx context.Context, principal authz.Principal, scope domain.Scope, recordID string, value domain.SeverityChange, now time.Time) (ledger.Record, error) {
 	if d := authz.Authorise(principal, authz.ActionPropose, authz.ObjectScope{IncidentID: scope.IncidentID, Compartment: scope.Compartment}); !d.Allowed {
 		return ledger.Record{}, ErrAuthorisationDenied
+	}
+	if s.Severity != nil {
+		if err := s.Severity.CheckSeverity(ctx, value.Severity); err != nil {
+			return ledger.Record{}, err
+		}
 	}
 	record, err := domain.ProposeSeverityChange(scope, recordID, principal.HumanID, now, value)
 	if err != nil {

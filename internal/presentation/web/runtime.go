@@ -136,6 +136,8 @@ type BootstrapInput struct {
 	PreparedPassword  string
 	ConfirmedBy       string
 	ConfirmedPassword string
+	// SeverityLevels is the first severity scale, least severe first.
+	SeverityLevels []string
 }
 
 type IncidentLink struct {
@@ -175,6 +177,7 @@ type HomeView struct {
 	WaitingApprovals int
 	CanTriage        bool
 	AwaitingTriage   int
+	SeverityValues   []string // the organisation's confirmed scale
 }
 
 type PendingDeclaration struct {

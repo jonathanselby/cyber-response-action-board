@@ -11,8 +11,8 @@ import (
 func TestCommandSummaryShowsOnlyAuthorisedWork(t *testing.T) {
 	e := newE2E(t)
 	alice, bob := e.bootstrap()
-	e.declare(alice, bob, "INC-A", "Payroll outage", "High")
-	e.declare(bob, alice, "INC-B", "Supplier compromise", "High")
+	e.declare(alice, bob, "INC-A", "Payroll outage", "Severity level 4")
+	e.declare(bob, alice, "INC-B", "Supplier compromise", "Severity level 3")
 
 	// A pending decision inside INC-B that only bob's side can see.
 	e.post("/incident/INC-B/decision", bob, url.Values{"decision": {"Isolate supplier VPN"}, "rationale": {"Contain"}})

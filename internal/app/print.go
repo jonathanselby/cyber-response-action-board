@@ -55,6 +55,11 @@ type PrintService struct {
 	Renderer             PDFRenderer
 	Artifacts            ArtifactStore
 	ConfigurationVersion string
+	// Organisation supplies confirmed emergency configuration after print
+	// authority has been checked (UAT 2 item 2).
+	Organisation interface {
+		EmergencyForPrint(context.Context) (domain.EmergencyConfiguration, bool, error)
+	}
 	// TimeStatus reports the one clock at generation time. When set, the
 	// printed time-trust mark is the weaker of the ledger tail and the clock.
 	TimeStatus func() string
@@ -99,6 +104,13 @@ func (s PrintService) GenerateIncidentBrief(ctx context.Context, principal authz
 		Decisions: picture.Decisions, Actions: picture.Actions, Obligations: picture.Obligations,
 		OperationalRoles: picture.OperationalRoles, NextCommunicationDeadline: nextComms,
 		Contacts: append([]domain.PrintContact(nil), contacts...),
+	}
+	if len(brief.Contacts) == 0 && s.Organisation != nil {
+		if config, found, err := s.Organisation.EmergencyForPrint(ctx); err != nil {
+			return PrintResult{}, err
+		} else if found {
+			brief.Contacts = domain.BriefContacts(config)
+		}
 	}
 	bytes, pages, err := s.Renderer.RenderIncidentBrief(brief, pageSize, printMode)
 	if err != nil {
@@ -178,6 +190,16 @@ func (s PrintService) GenerateEmergencyResponsePack(ctx context.Context, princip
 		return PrintResult{}, err
 	}
 	pack.Source = source
+	if s.Organisation != nil {
+		config, found, err := s.Organisation.EmergencyForPrint(ctx)
+		if err != nil {
+			return PrintResult{}, err
+		}
+		if found {
+			pack.Organisation = config.Organisation
+			pack.Sections = append(domain.EmergencyPackSections(config), pack.Sections...)
+		}
+	}
 	if err := domain.ValidateEmergencyResponsePack(pack); err != nil {
 		return PrintResult{}, err
 	}
