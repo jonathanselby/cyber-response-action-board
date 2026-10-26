@@ -156,6 +156,8 @@ PostgreSQL RLS was empirically tested. It was not retained in V0.4 because the e
 - `TEST-ACCEPTANCE-NOTES.md` — behavioural/security acceptance catalogue.
 - `UX-PRINT-BUILD-NOTES.md` — web, accessibility and print quality requirements.
 - `UI-SHELL-BUILD-NOTES.md` — Slice 15 browser presentation rebuild on `go-app-shell` (Phase 1 UAT response).
+- `UAT2-BUILD-NOTES.md` — Phase 2 UAT response: time authority, Storm Blue, organisation configuration, related incidents, checklists, single-person window.
+- `docs/uat-phase2-triage.md` — Phase 2 UAT triage and plan.
 - `docs/go-app-shell-dependency-decision.md` — EDD §26 dependency decision for `go-app-shell`.
 - `docs/build-evidence-0.0.14-dev.md` — code-complete implementation checkpoint evidence.
 - `docs/build-evidence-0.0.15-dev.md` — Slice 15 browser presentation rebuild evidence.
