@@ -65,8 +65,8 @@ Categories follow the constraint review: **KEEP** (accept as asked), **SIMPLIFY*
 | Icons in navigation and *Needs attention* panel | **REMOVE** | Shell nav has no icon slot; icons would need `url(` or inline SVG per item. The handover says "pretty without decoration". Text, counts and badges carry the meaning. |
 | Coloured dot inside status chips | **REMOVE** | Needs `width:`/`height:` pseudo-elements (T-185). Badge tint plus text is enough and is colour-independent (AC-87). |
 | Two-column summary layout | **SIMPLIFY** | Grid rules are layout and belong to the shell (T-185). Single column: *Needs attention* first, then incidents. Two-column is a shell v0.2 candidate if UAT still wants it. |
-| Locked palette contrast | **TEST** | Computed WCAG ratios: Slate on Paper 4.28 (fails AA 4.5 for body text), on white 4.59 (passes). Amber as text 2.6–2.8 (fails everywhere). Mist as input border 1.1 against Paper (fails 3:1 non-text). See decision U-5. |
-| Dark mode | **TEST** | Handover gives light values only; shell and T-189/T-190 require dark. Needs derived Storm Blue dark tokens. Decision U-4. |
+| Locked palette contrast | **TEST** | Computed WCAG ratios: Slate on Paper 4.28 (fails AA 4.5 for body text), on white 4.59 (passes). Amber as text 2.6–2.8 (fails everywhere). Mist as input border 1.1 against Paper (fails 3:1 non-text). **Decided (U-5):** fix as recommended, keeping visual continuity with the handover. |
+| Dark mode | **TEST** | Handover gives light values only; shell and T-189/T-190 require dark. Needs derived Storm Blue dark tokens. **Decided (U-4):** dark mode kept; derived tokens to be shown for approval in S17. |
 | `crab.css` budget | **TEST** | Light + dark tokens + badge tints + print should fit 2 KiB. Measure; do not raise the budget without evidence. |
 | Print restyle | **KEEP** | PDF renderer: Storm Blue headings, Go Bold hierarchy, compact metadata bar, Mist table rules, logo mark, no colour-only meaning. Mono mode unchanged. Screen print CSS recoloured. |
 | Reference file names | **SIMPLIFY** | Handover names three PNGs that differ from the supplied files. Commit the references once under `docs/design/` with the handover's names so later readers find them. |
@@ -157,7 +157,9 @@ Categories follow the constraint review: **KEEP** (accept as asked), **SIMPLIFY*
 | Responders select; server refuses values outside the scale | **KEEP** | `<select>` replaces the datalist. |
 | Existing free-text severities | **KEEP** as history | Ledger history is not rewritten. Existing incidents show their stored value until a governed severity change selects a scale value. |
 | Define during first-run setup | **SIMPLIFY** | Setup already has two people present. Offer the scale on the setup form as the first confirmed configuration; later changes go through governance. Decision U-7. |
-| Example values *Major / Moderate / Minor* | **TEST** | They collide with CRAB application roles *Major / Minor*. The Command Summary mockup shows "Major · In progress" next to a user labelled "Major". Decision U-8. |
+| Example values *Major / Moderate / Minor* | **REMOVE** | They collide with CRAB application roles *Major / Minor*. **Decided (U-8):** the default scale is *Severity level 1* (least severe) to *Severity level 5* (most severe), labels only, no monetary thresholds. |
+| Default scale is a seed, not hard-coded | **KEEP** | PRD principle 4 forbids hard-coded classification values. Setup offers Severity level 1–5 pre-filled; the two setup people confirm it; later changes are governed. Level descriptions are optional organisation text. |
+| Fit of the source scale | **TEST** | The levels follow the UK Cyber Monitoring Centre's 1–5 scale, which scores systemic events across many organisations. Inside one organisation most incidents would sit at level 1 unless the organisation writes its own level descriptions. Review at UAT. |
 | T-184 | **KEEP** | Still true. A new row adds that values come only from the governed scale. |
 
 ### 3.10 Item 6 — Governed checklist templates
@@ -208,7 +210,7 @@ Each slice keeps CI green, Bafflewick 8/8 and the visual preflight passing. Each
 
 ### S17 — Storm Blue presentation (0.0.17-dev)
 
-1. Decide U-3 to U-6 and U-8 before starting.
+1. U-4, U-5, U-6 and U-8 are decided. Confirm U-3 before starting.
 2. `crab.css` tokens light and dark; contrast test.
 3. Logo: SVG icon and lockup under `static/`; PWA icon, favicon, theme colour; sign-in/setup and offline page.
 4. Command Summary replaces the Incidents page at `/`.
@@ -250,11 +252,11 @@ Each slice keeps CI green, Bafflewick 8/8 and the visual preflight passing. Each
 | ID | Decision | Recommendation |
 |---|---|---|
 | U-3 | Phase 2 scores for T-187 to T-192 | Recorded as *not scored*; confirm, or supply individual results |
-| U-4 | Dark mode | Derive Storm Blue dark tokens (dark slate surfaces, lightened Storm Blue accent) and submit them for approval with S17. Do not drop dark mode; T-189/T-190 require it |
-| U-5 | Contrast failures in the locked palette | Text sits on white panels, Paper is page background only (Slate 4.59 passes). Amber is a fill/border colour only; warning text uses Deep Ink. Input borders use Slate, dividers use Mist |
-| U-6 | Logo source | Supply the vector original if one exists. Otherwise trace one crab as SVG (icon) plus a lockup with the wordmark; the supplied PNG shows two crabs and is raster |
+| U-4 | Dark mode | **Decided 26 Oct:** keep dark mode. Derive Storm Blue dark tokens (dark slate surfaces, lightened Storm Blue accent) and show them for approval in S17 |
+| U-5 | Contrast failures in the locked palette | **Decided 26 Oct:** as recommended, keeping visual continuity. Text sits on white panels, Paper is page background only (Slate 4.59 passes). Amber is a fill/border colour only; warning text uses Deep Ink. Input borders use Slate, dividers use Mist |
+| U-6 | Logo source | **Done 26 Oct:** single-crab assets traced from the supplied PNG in `docs/design/logo/` — lockup PNG (light and dark), icon PNG at 512/192/32, app icon on Paper, icon SVG. Wired into the app in S17 |
 | U-7 | When the severity scale is defined | Offer it on the setup form (two people present); changes later through governance. Declaration requires a scale to exist |
-| U-8 | Severity vocabulary | Advise organisations to avoid *Major* and *Minor* as severity names; CRAB will not forbid them. Mockups to use e.g. *Critical / High / Medium / Low* |
+| U-8 | Severity vocabulary | **Decided 26 Oct:** default scale *Severity level 1* (least severe) to *Severity level 5* (most severe); monetary thresholds ignored. Offered pre-filled at setup and governed thereafter, not hard-coded |
 | U-9 | Single-person window limits | Governed maximum length (suggest 24 h); excluded kinds as §3.8; only Majors may be named |
 | U-10 | Self-approval while time is unverified | Allow and flag both markers; refusing would stop response exactly when infrastructure is degraded |
 | U-11 | Password rule detail | Minimum 12; at least one upper, one lower and one non-alphanumeric. Digit not required unless UAT wants it |
