@@ -7,9 +7,9 @@
 {{define "write-record"}}<p class="gas-help">Preserved as supplied. It does not change the incident's effective state.</p>{{end}}
 {{define "write-governed"}}<p class="gas-help">Takes effect when another eligible person confirms.</p>{{end}}
 
-{{define "refused"}}<section class="gas-panel gas-stack"><p class="gas-notice gas-notice--danger" role="alert"><strong>Not available.</strong> {{.Error}}</p><p><a class="gas-button" href="/">Back to incidents</a></p></section>{{end}}
+{{define "refused"}}<section class="gas-panel gas-stack"><p class="gas-notice gas-notice--danger" role="alert"><strong>Not available.</strong> {{.Error}}</p><p><a class="gas-button" href="/">Back to Command Summary</a></p></section>{{end}}
 
-{{define "render-failed"}}<p class="gas-notice gas-notice--danger" role="alert">This page could not be displayed. Reload, or return to <a href="/">Incidents</a>.</p>{{end}}
+{{define "render-failed"}}<p class="gas-notice gas-notice--danger" role="alert">This page could not be displayed. Reload, or return to the <a href="/">Command Summary</a>.</p>{{end}}
 
 {{define "unconfigured"}}<section class="gas-panel gas-stack"><p class="gas-notice gas-notice--warning">The CRAB operator runtime is not configured on this host.</p><p>Configure <code>CRAB_DATABASE_URL</code>, <code>CRAB_LEDGER_KEYRING_FILE</code> and <code>CRAB_SERVER_SIGNING_KEY_FILE</code>, then restart <code>crab serve</code>. Run <code>crab readiness</code> to check the deployment.</p></section>{{end}}
 
@@ -27,4 +27,15 @@
 
 {{define "time-help"}}<p class="gas-help">Date and time in UTC.</p>{{end}}
 
-{{define "time-confidence"}}<div class="gas-field"><label for="{{.}}-tc">Time confidence</label><select id="{{.}}-tc" name="time_confidence"><option value="trusted">Trusted — taken from a reliable clock</option><option value="drifting">Approximate</option><option value="untrusted">Unverified</option></select></div>{{end}}
+{{define "time-trust"}}{{if .Frame.HumanID}}{{if and .Frame.Status.TimeStatus (ne .Frame.Status.TimeStatus "trusted")}}<p class="gas-notice gas-notice--warning" role="note"><strong>TIME UNVERIFIED</strong> — CRAB cannot verify this host's clock. CRAB keeps working; new entries and deadlines are marked unverified.</p>{{end}}{{end}}{{end}}
+
+{{define "time-confidence"}}<div class="gas-field"><label for="{{.}}-tc">Time confidence</label><select id="{{.}}-tc" name="time_confidence"><option value="">Use CRAB's clock status</option><option value="trusted">Trusted — taken from a reliable clock</option><option value="drifting">Approximate</option><option value="untrusted">Unverified</option></select></div>{{end}}
+
+{{define "paper-form"}}<form class="gas-cluster" method="get" action="{{.Action}}">
+<div class="gas-field"><label for="{{.ID}}-size">Page size</label><select id="{{.ID}}-size" name="size"><option value="A4">A4</option><option value="LETTER">US Letter</option></select></div>
+<div class="gas-field"><label for="{{.ID}}-mode">Print</label><select id="{{.ID}}-mode" name="mode"><option value="colour">Colour</option><option value="monochrome">Black and white</option></select></div>
+<button class="gas-button gas-button--primary" name="view" value="inline" formtarget="_blank">Preview {{.Label}}</button>
+<button class="gas-button">Download PDF</button>
+</form>{{end}}
+
+{{define "brand"}}<picture><source srcset="/static/logo-dark.png" media="(prefers-color-scheme: dark)"><img src="/static/logo.png" alt="CRAB — Cyber Response Action Board" width="224" height="71"></picture>{{end}}

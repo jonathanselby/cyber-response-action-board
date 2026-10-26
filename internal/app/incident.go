@@ -27,8 +27,16 @@ type incidentObligationBackend interface {
 	ObligationClocks(context.Context, string, string, time.Time) ([]domain.ObligationClockView, error)
 }
 
+// SeverityPolicy checks a severity against the organisation's confirmed
+// scale (T-202). It is optional so older compositions keep working.
+type SeverityPolicy interface {
+	CheckSeverity(context.Context, string) error
+}
+
 type IncidentService struct {
-	Backend IncidentBackend
+	Backend  IncidentBackend
+	Severity SeverityPolicy
+	Window   WindowPolicy
 }
 
 func (s IncidentService) ProposeIncidentDeclaration(ctx context.Context, principal authz.Principal, scope domain.Scope, recordID string, declaration domain.IncidentDeclaration, now time.Time) (ledger.Record, error) {
@@ -37,6 +45,11 @@ func (s IncidentService) ProposeIncidentDeclaration(ctx context.Context, princip
 	}
 	if !principal.Authenticated || principal.HumanID == "" || principal.Role != authz.RoleMajor {
 		return ledger.Record{}, ErrAuthorisationDenied
+	}
+	if s.Severity != nil {
+		if err := s.Severity.CheckSeverity(ctx, declaration.Severity); err != nil {
+			return ledger.Record{}, err
+		}
 	}
 	exists, err := s.Backend.DeclarationExists(ctx, scope.IncidentID)
 	if err != nil {
@@ -173,7 +186,7 @@ func (s IncidentService) Decide(ctx context.Context, principal authz.Principal, 
 			return ledger.Record{}, err
 		}
 	}
-	decided, err := domain.Decide(proposal, expectedVersion, principal.HumanID, outcome, now)
+	decided, err := decideGoverned(ctx, s.Window, proposal, expectedVersion, principal, outcome, now)
 	if err != nil {
 		return ledger.Record{}, err
 	}

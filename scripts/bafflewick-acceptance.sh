@@ -14,7 +14,7 @@ TMP=$(mktemp -d)
 trap 'rm -rf "$TMP"' EXIT
 EVIDENCE="$TMP/bafflewick-acceptance.md"
 PASS_COUNT=0
-REQUIRED_PHASES=8
+REQUIRED_PHASES=9
 
 {
   echo "# CRAB Bafflewick acceptance evidence"
@@ -114,6 +114,11 @@ run_phase 8 "attack and degraded-output controls" \
   "TestEvidencePartialOversizeAndCorruptionFailClosed,TestExerciseExternalNotificationSuppressedBeforeAdapterIOInPostgresPath,TestManagedModelSensitivityRefusesBeforeProviderCall,TestRestrictedCompartmentPrintRequiresReadIn" \
   "TestEvidencePartialOversizeAndCorruptionFailClosed|TestExerciseExternalNotificationSuppressedBeforeAdapterIOInPostgresPath|TestManagedModelSensitivityRefusesBeforeProviderCall|TestRestrictedCompartmentPrintRequiresReadIn" \
   ./internal/data/postgres ./internal/app
+
+run_phase 9 "degraded authority: unverified time, single-person window, related incidents and organisation paper" \
+  "TestKernelCapsTimeStatusByClock,TestSelfApprovalUnderUnverifiedTime,TestSinglePersonWindow,TestRelatedIncidentsDoNotLeak,TestEmergencyConfigurationFillsPaperAndStalesPack" \
+  "TestKernelCapsTimeStatusByClock|TestSelfApprovalUnderUnverifiedTime|TestSinglePersonWindow|TestRelatedIncidentsDoNotLeak|TestEmergencyConfigurationFillsPaperAndStalesPack" \
+  ./internal/data/postgres ./cmd/crab
 
 if [ "$PASS_COUNT" -ne "$REQUIRED_PHASES" ]; then
   echo "Bafflewick threshold failed: ${PASS_COUNT}/${REQUIRED_PHASES}" >&2

@@ -17,5 +17,7 @@ func RebuildProjections() []Projection {
 		CommunicationProjection{},
 		RecoveryProjection{},
 		PaperProjection{},
+		OrganisationProjection{},
+		RelationshipProjection{},
 	}
 }

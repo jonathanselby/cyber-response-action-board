@@ -1,5 +1,26 @@
 {{define "access-admin"}}{{template "feedback" .}}
 {{with .Data}}
+<section class="gas-panel gas-stack" aria-labelledby="outputs">
+<h2 id="outputs">Print and download permissions</h2>
+<p class="gas-help">Reading an incident never allows printing or downloading. These are separate permissions, granted by one Custodian and confirmed by another.</p>
+{{if .OutputPermissions}}<div class="gas-table-wrap"><table><thead><tr><th scope="col">Person</th><th scope="col">Permission</th></tr></thead>
+<tbody>{{range .OutputPermissions}}<tr><th scope="row">{{.HumanID}}</th><td>{{if eq .Action "print"}}Print paper and PDFs{{else if eq .Action "download"}}Download evidence{{else}}{{.Action}}{{end}}</td></tr>{{end}}</tbody></table></div>
+{{else}}<p class="gas-empty">Nobody can print or download yet.</p>{{end}}
+<details id="output" class="gas-panel"{{if eq $.Open "output"}} open{{end}}>
+<summary><h2>Grant or withdraw a permission</h2></summary>
+{{template "write-governed"}}
+<form class="gas-form gas-stack" method="post" action="/access/output">
+<input type="hidden" name="_form" value="output">
+<div class="gas-field"><label for="op-human">Person (CRAB ID)</label><input id="op-human" name="human_id" required value="{{$.Form.Get "human_id"}}"></div>
+<div class="gas-field"><label for="op-action">Permission</label><select id="op-action" name="action"><option value="print">Print paper and PDFs</option><option value="download">Download evidence</option></select></div>
+<fieldset class="gas-field"><legend>Change</legend>
+<label><input type="radio" name="active" value="true" checked> Grant</label>
+<label><input type="radio" name="active" value="false"> Withdraw</label>
+</fieldset>
+<div class="gas-cluster"><button class="gas-button gas-button--primary">Propose</button></div>
+</form>
+</details>
+</section>
 {{template "access-tables" .}}
 {{if .Pending}}<p class="gas-notice gas-notice--info">{{len .Pending}} access change{{if gt (len .Pending) 1}}s are{{else}} is{{end}} waiting for a Custodian. <a href="/approvals">Review in Approvals</a></p>{{end}}
 {{end}}{{end}}
@@ -14,7 +35,7 @@
 <section class="gas-panel gas-stack" aria-labelledby="restricted">
 <h2 id="restricted">Restricted compartments</h2>
 {{if or .Controllers .CompartmentMemberships}}<div class="gas-table-wrap"><table><thead><tr><th scope="col">Person</th><th scope="col">Compartment</th><th scope="col">Role</th><th scope="col">Status</th><th scope="col">Expires</th></tr></thead>
-<tbody>{{range .Controllers}}<tr><th scope="row">{{.HumanID}}</th><td>{{.Compartment}}</td><td>Controller</td><td>—</td><td>—</td></tr>{{end}}{{range .CompartmentMemberships}}<tr><th scope="row">{{.HumanID}}</th><td>{{.Compartment}}</td><td>Read in</td><td><span class="gas-badge gas-badge--{{statusBadge .Status}}">{{upper .Status}}</span></td><td>{{if .ExpiresAt}}{{.ExpiresAt}}{{else}}No expiry{{end}}</td></tr>{{end}}</tbody></table></div>
+<tbody>{{range .Controllers}}<tr><th scope="row">{{.HumanID}}</th><td>{{.Compartment}}</td><td>Controller</td><td>—</td><td>—</td></tr>{{end}}{{range .CompartmentMemberships}}{{if ne .Compartment "GENERAL"}}<tr><th scope="row">{{.HumanID}}</th><td>{{.Compartment}}</td><td>Read in</td><td><span class="gas-badge gas-badge--{{statusBadge .Status}}">{{upper .Status}}</span></td><td>{{if .ExpiresAt}}{{.ExpiresAt}}{{else}}No expiry{{end}}</td></tr>{{end}}{{end}}</tbody></table></div>
 {{else}}<p class="gas-empty">No restricted compartments visible.</p>{{end}}
 </section>
 <section class="gas-panel gas-stack" aria-labelledby="sponsors">

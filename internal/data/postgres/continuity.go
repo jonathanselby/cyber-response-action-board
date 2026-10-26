@@ -20,6 +20,9 @@ import (
 type ContinuityProjection struct{}
 
 func (ContinuityProjection) Reset(ctx context.Context, tx pgx.Tx) error {
+	if _, err := tx.Exec(ctx, `DELETE FROM crab.incident_timeline WHERE record_type=$1`, domain.TypeSeverityChange); err != nil {
+		return err
+	}
 	_, err := tx.Exec(ctx, `TRUNCATE crab.incident_resource_requests, crab.incident_handovers, crab.incident_severity_changes, crab.incident_scope_assessments, crab.continuity_proposals, crab.first_report_dispositions, crab.first_reports`)
 	return err
 }
@@ -77,7 +80,7 @@ func (ContinuityProjection) Apply(ctx context.Context, tx pgx.Tx, entry ledger.E
 		_, err = tx.Exec(ctx, `INSERT INTO crab.incident_scope_assessments(record_id,incident_id,compartment,payload,maker,recorded_at) VALUES($1,$2,$3,$4,$5,$6)`, r.RecordID, r.IncidentID, r.Compartment, payload, r.Maker, r.Timestamp)
 		return err
 	case domain.TypeSeverityChange:
-		return applySeverityChange(ctx, tx, r)
+		return applySeverityChange(ctx, tx, entry)
 	case domain.TypeHandover:
 		if r.WriteSemantic != "record" {
 			return errors.New("handover requires record semantic")
@@ -111,7 +114,8 @@ func (ContinuityProjection) Apply(ctx context.Context, tx pgx.Tx, entry ledger.E
 	}
 }
 
-func applySeverityChange(ctx context.Context, tx pgx.Tx, r ledger.Record) error {
+func applySeverityChange(ctx context.Context, tx pgx.Tx, entry ledger.Entry) error {
+	r := entry.Record
 	if r.WriteSemantic != "governed" {
 		return errors.New("severity change requires governed semantic")
 	}
@@ -153,6 +157,9 @@ func applySeverityChange(ctx context.Context, tx pgx.Tx, r ledger.Record) error 
 			return err
 		}
 		if _, err = tx.Exec(ctx, `UPDATE crab.incidents SET severity=$2 WHERE incident_id=$1`, r.IncidentID, v.Severity); err != nil {
+			return err
+		}
+		if err := insertTimelineDecision(ctx, tx, entry, "Severity changed to "+v.Severity); err != nil {
 			return err
 		}
 	}
@@ -374,7 +381,7 @@ func (r *ContinuityRuntime) PendingContinuity(ctx context.Context, incidentID, r
 	if err != nil {
 		return ledger.Record{}, false, err
 	}
-	record := ledger.Record{SchemaVersion: 1, Timestamp: proposedAt.UTC(), TimeStatus: "trusted", IncidentID: incidentID, IncidentMode: mode, WriteSemantic: "governed", RecordType: recordType, RecordID: recordID, Status: "proposed", Maker: maker, Compartment: compartment, Data: wrapped, MakerSignature: ledger.Signature{MissingReason: "maker authenticated on immutable proposal entry"}}
+	record := ledger.Record{SchemaVersion: 1, Timestamp: proposedAt.UTC(), TimeStatus: ledger.TimeTrusted, IncidentID: incidentID, IncidentMode: mode, WriteSemantic: "governed", RecordType: recordType, RecordID: recordID, Status: "proposed", Maker: maker, Compartment: compartment, Data: wrapped, MakerSignature: ledger.Signature{MissingReason: "maker authenticated on immutable proposal entry"}}
 	if _, err := domain.ProposalVersion(record); err != nil {
 		return ledger.Record{}, false, err
 	}

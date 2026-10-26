@@ -10,6 +10,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/jonathanselby/cyber-response-action-board/internal/ledger"
+	"regexp"
 	"sort"
 	"strings"
 	"time"
@@ -39,12 +41,16 @@ func (r *operatorRuntime) Frame(ctx context.Context, token, incidentID string) (
 	}
 	frame := web.FrameView{HumanID: principal.HumanID, Role: string(principal.Role), Custodian: principal.Custodian}
 	frame.Status.BreakGlass = session.BreakGlass
+	frame.Status.TimeStatus = r.kernel.Clock().Read().Status
+	if open, err := r.organisation.OpenWindow(ctx, r.kernel.Clock().Read().Now); err == nil {
+		frame.Status.WindowOpen = open
+	}
 	frame.Status.IntegrityFailed = r.kernel.IntegrityFailed()
 	if isolate, err := r.access.IsolateMode(ctx); err == nil {
 		frame.Status.Isolate = isolate
 	}
 	if cfg, err := config.Load(); err == nil {
-		frame.Status.PackStale = packFreshnessCheck(cfg).Status != "pass"
+		frame.Status.PackStale = packFreshnessCheck(cfg, r.emergencyChangedAt(ctx)).Status != "pass"
 	}
 	if approvals, err := r.approvals(ctx, principal, ""); err == nil {
 		frame.Status.PendingApprovals = len(approvals.Waiting)
@@ -148,7 +154,32 @@ func (r *operatorRuntime) Board(ctx context.Context, token, incidentID, compartm
 			out.Resources = resources
 		}
 	}
-	out.SeverityValues = severitySuggestions(picture.Incident.Severity, out.SeverityHistory)
+	out.SeverityValues = r.severityLabels(ctx)
+	if related, err := r.relationships.Visible(ctx, principal, incidentID); err == nil {
+		for _, v := range related {
+			view := web.RelatedIncidentView{IncidentID: v.RelatedIncidentID, Reason: v.Reason, Maker: v.Maker, Confirmer: v.Confirmer, ConfirmedAt: v.ConfirmedAt.UTC().Format(displayTime)}
+			if picture, found, err := r.incident.CommonOperatingPicture(ctx, principal, v.RelatedIncidentID, "GENERAL"); err == nil && found {
+				view.Title = picture.Incident.Title
+			}
+			out.Related = append(out.Related, view)
+		}
+	}
+	for id := range principal.Incidents {
+		if id == incidentID || !principal.Compartments[id]["GENERAL"] {
+			continue
+		}
+		if picture, found, err := r.incident.CommonOperatingPicture(ctx, principal, id, "GENERAL"); err == nil && found {
+			out.RelateCandidates = append(out.RelateCandidates, web.IncidentLink{IncidentID: id, Title: picture.Incident.Title})
+		}
+	}
+	sort.Slice(out.RelateCandidates, func(i, j int) bool { return out.RelateCandidates[i].IncidentID < out.RelateCandidates[j].IncidentID })
+	if templates, err := r.organisation.ChecklistTemplates(ctx, principal); err == nil {
+		for _, t := range templates {
+			if t.Active {
+				out.Checklists = append(out.Checklists, web.ChecklistOption{TemplateID: t.TemplateID, Name: t.Name, SourceRef: t.SourceRef, Steps: len(t.Steps)})
+			}
+		}
+	}
 
 	if store, err := postgres.NewCommunicationStoreFromKernel(r.kernel); err == nil {
 		if cadences, err := store.Cadences(ctx, incidentID, compartment); err == nil {
@@ -187,7 +218,7 @@ func (r *operatorRuntime) Board(ctx context.Context, token, incidentID, compartm
 	}
 
 	if cfg, err := config.Load(); err == nil {
-		for _, check := range []app.Check{packFreshnessCheck(cfg), exportPathCheck(cfg), storageCheck(cfg)} {
+		for _, check := range []app.Check{timeCheck(r.kernel.Clock()), packFreshnessCheck(cfg, r.emergencyChangedAt(ctx)), exportPathCheck(cfg), storageCheck(cfg)} {
 			if check.Status != "pass" {
 				out.Readiness = append(out.Readiness, web.ReadinessCheckView{Name: humanCheckName(check.Name), Status: check.Status, Message: check.Message})
 			}
@@ -207,26 +238,21 @@ func humanCheckName(name string) string {
 		return "Export locations"
 	case "storage_headroom":
 		return "Storage"
+	case "time_status":
+		return "Time"
 	}
-	return strings.ReplaceAll(name, "_", " ")
+	name = strings.ReplaceAll(name, "_", " ")
+	return strings.ToUpper(name[:1]) + name[1:]
 }
 
-// severitySuggestions offers values already confirmed for this incident. No
-// severity scale is hard-coded; a governed organisation scale is gap G-1.
-func severitySuggestions(current string, history []domain.SeverityChangeView) []string {
-	seen := map[string]bool{}
-	var out []string
-	add := func(v string) {
-		if v = strings.TrimSpace(v); v != "" && !seen[v] {
-			seen[v] = true
-			out = append(out, v)
-		}
+// severityLabels returns the organisation's confirmed scale, least severe
+// first. Responders choose only from it (T-202).
+func (r *operatorRuntime) severityLabels(ctx context.Context) []string {
+	scale, found, err := r.organisation.SeverityScale(ctx)
+	if err != nil || !found {
+		return nil
 	}
-	add(current)
-	for _, h := range history {
-		add(h.Change.Severity)
-	}
-	return out
+	return scale.Labels()
 }
 
 // ---- incident writes ----------------------------------------------------------
@@ -444,9 +470,26 @@ func (r *operatorRuntime) IncidentBriefPDF(ctx context.Context, token, incidentI
 }
 
 func (r *operatorRuntime) EmergencyPackPDF(ctx context.Context, token, incidentID, pageSize, printMode string) ([]byte, error) {
-	principal, picture, err := r.scope(ctx, token, incidentID)
+	_, picture, err := r.scope(ctx, token, incidentID)
 	if err != nil {
 		return nil, err
+	}
+	return r.emergencyPackPDF(ctx, token, picture.Incident.Mode, pageSize, printMode)
+}
+
+// OrganisationPackPDF generates the organisation Emergency Response Pack,
+// which is not tied to any incident (UAT 2 notes 2.4).
+func (r *operatorRuntime) OrganisationPackPDF(ctx context.Context, token, pageSize, printMode string) ([]byte, error) {
+	return r.emergencyPackPDF(ctx, token, "live", pageSize, printMode)
+}
+
+func (r *operatorRuntime) emergencyPackPDF(ctx context.Context, token, mode, pageSize, printMode string) ([]byte, error) {
+	principal, ok, err := r.principal(ctx, token)
+	if err != nil {
+		return nil, err
+	}
+	if !ok {
+		return nil, app.ErrAuthorisationDenied
 	}
 	service, capture, defaultSize, err := r.printService()
 	if err != nil {
@@ -455,20 +498,29 @@ func (r *operatorRuntime) EmergencyPackPDF(ctx context.Context, token, incidentI
 	if pageSize == "" {
 		pageSize = defaultSize
 	}
-	pack := domain.EmergencyResponsePack{
-		Organisation: "Incident " + incidentID,
-		Mode:         picture.Incident.Mode,
+	pack, err := r.emergencyPack(ctx, mode)
+	if err != nil {
+		return nil, err
+	}
+	if _, err := service.GenerateEmergencyResponsePack(ctx, principal, pack, pageSize, printMode, r.kernel.Clock().Read().Now); err != nil {
+		return nil, err
+	}
+	return capture.bytes, nil
+}
+
+// emergencyPack composes the pack content. Organisation emergency
+// configuration replaces the generic sections once it is confirmed.
+func (r *operatorRuntime) emergencyPack(_ context.Context, mode string) (domain.EmergencyResponsePack, error) {
+	return domain.EmergencyResponsePack{
+		Organisation: "CRAB organisation",
+		Mode:         mode,
 		Sections: []domain.PackSection{
 			{Title: "Operating rule", Body: "The model proposes. One person makes. Another confirms. Nothing is erased."},
 			{Title: "Degraded operation", Body: "If live CRAB or PostgreSQL is unavailable, use these paper forms. Preserve original occurrence times and source references. Reconcile named-human transcriptions into CRAB after restoration; do not backdate the digital ledger."},
 			{Title: "Authority", Body: "Paper operation does not create new authority. Existing incident roles, compartment boundaries and maker-checker responsibilities continue to apply."},
 		},
 		Forms: domain.DefaultContingencyForms(),
-	}
-	if _, err := service.GenerateEmergencyResponsePack(ctx, principal, pack, pageSize, printMode, time.Now().UTC()); err != nil {
-		return nil, err
-	}
-	return capture.bytes, nil
+	}, nil
 }
 
 // ---- approvals ----------------------------------------------------------------
@@ -573,6 +625,14 @@ func (r *operatorRuntime) approvals(ctx context.Context, principal authz.Princip
 				}
 			}
 		}
+		if pending, err := r.relationStore.PendingRelationships(ctx, id); err == nil {
+			for _, p := range pending {
+				// Shown only to people who can already see both incidents.
+				if principal.Incidents[p.RelatedIncidentID] && principal.Compartments[p.RelatedIncidentID]["GENERAL"] {
+					add(approvalSource{"relationship", id, domain.TypeIncidentRelationship, p.RecordID, "GENERAL", p.Version, p.Maker, p.ProposedAt})
+				}
+			}
+		}
 		allowed := principal.Compartments[id]
 		if pending, err := r.access.PendingAccessForIncident(ctx, id); err == nil {
 			for _, p := range pending {
@@ -600,6 +660,13 @@ func (r *operatorRuntime) approvals(ctx context.Context, principal authz.Princip
 				}
 			}
 		}
+		if principal.Role == authz.RoleMajor {
+			if pending, err := r.organisation.Pending(ctx, principal); err == nil {
+				for _, p := range pending {
+					add(approvalSource{"organisation", "", p.RecordType, p.RecordID, "SYSTEM", p.Version, p.Maker, p.At})
+				}
+			}
+		}
 		if principal.Custodian {
 			if pending, err := r.access.PendingAccessAdministration(ctx); err == nil {
 				for _, p := range pending {
@@ -609,10 +676,16 @@ func (r *operatorRuntime) approvals(ctx context.Context, principal authz.Princip
 		}
 	}
 
-	out := web.ApprovalsView{Incidents: incidents}
+	out := web.ApprovalsView{Incidents: incidents, SelfApprovals: r.recentSelfApprovals(ctx, principal)}
+	now := r.kernel.Clock().Read().Now
 	for _, s := range sources {
 		item := r.approvalView(ctx, s, titles)
 		item.CanDecide = s.maker != principal.HumanID
+		if !item.CanDecide && principal.Role == authz.RoleMajor && s.kind != "organisation" && s.kind != "access" && s.kind != "relationship" && s.kind != "declaration" {
+			if ok, err := r.organisation.Permits(ctx, principal.HumanID, s.recordType, now); err == nil && ok {
+				item.CanSelfApprove = true
+			}
+		}
 		if item.CanDecide {
 			out.Waiting = append(out.Waiting, item)
 		} else {
@@ -631,6 +704,18 @@ func (r *operatorRuntime) approvalView(ctx context.Context, s approvalSource, ti
 		item.IncidentID = s.scopeID
 		item.IncidentTitle = titles[s.scopeID]
 	}
+	if s.kind == "organisation" {
+		if s.compartment == "SYSTEM" {
+			item.Compartment = ""
+		}
+		if !s.proposedAt.IsZero() {
+			item.ProposedAt = s.proposedAt.UTC().Format(displayTime)
+		}
+		if payload, found, err := r.kernel.ProposalPayload(ctx, s.kind, s.scopeID, s.recordType, s.recordID); err == nil && found {
+			item.Summary, item.Consequence, item.Proposed = organisationSummary(s.recordType, payload)
+		}
+		return item
+	}
 	if !s.proposedAt.IsZero() {
 		item.ProposedAt = s.proposedAt.UTC().Format(displayTime)
 	}
@@ -640,6 +725,9 @@ func (r *operatorRuntime) approvalView(ctx context.Context, s approvalSource, ti
 		item.Proposed, values = payloadFields(payload)
 	}
 	item.Reason = firstString(values, "reason_evidence", "reason", "rationale", "applicability_reason")
+	if template := firstString(values, "checklist_template_id"); template != "" {
+		item.Group = "Checklist " + template + " · " + s.scopeID
+	}
 	item.Summary, item.Consequence = approvalSummary(s, values, item.Label)
 	if s.kind == "severity" && item.IncidentID != "" {
 		if current := r.currentSeverity(ctx, item.IncidentID); current != "" {
@@ -681,6 +769,12 @@ func approvalLabel(recordType string) string {
 		"security.incident_sponsor":          "Incident sponsor",
 		"security.compartment_controller":    "Compartment controller",
 		"security.isolate_mode":              "Isolate mode",
+		"security.output_permission":         "Print or download permission",
+		domain.TypeSeverityScale:             "Severity scale",
+		domain.TypeIncidentRelationship:      "Related incident",
+		domain.TypeEmergencyConfiguration:    "Emergency information",
+		domain.TypeChecklistTemplate:         "Checklist template",
+		domain.TypeSinglePersonWindow:        "Single-person window",
 	}
 	if label, ok := labels[recordType]; ok {
 		return label
@@ -727,6 +821,11 @@ func approvalSummary(s approvalSource, v map[string]any, label string) (string, 
 		return "Change obligation clock " + str("clock_id") + " (" + str("kind") + ")", "The original deadline and rule are preserved."
 	case domain.TypeObligationDefinition:
 		return "Obligation: " + str("name"), "Becomes available to start clocks in every incident."
+	case domain.TypeIncidentRelationship:
+		if b, _ := v["active"].(bool); !b {
+			return "Remove link between " + s.scopeID + " and " + str("related_incident_id"), "The link is withdrawn. History is kept."
+		}
+		return "Relate " + s.scopeID + " to " + str("related_incident_id"), "Each incident shows the link to people who can see both. Nobody gains access, and nothing is merged."
 	case domain.TypeStandDown:
 		return "Stand down the emergency response", "The emergency phase ends. The incident stays open for review."
 	case domain.TypePIR:
@@ -808,6 +907,9 @@ func fieldName(key string) string {
 	return strings.ToUpper(key[:1]) + key[1:]
 }
 
+// machineWord matches stored enum values such as not_started.
+var machineWord = regexp.MustCompile(`^[a-z]+(_[a-z]+)+$`)
+
 func fieldText(v any) string {
 	switch t := v.(type) {
 	case nil:
@@ -815,6 +917,9 @@ func fieldText(v any) string {
 	case string:
 		if parsed, err := time.Parse(time.RFC3339Nano, t); err == nil {
 			return parsed.UTC().Format(displayTime)
+		}
+		if machineWord.MatchString(t) {
+			return strings.ReplaceAll(t, "_", " ")
 		}
 		return t
 	case bool:
@@ -845,6 +950,16 @@ func fieldText(v any) string {
 // existing application decision service; each one re-loads the stored
 // proposal, binds the exact version and refuses maker-as-confirmer.
 func (r *operatorRuntime) DecideProposal(ctx context.Context, token string, in web.DecisionInput) error {
+	if in.SelfReason != "" {
+		// Only kinds a single-person window can cover carry the self-approval
+		// request; access, organisation, relationship and declaration never do.
+		switch in.Kind {
+		case "incident", "severity", "communication", "obligation", "recovery":
+			ctx = app.WithSelfApproval(ctx, in.SelfReason)
+		default:
+			return app.ErrNoWindow
+		}
+	}
 	switch in.Kind {
 	case "declaration", "incident":
 		return r.Decide(ctx, token, in.ScopeID, in.RecordType, in.RecordID, in.Version, in.Outcome)
@@ -856,6 +971,21 @@ func (r *operatorRuntime) DecideProposal(ctx context.Context, token string, in w
 		return r.DecideCommunication(ctx, token, in.ScopeID, in.RecordType, in.RecordID, in.Version, in.Outcome)
 	case "access":
 		return r.DecideAccess(ctx, token, in.ScopeID, in.RecordType, in.RecordID, in.Version, in.Outcome)
+	case "relationship":
+		principal, ok, err := r.principal(ctx, token)
+		if err != nil {
+			return err
+		}
+		if !ok {
+			return app.ErrAuthorisationDenied
+		}
+		_, err = r.relationships.Decide(ctx, principal, in.ScopeID, in.RecordID, in.Version, in.Outcome, r.kernel.Clock().Read().Now)
+		return err
+	case "organisation":
+		if !domain.IsOrganisationType(in.RecordType) {
+			return errors.New("unknown approval kind")
+		}
+		return r.DecideOrganisation(ctx, token, in.RecordID, in.Version, in.Outcome)
 	case "recovery":
 		principal, ok, err := r.principal(ctx, token)
 		if err != nil {
@@ -869,3 +999,90 @@ func (r *operatorRuntime) DecideProposal(ctx context.Context, token string, in w
 	}
 	return errors.New("unknown approval kind")
 }
+
+func (r *operatorRuntime) emergencyChangedAt(ctx context.Context) time.Time {
+	at, err := r.organisation.EmergencyChangedAt(ctx)
+	if err != nil {
+		return time.Time{}
+	}
+	return at
+}
+
+func (r *operatorRuntime) ProposeRelationship(ctx context.Context, token, incidentID, relatedID, reason string, active bool) error {
+	principal, picture, err := r.scope(ctx, token, incidentID)
+	if err != nil {
+		return err
+	}
+	scope := domain.Scope{IncidentID: incidentID, Mode: picture.Incident.Mode, Compartment: "GENERAL"}
+	_, err = r.relationships.Propose(ctx, principal, scope, newOperatorID("REL"), domain.IncidentRelationship{RelatedIncidentID: strings.TrimSpace(relatedID), Reason: strings.TrimSpace(reason), Active: active}, r.kernel.Clock().Read().Now)
+	return err
+}
+
+// ActivateChecklist proposes one action per step of a confirmed template.
+// Owners come from the step's named person, else the current holder of its
+// default role on this incident, else the person activating it. Every action
+// still needs a second person (T-207).
+func (r *operatorRuntime) ActivateChecklist(ctx context.Context, token, incidentID, templateID string) error {
+	principal, picture, err := r.scope(ctx, token, incidentID)
+	if err != nil {
+		return err
+	}
+	templates, err := r.organisation.ChecklistTemplates(ctx, principal)
+	if err != nil {
+		return err
+	}
+	var chosen *domain.GovernedChecklistTemplate
+	for i := range templates {
+		if templates[i].TemplateID == templateID && templates[i].Active {
+			chosen = &templates[i]
+		}
+	}
+	if chosen == nil {
+		return errors.New("choose a confirmed checklist template")
+	}
+	holders := map[string]string{}
+	for _, role := range picture.OperationalRoles {
+		if !role.Assignment.Deputy {
+			holders[strings.ToLower(role.Assignment.RoleName)] = role.Assignment.HumanID
+		}
+	}
+	owners := map[string]string{}
+	for _, step := range chosen.Steps {
+		switch {
+		case step.DefaultOwnerHumanID != "":
+		case holders[strings.ToLower(step.DefaultRole)] != "":
+			owners[step.StepID] = holders[strings.ToLower(step.DefaultRole)]
+		default:
+			owners[step.StepID] = principal.HumanID
+		}
+	}
+	scope := domain.Scope{IncidentID: incidentID, Mode: picture.Incident.Mode, Compartment: "GENERAL"}
+	_, err = r.incident.ActivateChecklist(ctx, principal, scope, chosen.TemplateID, newOperatorID("CHK"), chosen.ChecklistTemplate, owners, r.kernel.Clock().Read().Now)
+	return err
+}
+
+// recentSelfApprovals lists self-approved decisions in the last 24 hours in
+// incidents the viewer can see (AC-07 single-approval dashboard).
+func (r *operatorRuntime) recentSelfApprovals(ctx context.Context, principal authz.Principal) []web.SelfApprovalView {
+	since := r.kernel.Clock().Read().Now.Add(-24 * time.Hour)
+	var out []web.SelfApprovalView
+	ids := make([]string, 0, len(principal.Incidents))
+	for id := range principal.Incidents {
+		ids = append(ids, id)
+	}
+	sort.Strings(ids)
+	for _, id := range ids {
+		picture, found, err := r.incident.CommonOperatingPicture(ctx, principal, id, "GENERAL")
+		if err != nil || !found {
+			continue
+		}
+		for _, entry := range picture.Timeline {
+			if entry.Governance == "self-approved" && entry.RecordedAt.After(since) {
+				out = append(out, web.SelfApprovalView{IncidentID: id, Summary: humanRecordLabel(entry.RecordType) + ": " + entry.Summary, At: entry.RecordedAt.UTC().Format(displayTime), TimeUnverified: entry.TimeStatus != ledger.TimeTrusted})
+			}
+		}
+	}
+	return out
+}
+
+func humanRecordLabel(recordType string) string { return approvalLabel(recordType) }

@@ -19,6 +19,9 @@ func (CommunicationProjection) Reset(ctx context.Context, tx pgx.Tx) error {
 	if _, err := tx.Exec(ctx, `DELETE FROM crab.timed_wait_list WHERE wake_kind='communication_cadence'`); err != nil {
 		return err
 	}
+	if _, err := tx.Exec(ctx, `DELETE FROM crab.incident_timeline WHERE record_type IN ($1,$2)`, domain.TypeCommunicationIssue, domain.TypeCommunicationCadence); err != nil {
+		return err
+	}
 	_, err := tx.Exec(ctx, `TRUNCATE crab.incoming_enquiries, crab.notification_outcomes, crab.communication_cadences, crab.communications, crab.communication_proposals, crab.communication_drafts`)
 	return err
 }
@@ -67,6 +70,17 @@ func (CommunicationProjection) Apply(ctx context.Context, tx pgx.Tx, entry ledge
 	}
 	if record.Status == "confirmed" {
 		if err := applyConfirmedCommunication(ctx, tx, record); err != nil {
+			return err
+		}
+		summary := "Report cadence confirmed"
+		if record.RecordType == domain.TypeCommunicationIssue {
+			if value, err := domain.DecodePayload[domain.CommunicationIssue](record); err == nil {
+				summary = "Communication approved: " + value.Subject
+			}
+		} else if value, err := domain.DecodePayload[domain.CommunicationCadence](record); err == nil {
+			summary = "Report cadence confirmed: " + value.Name
+		}
+		if err := insertTimelineDecision(ctx, tx, entry, summary); err != nil {
 			return err
 		}
 	}

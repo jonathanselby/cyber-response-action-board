@@ -6,6 +6,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"github.com/jonathanselby/cyber-response-action-board/internal/adapters/clock"
 	"io"
 	"net/http"
 	"os"
@@ -112,7 +113,7 @@ func runReadiness(stdout, stderr io.Writer) int {
 			}
 		}
 	}
-	enrichReadiness(cfg, &r)
+	enrichReadiness(cfg, &r, clock.NewHost(), time.Time{})
 	r = app.FinaliseReadiness(r)
 	enc := json.NewEncoder(stdout)
 	enc.SetIndent("", "  ")

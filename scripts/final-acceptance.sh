@@ -101,7 +101,7 @@ run_gate() {
 run_gate "module contract" bash -c 'go mod tidy && git diff --exit-code -- go.mod go.sum'
 run_gate "format contract" bash -c 'files=$(gofmt -l ./cmd ./internal); test -z "$files"'
 run_gate "vet" go vet ./...
-run_gate "Bafflewick 8-of-8 scenario" ./scripts/bafflewick-acceptance.sh
+run_gate "Bafflewick 9-of-9 scenario" ./scripts/bafflewick-acceptance.sh
 run_gate "visual and accessibility preflight" ./scripts/visual-acceptance-preflight.sh
 run_gate "full tests" go test -count=1 ./...
 run_gate "native build" ./scripts/build.sh ./bin/crab
@@ -120,7 +120,7 @@ run_gate "binary startup baseline" ./bin/crab version
   echo
   echo "The per-gate blocks above record elapsed time and, when GNU /usr/bin/time is installed, maximum resident set size, CPU time and other process evidence. This records measured evidence rather than replacing the EDD's deliberately qualitative 'low hundreds of MiB' target with an invented threshold."
   echo
-  echo "Bafflewick includes the required degraded-operation paths: optional model loss/shedding, corporate federation loss with local authentication, paper fallback/reconciliation, backup/restore/rebuild, access revocation, closure/read-only enforcement and fail-closed hostile/output controls."
+  echo "Bafflewick includes the required degraded-operation paths: optional model loss/shedding, corporate federation loss with local authentication, paper fallback/reconciliation, backup/restore/rebuild, access revocation, closure/read-only enforcement, fail-closed hostile/output controls, unverified time and the single-person window."
   echo
   echo "## Host snapshot after gates"
   echo

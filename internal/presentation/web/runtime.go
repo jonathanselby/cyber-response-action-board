@@ -31,6 +31,8 @@ type Runtime interface {
 	ProposeRoleAssignment(ctx context.Context, token, incidentID, roleName, humanID string, deputy bool) error
 	ProposeAction(ctx context.Context, token, incidentID, title, owner, priority, sourceRef string) error
 	ProposeActionStatus(ctx context.Context, token, incidentID, actionID, status, skipReason string) error
+	ProposeRelationship(ctx context.Context, token, incidentID, relatedID, reason string, active bool) error
+	ActivateChecklist(ctx context.Context, token, incidentID, templateID string) error
 	Retrieve(ctx context.Context, token, incidentID, question string) (GuidanceView, error)
 
 	// Continuity.
@@ -74,6 +76,14 @@ type Runtime interface {
 	ProposeController(ctx context.Context, token, incidentID, humanID, compartment string, active bool) error
 	ProposeIncidentMembership(ctx context.Context, token, incidentID, humanID string, active bool, effectiveAt, expiresAt *time.Time, reason string) error
 	ProposeCompartmentMembership(ctx context.Context, token, incidentID, humanID, compartment string, active bool, effectiveAt, expiresAt *time.Time, reason string) error
+	ProposeOutputPermission(ctx context.Context, token, humanID, action string, active bool) error
+
+	// Organisation configuration (UAT 2 items 2, 4, 5, 6).
+	Organisation(ctx context.Context, token string) (OrganisationPage, error)
+	ProposeSeverityScale(ctx context.Context, token string, labels []string) error
+	ProposeEmergencyConfiguration(ctx context.Context, token string, value domain.EmergencyConfiguration) error
+	ProposeChecklistTemplate(ctx context.Context, token string, value domain.GovernedChecklistTemplate) error
+	ProposeSinglePersonWindow(ctx context.Context, token string, value domain.SinglePersonWindow) error
 	Readiness(context.Context, string) (ReadinessPage, error)
 
 	// Close-out and paper.
@@ -86,6 +96,7 @@ type Runtime interface {
 	TranscribePaper(ctx context.Context, token, incidentID string, input PaperInput) error
 	IncidentBriefPDF(ctx context.Context, token, incidentID, pageSize, printMode string) ([]byte, error)
 	EmergencyPackPDF(ctx context.Context, token, incidentID, pageSize, printMode string) ([]byte, error)
+	OrganisationPackPDF(ctx context.Context, token, pageSize, printMode string) ([]byte, error)
 
 	// Approvals: one surface and one decision path for every governed change.
 	Approvals(ctx context.Context, token, incidentID string) (ApprovalsView, error)
@@ -117,6 +128,7 @@ type StatusFlags struct {
 	PackStale        bool
 	ReadinessFail    bool
 	ModelUnavailable bool
+	WindowOpen       bool
 }
 
 type IncidentContext struct {
@@ -134,6 +146,8 @@ type BootstrapInput struct {
 	PreparedPassword  string
 	ConfirmedBy       string
 	ConfirmedPassword string
+	// SeverityLevels is the first severity scale, least severe first.
+	SeverityLevels []string
 }
 
 type IncidentLink struct {
@@ -169,6 +183,17 @@ type HomeView struct {
 	CanDeclare          bool
 	Incidents           []IncidentLink
 	PendingDeclarations []PendingDeclaration
+	// Command Summary attention items, already scoped to this user (T-198).
+	WaitingApprovals int
+	CanTriage        bool
+	AwaitingTriage   int
+	SeverityValues   []string // the organisation's confirmed scale
+	SelfApprovals    []SelfApprovalView
+}
+
+type SelfApprovalView struct {
+	IncidentID, Summary, At string
+	TimeUnverified          bool
 }
 
 type PendingDeclaration struct {
@@ -200,6 +225,18 @@ type BoardView struct {
 	SeverityValues   []string
 	Members          []string
 	PendingApprovals int
+	Related          []RelatedIncidentView
+	RelateCandidates []IncidentLink
+	Checklists       []ChecklistOption
+}
+
+type RelatedIncidentView struct {
+	IncidentID, Title, Reason, Maker, Confirmer, ConfirmedAt string
+}
+
+type ChecklistOption struct {
+	TemplateID, Name, SourceRef string
+	Steps                       int
 }
 
 type GuidanceView struct {
@@ -212,6 +249,7 @@ type GuidanceView struct {
 // ---- Approvals -------------------------------------------------------------
 
 type ApprovalsView struct {
+	SelfApprovals []SelfApprovalView
 	Waiting       []ApprovalView
 	AwaitingOther []ApprovalView
 	Incidents     []IncidentLink
@@ -219,6 +257,7 @@ type ApprovalsView struct {
 }
 
 type ApprovalView struct {
+	Group         string // e.g. one checklist activation; shown as a heading
 	Kind          string
 	Label         string
 	IncidentID    string
@@ -236,11 +275,15 @@ type ApprovalView struct {
 	RecordID      string
 	Version       string
 	CanDecide     bool
+	// CanSelfApprove is true when a confirmed single-person window lets the
+	// maker decide this proposal now, with a reason.
+	CanSelfApprove bool
 }
 
 type Field struct{ Name, Value string }
 
 type DecisionInput struct {
+	SelfReason string // set only when the maker decides inside a single-person window
 	Kind       string
 	ScopeID    string
 	RecordType string
@@ -413,12 +456,15 @@ type AccessPendingView struct {
 }
 
 type AccessAdministrationPage struct {
+	OutputPermissions      []AccessOutputView
 	Sponsors               []AccessDesignationView
 	Controllers            []AccessDesignationView
 	IncidentMemberships    []AccessMembershipView
 	CompartmentMemberships []AccessMembershipView
 	Pending                []AccessPendingView
 }
+
+type AccessOutputView struct{ HumanID, Action string }
 
 type ReadinessCheckView struct {
 	Name    string
@@ -542,4 +588,32 @@ type PaperInput struct {
 	PaperOccurredAt time.Time
 	SourceReference string
 	TimeConfidence  string
+}
+
+// ---- Organisation ----------------------------------------------------------
+
+type ConfirmedBy struct {
+	Maker, Confirmer, At string
+	SelfApproval         bool
+	TimeUnverified       bool
+}
+
+type OrganisationPage struct {
+	CanPropose      bool
+	CanReadContacts bool
+	Severity        []domain.SeverityLevel
+	SeverityMeta    *ConfirmedBy
+	Emergency       *domain.EmergencyConfiguration
+	EmergencyMeta   *ConfirmedBy
+	Templates       []domain.GovernedChecklistTemplate
+	Windows         []WindowView
+	Majors          []string
+	Pending         int
+}
+
+type WindowView struct {
+	domain.SinglePersonWindow
+	State string // OPEN | UPCOMING | ENDED | CLOSED
+	Meta  *ConfirmedBy
+	Kinds []string
 }

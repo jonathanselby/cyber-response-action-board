@@ -69,9 +69,9 @@ var messages = map[string]string{
 
 type navItem struct{ key, label, path string }
 
-var responseNav = []navItem{{"incidents", "Incidents", "/"}, {"approvals", "Approvals", "/approvals"}, {"intake", "First reports", "/intake"}}
+var responseNav = []navItem{{"incidents", "Command Summary", "/"}, {"approvals", "Approvals", "/approvals"}, {"intake", "First reports", "/intake"}}
 var incidentNav = []navItem{{"board", "Board", ""}, {"evidence", "Evidence", "/evidence"}, {"communications", "Communications", "/communications"}, {"access", "Access", "/access"}, {"close", "Close-out", "/close"}}
-var systemNav = []navItem{{"readiness", "Readiness", "/readiness"}, {"obligations", "Obligation library", "/obligations"}, {"access-admin", "Access admin", "/access"}}
+var systemNav = []navItem{{"readiness", "Readiness", "/readiness"}, {"organisation", "Organisation", "/organisation"}, {"obligations", "Obligation library", "/obligations"}, {"access-admin", "Access admin", "/access"}}
 
 func (s *Server) navigation(frame FrameView, current string) []shell.NavGroup {
 	group := func(label string, items []navItem, prefix string) shell.NavGroup {
@@ -110,6 +110,9 @@ func statusLine(frame FrameView) string {
 		items = append(items, "Time unverified")
 	case "drifting":
 		items = append(items, "Time drifting")
+	}
+	if st.WindowOpen {
+		items = append(items, "Single-person window open")
 	}
 	if st.PendingApprovals == 1 {
 		items = append(items, "1 approval")
@@ -186,6 +189,7 @@ func (s *Server) compose(sc screen, data pageData, actions []Action) ([]byte, er
 	if data.Frame.Incident != nil {
 		_ = s.templates.ExecuteTemplate(&framed, "incident-context", data)
 	}
+	_ = s.templates.ExecuteTemplate(&framed, "time-trust", data)
 	framed.Write(body.Bytes())
 	framed.WriteString(`</div>`)
 
@@ -484,7 +488,7 @@ var templateFuncs = template.FuncMap{
 	"pathEscape": url.PathEscape,
 	"statusBadge": func(status string) string {
 		switch strings.ToLower(status) {
-		case "pass", "delivered", "complete", "confirmed", "firm", "verified", "met", "live":
+		case "pass", "delivered", "complete", "confirmed", "firm", "verified", "met":
 			return "success"
 		case "warn", "provisional", "suppressed", "in_progress", "not-configured", "exercise", "skipped":
 			return "warning"
@@ -510,7 +514,25 @@ var templateFuncs = template.FuncMap{
 	"outcomes": func(m map[string][]domain.NotificationOutcomeView, id string) []domain.NotificationOutcomeView {
 		return m[id]
 	},
-	"inc":      func(n int) int { return n + 1 },
+	"inc":           func(n int) int { return n + 1 },
+	"emergencyText": emergencyText,
+	"windowKinds": func() []Field {
+		out := make([]Field, 0, len(domain.WindowCoverableKinds))
+		for kind, label := range domain.WindowCoverableKinds {
+			out = append(out, Field{Name: label, Value: kind})
+		}
+		sort.Slice(out, func(i, j int) bool { return out[i].Name < out[j].Name })
+		return out
+	},
+	"partyLabel": func(category string) string {
+		if category == "" {
+			return ""
+		}
+		return strings.ToUpper(category[:1]) + category[1:]
+	},
+	"paper": func(action, id, label string) map[string]string {
+		return map[string]string{"Action": action, "ID": id, "Label": label}
+	},
 	"sameTime": func(a, b time.Time) bool { return a.Equal(b) },
 }
 
@@ -593,6 +615,20 @@ func humanRecordType(recordType string) string {
 		return "Change"
 	}
 	return strings.ToUpper(name[:1]) + name[1:]
+}
+
+// writeInlinePDF shows a CRAB-generated PDF in the browser's viewer (T-197).
+// The HTML content policy is replaced by one suited to a PDF body: no
+// framing, no sniffing, no caching. Evidence attachments never use this.
+func writeInlinePDF(w http.ResponseWriter, filename string, body []byte) {
+	w.Header().Set("Content-Type", "application/pdf")
+	w.Header().Set("Content-Disposition", `inline; filename="`+filename+`"`)
+	w.Header().Set("Content-Security-Policy", "frame-ancestors 'none'")
+	w.Header().Set("Cache-Control", "no-store")
+	w.Header().Set("X-Content-Type-Options", "nosniff")
+	w.Header().Set("X-Frame-Options", "DENY")
+	w.Header().Set("Content-Length", strconv.Itoa(len(body)))
+	_, _ = io.Copy(w, bytes.NewReader(body))
 }
 
 // writeAttachment streams bytes as a no-store attachment.

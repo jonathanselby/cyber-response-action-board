@@ -124,7 +124,7 @@ func RecordFirstReport(recordID, maker string, now time.Time, report FirstReport
 	if report.ReceivedAt.IsZero() || strings.TrimSpace(report.Description) == "" || strings.TrimSpace(report.SourceChannel) == "" {
 		return ledger.Record{}, errors.New("received time, description and source channel are required")
 	}
-	if report.TimeConfidence != "trusted" && report.TimeConfidence != "drifting" && report.TimeConfidence != "untrusted" {
+	if report.TimeConfidence != ledger.TimeTrusted && report.TimeConfidence != ledger.TimeDrifting && report.TimeConfidence != ledger.TimeUntrusted {
 		return ledger.Record{}, errors.New("first-report time confidence must be trusted, drifting or untrusted")
 	}
 	if strings.TrimSpace(report.TriageStatus) == "" {
@@ -135,7 +135,7 @@ func RecordFirstReport(recordID, maker string, now time.Time, report FirstReport
 	if err != nil {
 		return ledger.Record{}, err
 	}
-	record := ledger.Record{SchemaVersion: 1, Timestamp: now.UTC(), TimeStatus: "trusted", IncidentMode: "system", WriteSemantic: "record", RecordType: TypeFirstReport, RecordID: recordID, Status: "recorded", Maker: maker, Compartment: "SYSTEM", Data: raw, MakerSignature: ledger.Signature{MissingReason: "maker authenticated by CRAB session; no per-record signing key"}}
+	record := ledger.Record{SchemaVersion: 1, Timestamp: now.UTC(), TimeStatus: ledger.TimeTrusted, IncidentMode: "system", WriteSemantic: "record", RecordType: TypeFirstReport, RecordID: recordID, Status: "recorded", Maker: maker, Compartment: "SYSTEM", Data: raw, MakerSignature: ledger.Signature{MissingReason: "maker authenticated by CRAB session; no per-record signing key"}}
 	if err := ledger.ValidateRecord(record); err != nil {
 		return ledger.Record{}, err
 	}
@@ -158,7 +158,7 @@ func RecordFirstReportDisposition(recordID, maker string, now time.Time, value F
 	if err != nil {
 		return ledger.Record{}, err
 	}
-	record := ledger.Record{SchemaVersion: 1, Timestamp: now.UTC(), TimeStatus: "trusted", IncidentMode: "system", WriteSemantic: "record", RecordType: TypeFirstReportDisposition, RecordID: recordID, Status: "recorded", Maker: maker, Compartment: "SYSTEM", Data: raw, MakerSignature: ledger.Signature{MissingReason: "maker authenticated by CRAB session; no per-record signing key"}}
+	record := ledger.Record{SchemaVersion: 1, Timestamp: now.UTC(), TimeStatus: ledger.TimeTrusted, IncidentMode: "system", WriteSemantic: "record", RecordType: TypeFirstReportDisposition, RecordID: recordID, Status: "recorded", Maker: maker, Compartment: "SYSTEM", Data: raw, MakerSignature: ledger.Signature{MissingReason: "maker authenticated by CRAB session; no per-record signing key"}}
 	if err := ledger.ValidateRecord(record); err != nil {
 		return ledger.Record{}, err
 	}

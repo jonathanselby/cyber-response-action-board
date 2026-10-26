@@ -63,7 +63,7 @@ func (AccessProjection) Apply(ctx context.Context, tx pgx.Tx, entry ledger.Entry
 			if err != nil {
 				return err
 			}
-			if version != data.Version || maker != record.Maker || compartment != record.Compartment || mode != record.IncidentMode || timeStatus != record.TimeStatus || !bytes.Equal(payload, []byte(data.Payload)) {
+			if version != data.Version || maker != record.Maker || compartment != record.Compartment || mode != record.IncidentMode || !bytes.Equal(payload, []byte(data.Payload)) {
 				return errors.New("access decision does not match exact pending proposal")
 			}
 			if record.Status == "confirmed" {
@@ -335,6 +335,30 @@ func (s *AccessStore) IsController(ctx context.Context, humanID, incidentID, com
 	return result, err
 }
 
+func (s *AccessStore) IsCustodian(ctx context.Context, humanID string) (bool, error) {
+	var result bool
+	err := s.pool.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM crab.custodian_designations WHERE human_id=$1)`, humanID).Scan(&result)
+	return result, err
+}
+
+// MajorIDs lists people eligible for the Major role.
+func (s *AccessStore) MajorIDs(ctx context.Context) ([]string, error) {
+	rows, err := s.pool.Query(ctx, `SELECT human_id FROM crab.role_eligibility WHERE role='Major' ORDER BY human_id`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []string
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		out = append(out, id)
+	}
+	return out, rows.Err()
+}
+
 func (s *AccessStore) IsMajorEligible(ctx context.Context, humanID string) (bool, error) {
 	var result bool
 	err := s.pool.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM crab.role_eligibility WHERE human_id=$1 AND role='Major')`, humanID).Scan(&result)
@@ -361,6 +385,22 @@ func (s *AccessStore) HasIncidentMembershipAt(ctx context.Context, humanID, inci
 
 func (s *AccessStore) AdministrationView(ctx context.Context, now time.Time) (access.AdministrationView, error) {
 	var view access.AdministrationView
+	outputs, err := s.pool.Query(ctx, `SELECT human_id,action FROM crab.output_permissions ORDER BY human_id,action`)
+	if err != nil {
+		return view, err
+	}
+	for outputs.Next() {
+		var v access.OutputPermissionView
+		if err := outputs.Scan(&v.HumanID, &v.Action); err != nil {
+			outputs.Close()
+			return view, err
+		}
+		view.OutputPermissions = append(view.OutputPermissions, v)
+	}
+	outputs.Close()
+	if err := outputs.Err(); err != nil {
+		return view, err
+	}
 	rows, err := s.pool.Query(ctx, `SELECT human_id,incident_id FROM crab.incident_sponsors ORDER BY incident_id,human_id`)
 	if err != nil {
 		return view, err

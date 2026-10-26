@@ -16,6 +16,35 @@ import (
 
 const MaxEntryBytes = 4 << 20
 
+// Time-status values. A record's time status is the caller's upper bound; the
+// kernel caps it by the one clock at write (UAT 2 item 1, T-194).
+const (
+	TimeTrusted   = "trusted"
+	TimeDrifting  = "drifting"
+	TimeUntrusted = "untrusted"
+)
+
+// WeakerTimeStatus returns the less trustworthy of two time statuses. An
+// unknown value is treated as untrusted, so the result never strengthens.
+func WeakerTimeStatus(a, b string) string {
+	rank := func(s string) int {
+		switch s {
+		case TimeTrusted:
+			return 2
+		case TimeDrifting:
+			return 1
+		}
+		return 0
+	}
+	switch {
+	case rank(a) == 0 || rank(b) == 0:
+		return TimeUntrusted
+	case rank(a) <= rank(b):
+		return a
+	}
+	return b
+}
+
 type Signature struct {
 	KeyID         string `json:"key_id,omitempty"`
 	Value         string `json:"value,omitempty"`
@@ -98,7 +127,7 @@ func ValidateRecord(r Record) error {
 	if r.Timestamp.IsZero() || r.RecordID == "" || r.Maker == "" {
 		return errors.New("timestamp, record_id and maker are required")
 	}
-	if r.TimeStatus != "trusted" && r.TimeStatus != "drifting" && r.TimeStatus != "untrusted" {
+	if r.TimeStatus != TimeTrusted && r.TimeStatus != TimeDrifting && r.TimeStatus != TimeUntrusted {
 		return errors.New("invalid time_status")
 	}
 	switch r.IncidentMode {

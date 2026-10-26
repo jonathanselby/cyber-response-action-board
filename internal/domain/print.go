@@ -51,6 +51,10 @@ type IncidentBrief struct {
 type PackSection struct {
 	Title string
 	Body  string
+	// Optional table, printed before the body text.
+	Columns []string
+	Widths  []float64
+	Rows    [][]string
 }
 
 type BlankForm struct {
@@ -99,7 +103,7 @@ func ValidatePrintSourceMark(value PrintSourceMark) error {
 	if value.LedgerSequence == 0 || strings.TrimSpace(value.LedgerHash) == "" || strings.TrimSpace(value.ConfigurationVersion) == "" || value.GeneratedAt.IsZero() {
 		return errors.New("print source mark requires ledger sequence/hash, configuration version and generation time")
 	}
-	if value.TimeStatus != "trusted" && value.TimeStatus != "drifting" && value.TimeStatus != "untrusted" {
+	if value.TimeStatus != ledger.TimeTrusted && value.TimeStatus != ledger.TimeDrifting && value.TimeStatus != ledger.TimeUntrusted {
 		return errors.New("print source mark has invalid time status")
 	}
 	return nil
@@ -133,8 +137,8 @@ func ValidateEmergencyResponsePack(value EmergencyResponsePack) error {
 		return errors.New("emergency response pack requires approved sections and blank forms")
 	}
 	for _, section := range value.Sections {
-		if strings.TrimSpace(section.Title) == "" || strings.TrimSpace(section.Body) == "" {
-			return errors.New("emergency response pack section requires title and body")
+		if strings.TrimSpace(section.Title) == "" || (strings.TrimSpace(section.Body) == "" && len(section.Rows) == 0) {
+			return errors.New("emergency response pack section requires title and body or rows")
 		}
 	}
 	for _, form := range value.Forms {
@@ -164,7 +168,7 @@ func ValidatePaperTranscription(value PaperTranscription) error {
 	if strings.TrimSpace(value.Statement) == "" || value.PaperOccurredAt.IsZero() || strings.TrimSpace(value.SourceReference) == "" {
 		return errors.New("paper transcription requires statement, paper occurrence time and source reference")
 	}
-	if value.TimeConfidence != "trusted" && value.TimeConfidence != "drifting" && value.TimeConfidence != "untrusted" {
+	if value.TimeConfidence != ledger.TimeTrusted && value.TimeConfidence != ledger.TimeDrifting && value.TimeConfidence != ledger.TimeUntrusted {
 		return errors.New("paper transcription time confidence must be trusted, drifting or untrusted")
 	}
 	return nil

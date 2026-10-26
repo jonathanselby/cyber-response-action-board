@@ -1,5 +1,61 @@
 # Changelog
 
+## Unreleased — 0.0.21-dev
+
+UAT Phase 2 response, Stage 6: release candidate for Phase 3 UAT.
+
+- Phase 3 UAT script (`docs/uat-phase3-script.md`) mapping every Phase 2 concern to what to check and its tests.
+- Phase 3 human UAT record opened in `docs/visual-acceptance.md`.
+- Seeded demo data now includes a single-person window and a self-approved decision.
+- Documentation brought to Bafflewick 9/9.
+
+## Unreleased — 0.0.20-dev
+
+UAT Phase 2 response, Stage 5: single-person emergency approval window.
+
+- Two people can open a time-limited window (at most 24 hours) that lets a named Major confirm their own proposals of chosen kinds, with a reason. Access, isolate, custodian, organisation configuration, the window itself, closure and retention can never be self-approved (T-208).
+- Every self-approval is marked `SELF-APPROVAL` on Approvals, Board, timeline, Brief and Command Summary; the status line shows *Single-person window open*; an unverified clock adds its own marker (T-209, T-210).
+- Bafflewick phase 9: degraded authority. Threshold 9/9.
+
+## Unreleased — 0.0.19-dev
+
+UAT Phase 2 response, Stage 4: related incidents and checklist templates.
+
+- Related incidents: one person proposes *A is related to B* with a reason, another confirms. Both must already see both incidents; a link never grants access, merges nothing and is invisible to anyone who cannot see both (T-205, T-206).
+- Checklist templates are governed organisation records; *Activate checklist* on the Board proposes one action per step with its source and template, owners taken from the step's default role. Approvals groups an activation's steps (T-207).
+- Migration 017.
+
+## Unreleased — 0.0.18-dev
+
+UAT Phase 2 response, Stage 3: organisation configuration.
+
+- New Organisation screen for governed policy, proposed by one Major and confirmed by another.
+- Severity scale: confirmed by both people at setup (default Severity level 1–5); declarations and severity changes choose only from it (T-202).
+- Emergency information (contacts, insurers, regulators, advisers, escalation route, role cards, procedures) fills the Emergency Response Pack and the Incident Brief contacts (T-203); a change marks the printed pack stale until regenerated (T-204).
+- Migration 016: rebuildable organisation projections.
+
+## Unreleased — 0.0.17-dev
+
+UAT Phase 2 response, Stage 2: Storm Blue.
+
+- Locked Storm Blue palette in light and dark through shell tokens only; status colours used only for state; contrast checked automatically (T-200).
+- New CRAB logo on sign-in and setup, PWA icons and favicon.
+- Command Summary is the home page: what needs attention (approvals, first reports, stale paper pack) and my active incidents, scoped to what the user may see (T-198, T-199).
+- PDFs restyled: CRAB masthead on every page, compact metadata bar, readable tables, writable ruled forms, monochrome-safe meaning (T-201).
+- Print and download permissions can now be granted and withdrawn by two Custodians in Access admin; previously there was no path at all.
+- Visual capture workflow and end-to-end test harness against PostgreSQL.
+
+## Unreleased — 0.0.16-dev
+
+UAT Phase 2 response, Stage 1: quick corrections.
+
+- Human-chosen passwords now need at least 12 characters with an upper-case letter, a lower-case letter and a symbol (one rule in `authn`, T-193).
+- One time authority: `internal/adapters/clock` reads the host kernel's clock discipline; the ledger kernel caps every unsigned write by it, so no record claims more time trust than CRAB can prove (T-194 to T-196).
+- Readiness, the status line, PDF time marks and first-report defaults use the live reading; every authenticated page states `TIME UNVERIFIED` while the clock is unverified. CRAB keeps operating.
+- Every PDF offers *Preview* (opens in the browser's viewer) beside *Download* (T-197).
+- The organisation Emergency Response Pack is available from Readiness without opening an incident.
+- Added `UAT2-BUILD-NOTES.md`, `docs/uat-phase2-triage.md`, T-193 to T-213 and `docs/build-evidence-0.0.16-dev.md`.
+
 ## Unreleased — 0.0.15-dev
 
 Slice 15 browser presentation rebuild after Phase 1 UAT (AC-43 failed).

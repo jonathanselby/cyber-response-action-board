@@ -178,7 +178,7 @@ func applyTimeline(ctx context.Context, tx pgx.Tx, entry ledger.Entry) error {
 	if err != nil {
 		return err
 	}
-	governance := record.Status
+	governance := timelineGovernance(record)
 	if record.WriteSemantic == "record" {
 		governance = "recorded"
 	}
@@ -391,4 +391,22 @@ func (s *IncidentStore) readTimeline(ctx context.Context, incidentID string, pic
 		picture.Timeline = append(picture.Timeline, v)
 	}
 	return rows.Err()
+}
+
+// timelineGovernance names how a record took effect; a single-person window
+// self-approval is always visible as such on the timeline (AC-07).
+func timelineGovernance(record ledger.Record) string {
+	if record.SelfApproval && record.Status == "confirmed" {
+		return "self-approved"
+	}
+	return record.Status
+}
+
+// insertTimelineDecision adds a confirmed governed change from a contributing
+// projection to the incident timeline, so every confirmation (and every
+// self-approval) is visible in one place.
+func insertTimelineDecision(ctx context.Context, tx pgx.Tx, entry ledger.Entry, summary string) error {
+	record := entry.Record
+	_, err := tx.Exec(ctx, `INSERT INTO crab.incident_timeline(sequence,incident_id,record_id,record_type,governance,compartment,summary,recorded_at,awareness,time_status) VALUES($1,$2,$3,$4,$5,$6,$7,$8,'[]'::jsonb,$9)`, entry.Seq, record.IncidentID, record.RecordID, record.RecordType, timelineGovernance(record), record.Compartment, summary, record.Timestamp, record.TimeStatus)
+	return err
 }

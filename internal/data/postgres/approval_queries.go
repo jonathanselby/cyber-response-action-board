@@ -19,6 +19,8 @@ var proposalTables = map[string]struct{ table, scope string }{
 	"communication": {"crab.communication_proposals", "incident_id"},
 	"access":        {"crab.access_proposals", "scope_id"},
 	"recovery":      {"crab.incident_recovery_proposals", "incident_id"},
+	"organisation":  {"crab.organisation_proposals", "''::text"},
+	"relationship":  {"crab.incident_relationship_proposals", "incident_id"},
 }
 
 // ProposalPayload returns the stored payload of one pending proposal. Callers

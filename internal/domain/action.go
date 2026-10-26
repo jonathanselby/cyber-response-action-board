@@ -24,6 +24,7 @@ type ChecklistTemplateStep struct {
 	StepID              string   `json:"step_id"`
 	Title               string   `json:"title"`
 	DefaultOwnerHumanID string   `json:"default_owner_human_id,omitempty"`
+	DefaultRole         string   `json:"default_role,omitempty"`
 	Priority            string   `json:"priority"`
 	DueAfterMinutes     int      `json:"due_after_minutes,omitempty"`
 	Notes               string   `json:"notes,omitempty"`

@@ -31,6 +31,14 @@ type fakeRuntime struct {
 	capture      FirstReportCapture
 	evidenceComp string
 	pdfErr       error
+	reads        map[string]int // read calls, for frame/summary cost tests
+}
+
+func (f *fakeRuntime) read(name string) {
+	if f.reads == nil {
+		f.reads = map[string]int{}
+	}
+	f.reads[name]++
 }
 
 const testIncident = "INC-1"
@@ -70,6 +78,7 @@ func (f *fakeRuntime) Authenticate(_ context.Context, id, _ string) (string, err
 func (f *fakeRuntime) Logout(context.Context, string) error { return nil }
 
 func (f *fakeRuntime) Frame(_ context.Context, token, incidentID string) (FrameView, bool, error) {
+	f.read("Frame")
 	if token == "" || token == "expired" {
 		return FrameView{}, false, nil
 	}
@@ -85,7 +94,8 @@ func (f *fakeRuntime) Frame(_ context.Context, token, incidentID string) (FrameV
 }
 
 func (f *fakeRuntime) Home(context.Context, string) (HomeView, bool, error) {
-	return HomeView{HumanID: "alice", Role: "Major", CanDeclare: true, Incidents: []IncidentLink{{IncidentID: testIncident, Mode: f.incidentMode(), Title: "Bafflewick payroll", Severity: "High", Phase: "Active response", Pending: 2}}}, true, nil
+	f.read("Home")
+	return HomeView{HumanID: "alice", Role: "Major", CanDeclare: true, Incidents: []IncidentLink{{IncidentID: testIncident, Mode: f.incidentMode(), Title: "Bafflewick payroll", Severity: "High", Phase: "Active response", Pending: 2}}, WaitingApprovals: 2, CanTriage: true, AwaitingTriage: 1}, true, nil
 }
 
 func (f *fakeRuntime) Incident(_ context.Context, _ string, id string) (IncidentView, bool, error) {
@@ -149,6 +159,7 @@ func (f *fakeRuntime) Retrieve(_ context.Context, _ string, _ string, q string) 
 }
 
 func (f *fakeRuntime) Intake(context.Context, string) (IntakeView, bool, error) {
+	f.read("Intake")
 	return IntakeView{HumanID: "alice", Role: "Major", CanTriage: true, Reports: []IntakeReportRow{{ReportID: "REPORT-1", Description: "Phone report", SourceChannel: "phone", ReceivedAt: "2026-10-21T01:00:00Z"}}}, true, nil
 }
 func (f *fakeRuntime) CaptureFirstReport(_ context.Context, _ string, input FirstReportCapture) error {
@@ -255,7 +266,11 @@ func (f *fakeRuntime) ProposeIncidentMembership(context.Context, string, string,
 func (f *fakeRuntime) ProposeCompartmentMembership(context.Context, string, string, string, string, bool, *time.Time, *time.Time, string) error {
 	return f.record("ProposeCompartmentMembership")
 }
+func (f *fakeRuntime) ProposeOutputPermission(_ context.Context, _, humanID, action string, active bool) error {
+	return f.record("output:" + humanID + ":" + action)
+}
 func (f *fakeRuntime) Readiness(context.Context, string) (ReadinessPage, error) {
+	f.read("Readiness")
 	return ReadinessPage{Ready: false, Checks: []ReadinessCheckView{{Name: "emergency_pack", Status: "warn", Message: "no generated PDF found"}}}, nil
 }
 
@@ -289,8 +304,12 @@ func (f *fakeRuntime) IncidentBriefPDF(context.Context, string, string, string, 
 func (f *fakeRuntime) EmergencyPackPDF(context.Context, string, string, string, string) ([]byte, error) {
 	return []byte("%PDF-1.7 pack"), nil
 }
+func (f *fakeRuntime) OrganisationPackPDF(context.Context, string, string, string) ([]byte, error) {
+	return []byte("%PDF-1.7 pack"), nil
+}
 
 func (f *fakeRuntime) Approvals(context.Context, string, string) (ApprovalsView, error) {
+	f.read("Approvals")
 	return ApprovalsView{
 		Incidents: []IncidentLink{{IncidentID: testIncident, Title: "Bafflewick payroll"}},
 		Waiting: []ApprovalView{{
@@ -342,4 +361,30 @@ func postForm(t *testing.T, s *Server, path string, form url.Values) *httptest.R
 	w := httptest.NewRecorder()
 	s.Handler().ServeHTTP(w, r)
 	return w
+}
+
+func (f *fakeRuntime) Organisation(context.Context, string) (OrganisationPage, error) {
+	f.read("Organisation")
+	return OrganisationPage{CanPropose: true, CanReadContacts: true, Severity: domain.DefaultSeverityScale().Levels, SeverityMeta: &ConfirmedBy{Maker: "alice", Confirmer: "bob", At: "26 Oct 2026 03:00 UTC"},
+		Emergency: &domain.EmergencyConfiguration{Organisation: "Bafflewick Ltd", Contacts: []domain.EmergencyContact{{Name: "Alice Smith", Role: "Incident commander", Primary: "+44 7700 900001", Alternative: "+44 20 7946 0001"}}, Parties: []domain.ExternalParty{{Category: "insurer", Name: "Example Mutual", Primary: "+44 20 7946 0000"}}, Escalation: []string{"Duty manager", "CIO"}, RoleCards: []domain.RoleCard{{Title: "Incident commander", Responsibilities: "Runs the response", Deputy: "bob"}}, Procedures: []domain.Procedure{{Title: "Ransomware first hour", Body: "Isolate. Preserve. Call insurer."}}}}, nil
+}
+func (f *fakeRuntime) ProposeSeverityScale(_ context.Context, _ string, labels []string) error {
+	return f.record("scale:" + strings.Join(labels, "|"))
+}
+func (f *fakeRuntime) ProposeEmergencyConfiguration(_ context.Context, _ string, v domain.EmergencyConfiguration) error {
+	return f.record("emergency:" + v.Organisation)
+}
+
+func (f *fakeRuntime) ProposeRelationship(_ context.Context, _, incidentID, relatedID, _ string, active bool) error {
+	return f.record("relate:" + incidentID + ">" + relatedID)
+}
+func (f *fakeRuntime) ActivateChecklist(_ context.Context, _, incidentID, templateID string) error {
+	return f.record("checklist:" + templateID)
+}
+func (f *fakeRuntime) ProposeChecklistTemplate(_ context.Context, _ string, v domain.GovernedChecklistTemplate) error {
+	return f.record("template:" + v.TemplateID)
+}
+
+func (f *fakeRuntime) ProposeSinglePersonWindow(_ context.Context, _ string, w domain.SinglePersonWindow) error {
+	return f.record("window:" + w.WindowID)
 }

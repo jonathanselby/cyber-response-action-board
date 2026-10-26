@@ -2,7 +2,9 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
+	"github.com/jonathanselby/cyber-response-action-board/internal/adapters/clock"
 	"os"
 	"path/filepath"
 	"strings"
@@ -32,13 +34,13 @@ func setReadinessCheck(r *app.Readiness, check app.Check) {
 	r.Checks = append(r.Checks, check)
 }
 
-func enrichReadiness(cfg config.Config, r *app.Readiness) {
+func enrichReadiness(cfg config.Config, r *app.Readiness, c clock.Clock, packChangedAt time.Time) {
 	setReadinessCheck(r, keyCustodyCheck(cfg))
 	setReadinessCheck(r, backupRestoreReadiness(cfg))
 	setReadinessCheck(r, exportPathCheck(cfg))
-	setReadinessCheck(r, packFreshnessCheck(cfg))
+	setReadinessCheck(r, packFreshnessCheck(cfg, packChangedAt))
 	setReadinessCheck(r, storageCheck(cfg))
-	setReadinessCheck(r, app.Check{Name: "time_status", Status: "warn", Message: "host clock is in use; incident records preserve trusted/drifting/untrusted time status explicitly"})
+	setReadinessCheck(r, timeCheck(c))
 	setReadinessCheck(r, notificationDeploymentReadiness(cfg))
 	setReadinessCheck(r, modelDeploymentReadiness(cfg))
 	if strings.HasPrefix(strings.ToLower(cfg.PublicBaseURL), "https://") {
@@ -46,6 +48,21 @@ func enrichReadiness(cfg config.Config, r *app.Readiness) {
 	} else {
 		setReadinessCheck(r, app.Check{Name: "certificate_hostname", Status: "warn", Message: "no HTTPS public base URL configured; current listener remains loopback-only"})
 	}
+}
+
+// timeCheck reports the live reading of the one clock (T-196).
+func timeCheck(c clock.Clock) app.Check {
+	if c == nil {
+		c = clock.NewHost()
+	}
+	reading := c.Read()
+	switch reading.Status {
+	case clock.Trusted:
+		return app.Check{Name: "time_status", Status: "pass", Message: reading.Detail}
+	case clock.Drifting:
+		return app.Check{Name: "time_status", Status: "warn", Message: reading.Detail + "; new times are marked TIME DRIFTING"}
+	}
+	return app.Check{Name: "time_status", Status: "warn", Message: reading.Detail + "; CRAB keeps operating and marks new times TIME UNVERIFIED"}
 }
 
 func keyCustodyCheck(cfg config.Config) app.Check {
@@ -218,28 +235,25 @@ func writableDirectory(path string) error {
 	return nil
 }
 
-func packFreshnessCheck(cfg config.Config) app.Check {
+// packFreshnessCheck reports whether the last generated Emergency Response
+// Pack is still current: it must exist and be newer than the last confirmed
+// emergency configuration (T-204).
+func packFreshnessCheck(cfg config.Config, configurationChangedAt time.Time) app.Check {
 	if cfg.ExportDir == "" {
 		return app.Check{Name: "emergency_pack", Status: "not-configured", Message: "primary export directory is not configured"}
 	}
-	entries, err := os.ReadDir(cfg.ExportDir)
+	info, err := os.Stat(filepath.Join(cfg.ExportDir, "emergency-response-pack.pdf"))
+	if errors.Is(err, os.ErrNotExist) {
+		return app.Check{Name: "emergency_pack", Status: "warn", Message: "no Emergency Response Pack has been generated; print one from Readiness"}
+	}
 	if err != nil {
 		return app.Check{Name: "emergency_pack", Status: "fail", Message: err.Error()}
 	}
-	var newest time.Time
-	for _, entry := range entries {
-		if entry.IsDir() || !strings.HasSuffix(strings.ToLower(entry.Name()), ".pdf") {
-			continue
-		}
-		info, err := entry.Info()
-		if err == nil && info.ModTime().After(newest) {
-			newest = info.ModTime()
-		}
+	generated := info.ModTime().UTC()
+	if !configurationChangedAt.IsZero() && generated.Before(configurationChangedAt) {
+		return app.Check{Name: "emergency_pack", Status: "warn", Message: "emergency information changed on " + configurationChangedAt.UTC().Format(time.RFC3339) + " after the pack was generated; print a fresh pack"}
 	}
-	if newest.IsZero() {
-		return app.Check{Name: "emergency_pack", Status: "warn", Message: "no generated PDF found in the primary export directory"}
-	}
-	return app.Check{Name: "emergency_pack", Status: "pass", Message: "latest local PDF generated " + newest.UTC().Format(time.RFC3339)}
+	return app.Check{Name: "emergency_pack", Status: "pass", Message: "Emergency Response Pack generated " + generated.Format(time.RFC3339)}
 }
 
 func storageCheck(cfg config.Config) app.Check {

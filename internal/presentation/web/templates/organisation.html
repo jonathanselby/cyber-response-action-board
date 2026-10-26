@@ -1,0 +1,96 @@
+{{define "organisation"}}{{template "feedback" .}}
+{{with .Data}}
+{{if .Pending}}<p class="gas-notice gas-notice--info">{{.Pending}} organisation {{if eq .Pending 1}}change is{{else}}changes are{{end}} waiting for a second person. <a href="/approvals">Review in Approvals</a></p>{{end}}
+
+<section class="gas-panel gas-stack" aria-labelledby="severity">
+<h2 id="severity">Severity scale</h2>
+<p class="gas-help">Every incident is classified with these words, least severe first. CRAB never sets severity itself; people choose it.</p>
+{{if .Severity}}<div class="gas-table-wrap"><table><thead><tr><th scope="col">Level</th><th scope="col">Meaning</th></tr></thead>
+<tbody>{{range .Severity}}<tr><th scope="row">{{.Label}}</th><td>{{if .Description}}{{.Description}}{{else}}—{{end}}</td></tr>{{end}}</tbody></table></div>
+{{with .SeverityMeta}}{{template "confirmed-by" .}}{{end}}
+{{else}}<p class="gas-notice gas-notice--warning">No severity scale is confirmed. Incidents cannot be declared until one is.</p>{{end}}
+{{if .CanPropose}}<details id="scale"{{if eq $.Open "scale"}} open{{end}}><summary>Propose a new scale</summary>
+{{template "write-governed"}}
+<form class="gas-form gas-stack" method="post" action="/organisation/severity">
+<input type="hidden" name="_form" value="scale">
+<div class="gas-field"><label for="sc-levels">Levels, least severe first (one per line)</label><textarea id="sc-levels" name="levels" rows="6" required>{{with $.Form.Get "levels"}}{{.}}{{else}}{{range .Severity}}{{.Label}}
+{{end}}{{end}}</textarea><p class="gas-help">Between 2 and 7 levels. Existing incidents keep the severity they were given until someone changes it.</p></div>
+<div class="gas-cluster"><button class="gas-button gas-button--primary">Propose scale</button></div>
+</form></details>{{end}}
+</section>
+
+<section class="gas-panel gas-stack" aria-labelledby="emergency-info">
+<h2 id="emergency-info">Emergency information</h2>
+<p class="gas-help">What responders need when Outlook, Teams and SharePoint are unavailable. It fills the Emergency Response Pack and the contacts on every Incident Brief.</p>
+{{if not .CanReadContacts}}<p class="gas-muted">Emergency contacts are visible to Majors and Custodians.</p>
+{{else if .Emergency}}{{$e := .Emergency}}
+<dl class="gas-kv"><dt>Organisation</dt><dd><strong>{{$e.Organisation}}</strong></dd></dl>
+{{with .EmergencyMeta}}{{template "confirmed-by" .}}{{end}}
+<h3>Emergency contacts</h3>
+{{if $e.Contacts}}<div class="gas-table-wrap"><table><thead><tr><th scope="col">Role</th><th scope="col">Name</th><th scope="col">Primary</th><th scope="col">Alternative</th></tr></thead>
+<tbody>{{range $e.Contacts}}<tr><th scope="row">{{.Role}}</th><td>{{.Name}}</td><td>{{.Primary}}</td><td>{{if .Alternative}}{{.Alternative}}{{else}}—{{end}}</td></tr>{{end}}</tbody></table></div>{{else}}<p class="gas-empty">No contacts recorded.</p>{{end}}
+<h3>Insurers, regulators and advisers</h3>
+{{if $e.Parties}}<div class="gas-table-wrap"><table><thead><tr><th scope="col">Type</th><th scope="col">Name</th><th scope="col">Primary</th><th scope="col">Alternative</th></tr></thead>
+<tbody>{{range $e.Parties}}<tr><th scope="row">{{partyLabel .Category}}</th><td>{{.Name}}</td><td>{{.Primary}}</td><td>{{if .Alternative}}{{.Alternative}}{{else}}—{{end}}</td></tr>{{end}}</tbody></table></div>{{else}}<p class="gas-empty">No external parties recorded.</p>{{end}}
+<h3>Escalation route</h3>
+{{if $e.Escalation}}<ol>{{range $e.Escalation}}<li>{{.}}</li>{{end}}</ol>{{else}}<p class="gas-empty">No escalation route recorded.</p>{{end}}
+<h3>Role cards and procedures</h3>
+{{if or $e.RoleCards $e.Procedures}}<ul class="gas-list">{{range $e.RoleCards}}<li><a href="#emergency"><strong>Role card:</strong> {{.Title}}{{if .Deputy}} <span class="gas-muted">· deputy {{.Deputy}}</span>{{end}}</a></li>{{end}}{{range $e.Procedures}}<li><a href="#emergency"><strong>Procedure:</strong> {{.Title}}</a></li>{{end}}</ul>{{else}}<p class="gas-empty">No role cards or procedures recorded.</p>{{end}}
+{{else}}<p class="gas-notice gas-notice--warning">No emergency information is confirmed. The Emergency Response Pack prints generic guidance and blank forms only.</p>{{end}}
+
+{{if and .CanPropose .CanReadContacts}}<details id="emergency"{{if eq $.Open "emergency"}} open{{end}}><summary>Propose emergency information</summary>
+{{template "write-governed"}}
+<form class="gas-form gas-stack" method="post" action="/organisation/emergency">
+<input type="hidden" name="_form" value="emergency">
+<p class="gas-help">One entry per line. Separate fields with a vertical bar, for example: <code>Alice Smith | Incident commander | +44 7700 900001 | +44 20 7946 0001</code></p>
+<div class="gas-field"><label for="em-org">Organisation name (required)</label><input id="em-org" name="organisation" required value="{{with $.Form.Get "organisation"}}{{.}}{{else}}{{with .Emergency}}{{.Organisation}}{{end}}{{end}}"></div>
+<div class="gas-field"><label for="em-contacts">Emergency contacts</label><p class="gas-help" id="em-contacts-help">Name | Role | Primary route | Alternative route | Notes</p><textarea id="em-contacts" name="contacts" rows="5" aria-describedby="em-contacts-help">{{with $.Form.Get "contacts"}}{{.}}{{else}}{{emergencyText .Emergency "contacts"}}{{end}}</textarea></div>
+<div class="gas-field"><label for="em-parties">Insurers, regulators and advisers</label><p class="gas-help" id="em-parties-help">Type (insurer, regulator, counsel, adviser, supplier or other) | Name | Primary route | Alternative route | Notes</p><textarea id="em-parties" name="parties" rows="5" aria-describedby="em-parties-help">{{with $.Form.Get "parties"}}{{.}}{{else}}{{emergencyText .Emergency "parties"}}{{end}}</textarea></div>
+<div class="gas-field"><label for="em-esc">Escalation route, in order</label><textarea id="em-esc" name="escalation" rows="4">{{with $.Form.Get "escalation"}}{{.}}{{else}}{{emergencyText .Emergency "escalation"}}{{end}}</textarea></div>
+<div class="gas-field"><label for="em-roles">Role cards</label><p class="gas-help" id="em-roles-help">Title | Responsibilities | Deputy</p><textarea id="em-roles" name="role_cards" rows="4" aria-describedby="em-roles-help">{{with $.Form.Get "role_cards"}}{{.}}{{else}}{{emergencyText .Emergency "role_cards"}}{{end}}</textarea></div>
+<div class="gas-field"><label for="em-proc">Procedures</label><p class="gas-help" id="em-proc-help">Start each procedure with a line <code>## Title</code>, followed by its steps.</p><textarea id="em-proc" name="procedures" rows="8" aria-describedby="em-proc-help">{{with $.Form.Get "procedures"}}{{.}}{{else}}{{emergencyText .Emergency "procedures"}}{{end}}</textarea></div>
+<div class="gas-cluster"><button class="gas-button gas-button--primary">Propose emergency information</button></div>
+</form></details>{{end}}
+</section>
+
+<section class="gas-panel gas-stack" aria-labelledby="templates">
+<h2 id="templates">Checklist templates</h2>
+<p class="gas-help">Known-good first steps responders can activate on any incident. Each step becomes an ordinary action that still needs a second person. No branching or automation.</p>
+{{if .Templates}}<div class="gas-table-wrap"><table><thead><tr><th scope="col">Checklist</th><th scope="col">Steps</th><th scope="col">Source</th><th scope="col">State</th></tr></thead>
+<tbody>{{range .Templates}}<tr><th scope="row">{{.Name}}<br><span class="gas-muted">{{.TemplateID}}</span></th><td>{{if .Active}}<ol>{{range .Steps}}<li>{{.Title}} <span class="gas-muted">· {{.Priority}}{{if .DefaultRole}} · {{.DefaultRole}}{{end}}{{if .DueAfterMinutes}} · within {{.DueAfterMinutes}} min{{end}}</span></li>{{end}}</ol>{{else}}—{{end}}</td><td>{{.SourceRef}}</td><td>{{if .Active}}<span class="gas-badge gas-badge--info">ACTIVE</span>{{if $.Data.CanPropose}}<form method="post" action="/organisation/template"><input type="hidden" name="_form" value="template"><input type="hidden" name="template_id" value="{{.TemplateID}}"><input type="hidden" name="name" value="{{.Name}}"><input type="hidden" name="active" value="false"><button class="gas-button">Propose withdrawal</button></form>{{end}}{{else}}<span class="gas-badge">WITHDRAWN</span>{{end}}</td></tr>{{end}}</tbody></table></div>
+{{else}}<p class="gas-empty">No checklist templates yet.</p>{{end}}
+{{if .CanPropose}}<details id="template"{{if eq $.Open "template"}} open{{end}}><summary>Propose a checklist template</summary>
+{{template "write-governed"}}
+<form class="gas-form gas-stack" method="post" action="/organisation/template">
+<input type="hidden" name="_form" value="template">
+<input type="hidden" name="active" value="true">
+<div class="gas-field"><label for="tp-name">Name (required)</label><input id="tp-name" name="name" required value="{{$.Form.Get "name"}}"><p class="gas-help">For example: Ransomware initial response.</p></div>
+<div class="gas-field"><label for="tp-id">Short identifier</label><input id="tp-id" name="template_id" value="{{$.Form.Get "template_id"}}"><p class="gas-help">Lower-case letters, digits and hyphens. Leave blank to derive it from the name. Using an existing identifier proposes a new version.</p></div>
+<div class="gas-field"><label for="tp-src">Source reference (required)</label><input id="tp-src" name="source_ref" required value="{{$.Form.Get "source_ref"}}"><p class="gas-help">The runbook or policy these steps come from.</p></div>
+<div class="gas-field"><label for="tp-steps">Steps, in order (required)</label><p class="gas-help" id="tp-steps-help">One per line: Action | Priority | Default role | Due within minutes. Only the action is required; priority defaults to P2.</p><textarea id="tp-steps" name="steps" rows="8" required aria-describedby="tp-steps-help">{{$.Form.Get "steps"}}</textarea></div>
+<div class="gas-cluster"><button class="gas-button gas-button--primary">Propose template</button></div>
+</form></details>{{end}}
+</section>
+
+<section class="gas-panel gas-stack" aria-labelledby="windows">
+<h2 id="windows">Single-person windows</h2>
+<p class="gas-help">For degraded operations when only one authorised Major is available. Two people agree a window in advance; inside it, a named Major may decide their own proposals of the listed kinds, with a reason. Every such decision is flagged SELF-APPROVAL. Access, organisation policy, closure and retention can never be self-approved.</p>
+{{if .Windows}}<div class="gas-table-wrap"><table><thead><tr><th scope="col">Window</th><th scope="col">When (UTC)</th><th scope="col">Who</th><th scope="col">Covers</th><th scope="col">State</th></tr></thead>
+<tbody>{{range .Windows}}<tr><th scope="row">{{.WindowID}}<br><span class="gas-muted">{{.Reason}}</span></th><td>{{when .StartsAt}} to {{when .EndsAt}}</td><td>{{join .Humans ", "}}</td><td>{{join .Kinds ", "}}</td><td><span class="gas-badge gas-badge--{{if eq .State "OPEN"}}warning{{else}}info{{end}}">{{.State}}</span>{{if and $.Data.CanPropose (or (eq .State "OPEN") (eq .State "UPCOMING"))}}<form method="post" action="/organisation/window"><input type="hidden" name="_form" value="window"><input type="hidden" name="window_id" value="{{.WindowID}}"><input type="hidden" name="reason" value="Closed early"><input type="hidden" name="active" value="false"><button class="gas-button">Propose closing it</button></form>{{end}}</td></tr>{{end}}</tbody></table></div>
+{{else}}<p class="gas-empty">No single-person windows.</p>{{end}}
+{{if .CanPropose}}<details id="window"{{if eq $.Open "window"}} open{{end}}><summary>Propose a single-person window</summary>
+{{template "write-governed"}}
+<form class="gas-form gas-stack" method="post" action="/organisation/window">
+<input type="hidden" name="_form" value="window">
+<input type="hidden" name="active" value="true">
+<div class="gas-field"><label for="wn-from">Starts (UTC, required)</label><input id="wn-from" type="datetime-local" name="starts_at" required value="{{$.Form.Get "starts_at"}}"></div>
+<div class="gas-field"><label for="wn-to">Ends (UTC, required)</label><input id="wn-to" type="datetime-local" name="ends_at" required value="{{$.Form.Get "ends_at"}}"><p class="gas-help">At most 24 hours after the start.</p></div>
+<div class="gas-field"><label for="wn-who">Majors who may use it (CRAB IDs, one per line)</label><textarea id="wn-who" name="humans" rows="2" required>{{$.Form.Get "humans"}}</textarea>{{if .Majors}}<p class="gas-help">Majors: {{join .Majors ", "}}.</p>{{end}}</div>
+<fieldset class="gas-field"><legend>Decisions it covers</legend>{{range windowKinds}}<label><input type="checkbox" name="kinds" value="{{.Value}}"> {{.Name}}</label>{{end}}</fieldset>
+<div class="gas-field"><label for="wn-reason">Why it is needed (required)</label><textarea id="wn-reason" name="reason" rows="2" required>{{$.Form.Get "reason"}}</textarea></div>
+<div class="gas-cluster"><button class="gas-button gas-button--primary">Propose window</button></div>
+</form></details>{{end}}
+</section>
+{{end}}{{end}}
+
+{{define "confirmed-by"}}<p class="gas-help">Confirmed by {{.Confirmer}} on {{.At}}, proposed by {{.Maker}}.{{if .SelfApproval}} <span class="gas-badge gas-badge--warning">SELF-APPROVAL</span>{{end}}{{if .TimeUnverified}} <span class="gas-badge gas-badge--warning">TIME UNVERIFIED</span>{{end}}</p>{{end}}

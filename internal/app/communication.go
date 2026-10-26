@@ -66,6 +66,7 @@ type CommunicationService struct {
 	Incident IncidentPictureReader
 	Notifier NotificationSender
 	Channels []NotificationChannel
+	Window   WindowPolicy
 }
 
 func (s CommunicationService) RecordDraft(ctx context.Context, principal authz.Principal, scope domain.Scope, recordID string, value domain.CommunicationDraft, now time.Time) (ledger.Record, error) {
@@ -140,7 +141,7 @@ func (s CommunicationService) Decide(ctx context.Context, principal authz.Princi
 	if err := s.authorise(principal, authz.ActionConfirm, scope); err != nil {
 		return ledger.Record{}, err
 	}
-	decided, err := domain.Decide(proposal, expectedVersion, principal.HumanID, outcome, now)
+	decided, err := decideGoverned(ctx, s.Window, proposal, expectedVersion, principal, outcome, now)
 	if err != nil {
 		return ledger.Record{}, err
 	}

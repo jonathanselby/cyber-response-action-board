@@ -44,7 +44,7 @@ func (k *Kernel) AppendBatch(ctx context.Context, records []ledger.Record, signe
 
 	entries := make([]ledger.Entry, 0, len(records))
 	for _, record := range records {
-		entry, err := ledger.BuildEntry(seq+1, hash, record, signer.KeyID, signer.PrivateKey, k.keys)
+		entry, err := ledger.BuildEntry(seq+1, hash, k.stampTime(record), signer.KeyID, signer.PrivateKey, k.keys)
 		if err != nil {
 			return nil, fmt.Errorf("build ledger batch entry: %w", err)
 		}

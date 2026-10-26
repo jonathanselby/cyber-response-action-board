@@ -4,7 +4,7 @@ Bafflewick is CRAB's named end-to-end operational acceptance scenario. It is not
 
 ## Acceptance rule
 
-The threshold is deliberately simple: **8/8 mandatory phases must pass**. If a named proof disappears, does not execute or fails, Bafflewick fails CI. There is no partial-pass score because the PRD Definition of Done requires the whole operational scenario.
+The threshold is deliberately simple: **9/9 mandatory phases must pass** (phase 9 added in 0.0.20-dev for the Phase 2 UAT response; the earlier threshold was 8/8). If a named proof disappears, does not execute or fails, Bafflewick fails CI. There is no partial-pass score because the PRD Definition of Done requires the whole operational scenario.
 
 Run locally with a PostgreSQL acceptance database:
 
@@ -26,6 +26,7 @@ An optional first argument writes the Markdown evidence emitted by the runner to
 | 6 | PostgreSQL-native backup/restore integrity mechanics, deterministic ledger/projection replay and standalone ledger tamper verification |
 | 7 | Recovery coordination, stand-down, PIR, retention/hold, closure prerequisites, closed read-only behaviour and deterministic rebuild |
 | 8 | Hostile evidence corruption/partial upload, exercise external-send suppression, managed-model sensitivity refusal and restricted-compartment print refusal all fail closed |
+| 9 | With only one Major available and the host clock unverified: writes are marked TIME UNVERIFIED, a dual-controlled single-person window permits flagged self-approval of covered kinds only, related incidents never reveal a hidden incident, and the printed pack carries the organisation's emergency information |
 
 ## CI
 

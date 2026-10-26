@@ -67,6 +67,10 @@ func (r *AccessRuntime) IsController(ctx context.Context, humanID, incidentID, c
 	return r.Store.IsController(ctx, humanID, incidentID, compartment)
 }
 
+func (r *AccessRuntime) IsCustodian(ctx context.Context, humanID string) (bool, error) {
+	return r.Store.IsCustodian(ctx, humanID)
+}
+
 func (r *AccessRuntime) IsMajorEligible(ctx context.Context, humanID string) (bool, error) {
 	return r.Store.IsMajorEligible(ctx, humanID)
 }

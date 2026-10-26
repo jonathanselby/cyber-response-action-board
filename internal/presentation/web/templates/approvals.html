@@ -4,9 +4,14 @@
 <div class="gas-field"><label for="ap-filter">Show</label><select id="ap-filter" name="incident"><option value="">All my incidents and system changes</option>{{range .Incidents}}<option value="{{.IncidentID}}"{{if eq $.Data.Filter .IncidentID}} selected{{end}}>{{.IncidentID}} · {{.Title}}</option>{{end}}</select></div>
 <button class="gas-button">Filter</button>
 </form>{{end}}
+{{if .SelfApprovals}}<section class="gas-panel gas-stack" id="self" aria-labelledby="self-h">
+<h2 id="self-h">Self-approvals in the last 24 hours</h2>
+<p class="gas-help">Decisions a person confirmed alone inside a single-person window. Each is flagged everywhere it appears.</p>
+<ul class="gas-list">{{range .SelfApprovals}}<li><a href="{{incidentURL .IncidentID "#timeline"}}"><span class="gas-badge gas-badge--warning">SELF-APPROVAL</span>{{if .TimeUnverified}} <span class="gas-badge gas-badge--warning">TIME UNVERIFIED</span>{{end}} {{.IncidentID}} · {{.Summary}} <span class="gas-muted">· {{.At}}</span></a></li>{{end}}</ul>
+</section>{{end}}
 <section class="gas-stack" aria-labelledby="waiting">
 <h2 id="waiting">Waiting for your decision</h2>
-{{range .Waiting}}{{template "approval-card" .}}{{else}}<p class="gas-empty">Nothing is waiting for your decision.</p>{{end}}
+{{$group := ""}}{{range .Waiting}}{{if and .Group (ne .Group $group)}}<h3>{{.Group}}</h3><p class="gas-help">Steps from one checklist activation. Decide each one.</p>{{end}}{{$group = .Group}}{{template "approval-card" .}}{{else}}<p class="gas-empty">Nothing is waiting for your decision.</p>{{end}}
 </section>
 {{if .AwaitingOther}}<section class="gas-stack" aria-labelledby="mine">
 <h2 id="mine">Your proposals awaiting someone else</h2>
@@ -34,6 +39,17 @@
 {{if .IncidentID}}<input type="hidden" name="return_incident" value="{{.IncidentID}}">{{end}}
 <button class="gas-button gas-button--primary" name="outcome" value="confirmed">Confirm</button>
 <button class="gas-button" name="outcome" value="rejected">Reject</button>
+</form>{{else if .CanSelfApprove}}<p class="gas-notice gas-notice--warning"><strong>Single-person window open.</strong> You may decide your own proposal. It will be flagged SELF-APPROVAL everywhere it appears.</p>
+<form class="gas-form gas-stack" method="post" action="/decide">
+<input type="hidden" name="_form" value="decide">
+<input type="hidden" name="self" value="true">
+<input type="hidden" name="kind" value="{{.Kind}}">
+<input type="hidden" name="scope_id" value="{{.ScopeID}}">
+<input type="hidden" name="record_type" value="{{.RecordType}}">
+<input type="hidden" name="record_id" value="{{.RecordID}}">
+<input type="hidden" name="version" value="{{.Version}}">
+<div class="gas-field"><label for="sr-{{.RecordID}}">Why no second person can decide now (required)</label><textarea id="sr-{{.RecordID}}" name="self_reason" rows="2" required></textarea></div>
+<div class="gas-cluster"><button class="gas-button gas-button--primary" name="outcome" value="confirmed">Confirm my own proposal</button><button class="gas-button" name="outcome" value="rejected">Withdraw it</button></div>
 </form>{{else}}<p class="gas-muted">Waiting for another eligible person.</p>{{end}}
 <details><summary>Technical reference</summary><p class="gas-muted">{{humanType .RecordType}} · record {{.RecordID}} · version {{.Version}}</p></details>
 </article>{{end}}

@@ -1,19 +1,26 @@
 {{define "incidents"}}{{template "feedback" .}}
 {{with .Data}}
-<section class="gas-panel gas-stack" aria-labelledby="assigned">
-<h2 id="assigned">Assigned incidents</h2>
-{{if .Incidents}}<div class="gas-table-wrap"><table>
-<thead><tr><th scope="col">Incident</th><th scope="col">Mode</th><th scope="col">Phase</th><th scope="col">Severity</th><th scope="col">Waiting for you</th></tr></thead>
-<tbody>{{range .Incidents}}<tr>
-<td><a href="{{incidentURL .IncidentID ""}}"><strong>{{.Title}}</strong></a><br><span class="gas-muted">{{.IncidentID}}</span></td>
-<td>{{template "mode-badge" .Mode}}</td>
-<td>{{if .Phase}}{{.Phase}}{{else}}—{{end}}</td>
-<td>{{.Severity}}</td>
-<td>{{if .Pending}}<a href="/approvals?incident={{.IncidentID}}">{{.Pending}} to decide</a>{{else}}<span class="gas-muted">None</span>{{end}}</td>
-</tr>{{end}}</tbody></table></div>
-{{else}}<p class="gas-empty">You are not assigned to any incident yet.</p>{{end}}
+<section class="gas-panel gas-stack" aria-labelledby="attention">
+<h2 id="attention">Needs attention</h2>
+{{if or .WaitingApprovals .AwaitingTriage $.Frame.Status.PackStale .PendingDeclarations $.Frame.Status.WindowOpen .SelfApprovals}}<ul class="gas-list">
+{{if $.Frame.Status.WindowOpen}}<li><a href="/organisation#windows"><strong>Single-person window open</strong> — named Majors may decide their own proposals</a></li>{{end}}
+{{if .SelfApprovals}}<li><a href="/approvals#self"><span class="gas-badge gas-badge--warning">SELF-APPROVAL</span> <strong>{{len .SelfApprovals}}</strong> self-approved {{if eq (len .SelfApprovals) 1}}decision{{else}}decisions{{end}} in the last 24 hours</a></li>{{end}}
+{{if .WaitingApprovals}}<li><a href="/approvals"><strong>{{.WaitingApprovals}}</strong> {{if eq .WaitingApprovals 1}}approval{{else}}approvals{{end}} waiting for your decision</a></li>{{end}}
+{{if and .CanTriage .AwaitingTriage}}<li><a href="/intake"><strong>{{.AwaitingTriage}}</strong> first {{if eq .AwaitingTriage 1}}report{{else}}reports{{end}} awaiting triage</a></li>{{end}}
+{{if .PendingDeclarations}}<li><a href="/approvals"><strong>{{len .PendingDeclarations}}</strong> incident {{if eq (len .PendingDeclarations) 1}}declaration{{else}}declarations{{end}} waiting for a second person</a></li>{{end}}
+{{if $.Frame.Status.PackStale}}<li><a href="/readiness#pack"><strong>Emergency Response Pack stale</strong> — print a fresh copy</a></li>{{end}}
+</ul>{{else}}<p class="gas-empty">Nothing needs your attention.</p>{{end}}
 </section>
-{{if .PendingDeclarations}}<p class="gas-notice gas-notice--info">{{len .PendingDeclarations}} incident declaration{{if gt (len .PendingDeclarations) 1}}s are{{else}} is{{end}} waiting for a second person. <a href="/approvals">Review in Approvals</a></p>{{end}}
+<section class="gas-panel gas-stack" aria-labelledby="assigned">
+<h2 id="assigned">My active incidents</h2>
+{{if .Incidents}}<ul class="gas-list">{{range .Incidents}}<li><a href="{{incidentURL .IncidentID ""}}">
+<span class="gas-muted">{{.IncidentID}}</span> {{template "mode-badge" .Mode}}<br>
+<strong>{{.Title}}</strong><br>
+<span>Severity: {{if .Severity}}{{.Severity}}{{else}}—{{end}} · Phase: {{if .Phase}}{{.Phase}}{{else}}—{{end}}</span>
+</a>{{if .Pending}}<a href="/approvals?incident={{.IncidentID}}"><strong>{{.Pending}} to decide</strong> in Approvals</a>{{end}}</li>{{end}}</ul>
+{{else}}<p class="gas-empty">You are not assigned to any incident.</p>{{end}}
+</section>
+<p class="gas-help">Only items you are authorised to see are shown.</p>
 {{if .CanDeclare}}
 <details id="declare" class="gas-panel"{{if eq $.Open "declare"}} open{{end}}>
 <summary><h2>Declare incident</h2></summary>
@@ -27,7 +34,7 @@
 </fieldset>
 <div class="gas-field"><label for="d-title">Title</label><input id="d-title" name="title" required value="{{$.Form.Get "title"}}"></div>
 <div class="gas-field"><label for="d-summary">What is happening</label><textarea id="d-summary" name="summary" rows="4" required>{{$.Form.Get "summary"}}</textarea></div>
-<div class="gas-field"><label for="d-severity">Severity</label><input id="d-severity" name="severity" required value="{{$.Form.Get "severity"}}"><p class="gas-help">Use your organisation's severity scale.</p></div>
+<div class="gas-field"><label for="d-severity">Severity</label>{{if .SeverityValues}}<select id="d-severity" name="severity" required>{{range .SeverityValues}}<option value="{{.}}"{{if eq ($.Form.Get "severity") .}} selected{{end}}>{{.}}</option>{{end}}</select><p class="gas-help">Your organisation's severity scale, least severe first.</p>{{else}}<p class="gas-notice gas-notice--warning">Define the severity scale first, under <a href="/organisation">Organisation</a>.</p>{{end}}</div>
 <div class="gas-cluster"><button class="gas-button gas-button--primary">Propose declaration</button></div>
 </form>
 </details>

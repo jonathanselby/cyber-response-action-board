@@ -299,7 +299,7 @@ func proposedSystemRecord(recordType, recordID, maker string, now time.Time, pay
 	record := ledger.Record{
 		SchemaVersion:  1,
 		Timestamp:      now.UTC(),
-		TimeStatus:     "trusted",
+		TimeStatus:     ledger.TimeTrusted,
 		IncidentMode:   "system",
 		WriteSemantic:  "governed",
 		RecordType:     recordType,

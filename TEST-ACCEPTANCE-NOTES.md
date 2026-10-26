@@ -287,3 +287,33 @@ Phase 1 human UAT failed AC-43. Slice 15 rebuilds the browser presentation tier 
 | T-192 | approval comprehension | confirmer with a pending severity, communication and access change | opens Approvals | states what each approval changes and its consequence without opening technical reference | UX 12 / AC-43 |
 
 Slice 15 therefore carries **27 additional named tests**. No earlier test is removed or weakened.
+
+## 4. UAT Phase 2 regression additions
+
+Phase 2 human UAT passed functionally and set a new locked visual direction plus six product gaps already required by PRD V0.2 (see `docs/uat-phase2-triage.md` and `UAT2-BUILD-NOTES.md`). The PRD acceptance criteria and every test above are unchanged. T-193 to T-210 are automated; T-211 to T-213 are human/visual acceptance recorded in `docs/visual-acceptance.md`.
+
+| ID | Area | Given | When | Then | Source |
+|---|---|---|---|---|---|
+| T-193 | password policy | first-run setup through the browser or operator runtime | a password is shorter than 12 characters or lacks an upper-case letter, a lower-case letter or a non-alphanumeric character | setup is refused with an in-frame field error and no account is created; generated break-glass keys are unaffected | UAT 2 / AC-02 |
+| T-194 | time authority | source tree | static check runs | no `"trusted"` time-status literal is assigned outside the clock package and tests; every ledger append takes its time status from the one clock | UAT 2 item 1 / AC-16 |
+| T-195 | time authority | host clock reports unsynchronised | records are written, clocks start and Brief/Pack are generated | each carries `untrusted`; Board, clocks, Approvals, status line and PDFs show `TIME UNVERIFIED`; CRAB keeps operating | UAT 2 item 1 / AC-16 / AC-55 |
+| T-196 | time authority | host clock synchronised within threshold, then above it | records are written and readiness runs | records are `trusted`, then `drifting`; readiness reports the live state | UAT 2 item 1 / AC-16 |
+| T-197 | print preview | user with and without `print` permission | requests a PDF preview | refused before incident content is read without permission; with permission returns `inline`, `no-store`, `nosniff`; download remains `attachment` (T-180); evidence attachment policy unchanged (T-157) | UAT 2 / AC-37 / AC-66 |
+| T-198 | Command Summary | user assigned to Incident A only; Incident B has pending approvals and first reports exist | user signs in | the page names only Incident A; approvals count only A; the first-report count appears only if the user may triage | UAT 2 / AC-59 / AC-65 |
+| T-199 | Command Summary | any authenticated user | Command Summary renders | data comes from the frame call and the Home view only, with no additional projection query | UI notes 21 / T-170 |
+| T-200 | palette | built `crab.css` | visual preflight runs | the locked Storm Blue values are used; green, amber and red appear only as status tokens; every text token meets WCAG 2.2 AA on its surface in light and dark | UAT 2 / AC-43 / UX 22 |
+| T-201 | print style | fixed input | Incident Brief and Emergency Pack render in colour and monochrome, A4 and Letter | output is deterministic, embeds the logo locally, fetches nothing and keeps meaning without colour | AC-37 / AC-38 / AC-87 |
+| T-202 | severity scale | confirmed organisation scale | a scale change is proposed and a declaration or severity change submits a value | scale change needs a different confirmer; values outside the confirmed scale are refused; earlier recorded values still display | UAT 2 item 5 / AC-71 |
+| T-203 | emergency configuration | confirmed emergency configuration | Brief and Pack are generated; a user without `print` asks for them | configuration changes are governed; PDFs contain the confirmed contacts, parties, escalation, role cards and procedures; printing without `print` is refused | UAT 2 item 2 / AC-38 / AC-66 |
+| T-204 | emergency configuration | a pack generated before a configuration change | the change is confirmed | pack freshness reports stale until regenerated | UAT 2 item 2 / AC-38 |
+| T-205 | related incidents | user X reads Incident A only; user Y reads A and B | X proposes linking A to B; Y proposes and Z (reads both) confirms; X views A | X's proposal is refused without revealing B; the confirmed link and its reason are invisible to X | UAT 2 item 3 / AC-84 / EDD 13.14 |
+| T-206 | related incidents | confirmed link A–B | membership, timeline and compartments are inspected; link is withdrawn | no access, history or compartment is inherited; withdrawal is a new governed version | AC-84 / D-66 |
+| T-207 | checklist templates | confirmed template with ordered steps | template change is proposed; responder activates it | template change needs a different confirmer; activation proposes one action per step with template provenance through maker-checker; Approvals groups them by activation | UAT 2 item 6 / AC-21 / AC-22 |
+| T-208 | single-person window | window proposal | maker confirms it, or it names an excluded kind, a non-Major or exceeds 24 hours | each is refused; a different confirmer is required to open, extend or close a window | UAT 2 item 4 / AC-07 / EDD 6 |
+| T-209 | single-person window | confirmed active window naming Major M for severity changes | M confirms their own severity proposal with and without a reason; after the window ends; for an uncovered kind; as a non-named Major | only the in-window, named, covered, reasoned self-approval succeeds; it is flagged `SELF-APPROVAL` on Approvals, Board, timeline and Brief | UAT 2 item 4 / AC-07 |
+| T-210 | single-person window | active window while the clock is `untrusted` | M self-approves | the record carries both the self-approval flag and `untrusted` time; both markers display | UAT 2 items 1 and 4 |
+| T-211 | human: Storm Blue | Phase 3 build | review every screen in light and dark | each screen follows one of the four patterns and the handover checklist | UAT 2 / AC-43 |
+| T-212 | human: print | Phase 3 build | review Brief and Pack in colour and monochrome on A4 and Letter, on screen preview and paper | attractive, readable, unclipped and usable without colour | UAT 2 / AC-37 / AC-38 |
+| T-213 | human: Command Summary | Phase 3 build with seeded data | a responder signs in | states what needs attention and opens the right item within 30 seconds | UAT 2 |
+
+UAT Phase 2 therefore carries **21 additional named tests**. No earlier test is removed or weakened.

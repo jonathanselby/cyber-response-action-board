@@ -274,7 +274,7 @@ func observedSystemRecord(recordType, recordID, maker string, payload json.RawMe
 	return ledger.Record{
 		SchemaVersion:  1,
 		Timestamp:      now.UTC(),
-		TimeStatus:     "trusted",
+		TimeStatus:     ledger.TimeTrusted,
 		IncidentMode:   "system",
 		WriteSemantic:  "record",
 		RecordType:     recordType,
@@ -295,7 +295,7 @@ func governedSystemRecord(recordType, recordID, maker, confirmer string, payload
 	r := ledger.Record{
 		SchemaVersion: 1,
 		Timestamp:     now.UTC(),
-		TimeStatus:    "trusted",
+		TimeStatus:    ledger.TimeTrusted,
 		IncidentMode:  "system",
 		WriteSemantic: "governed",
 		RecordType:    recordType,
