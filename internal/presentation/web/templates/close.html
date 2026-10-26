@@ -112,10 +112,6 @@
 <section class="gas-panel gas-stack" aria-labelledby="paper">
 <h2 id="paper">Paper</h2>
 <p>The Emergency Response Pack holds the blank incident, decision, action, communication and evidence forms responders use if CRAB is unavailable.</p>
-<form class="gas-cluster" method="get" action="{{incidentURL .IncidentID "/pack.pdf"}}">
-<div class="gas-field"><label for="pk-size">Page size</label><select id="pk-size" name="size"><option value="A4">A4</option><option value="LETTER">US Letter</option></select></div>
-<div class="gas-field"><label for="pk-mode">Print</label><select id="pk-mode" name="mode"><option value="colour">Colour</option><option value="monochrome">Black and white</option></select></div>
-<button class="gas-button gas-button--primary">Download Emergency Response Pack</button>
-</form>
+{{template "paper-form" (paper (incidentURL .IncidentID "/pack.pdf") "pk" "Emergency Response Pack")}}
 </section>
 {{end}}{{end}}

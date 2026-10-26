@@ -30,3 +30,10 @@
 {{define "time-trust"}}{{if .Frame.HumanID}}{{if and .Frame.Status.TimeStatus (ne .Frame.Status.TimeStatus "trusted")}}<p class="gas-notice gas-notice--warning" role="note"><strong>TIME UNVERIFIED</strong> — CRAB cannot verify this host's clock. CRAB keeps working; new entries and deadlines are marked unverified.</p>{{end}}{{end}}{{end}}
 
 {{define "time-confidence"}}<div class="gas-field"><label for="{{.}}-tc">Time confidence</label><select id="{{.}}-tc" name="time_confidence"><option value="">Use CRAB's clock status</option><option value="trusted">Trusted — taken from a reliable clock</option><option value="drifting">Approximate</option><option value="untrusted">Unverified</option></select></div>{{end}}
+
+{{define "paper-form"}}<form class="gas-cluster" method="get" action="{{.Action}}">
+<div class="gas-field"><label for="{{.ID}}-size">Page size</label><select id="{{.ID}}-size" name="size"><option value="A4">A4</option><option value="LETTER">US Letter</option></select></div>
+<div class="gas-field"><label for="{{.ID}}-mode">Print</label><select id="{{.ID}}-mode" name="mode"><option value="colour">Colour</option><option value="monochrome">Black and white</option></select></div>
+<button class="gas-button gas-button--primary" name="view" value="inline" formtarget="_blank">Preview {{.Label}}</button>
+<button class="gas-button">Download PDF</button>
+</form>{{end}}

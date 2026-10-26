@@ -1,5 +1,16 @@
 # Changelog
 
+## Unreleased — 0.0.16-dev
+
+UAT Phase 2 response, Stage 1: quick corrections.
+
+- Human-chosen passwords now need at least 12 characters with an upper-case letter, a lower-case letter and a symbol (one rule in `authn`, T-193).
+- One time authority: `internal/adapters/clock` reads the host kernel's clock discipline; the ledger kernel caps every unsigned write by it, so no record claims more time trust than CRAB can prove (T-194 to T-196).
+- Readiness, the status line, PDF time marks and first-report defaults use the live reading; every authenticated page states `TIME UNVERIFIED` while the clock is unverified. CRAB keeps operating.
+- Every PDF offers *Preview* (opens in the browser's viewer) beside *Download* (T-197).
+- The organisation Emergency Response Pack is available from Readiness without opening an incident.
+- Added `UAT2-BUILD-NOTES.md`, `docs/uat-phase2-triage.md`, T-193 to T-213 and `docs/build-evidence-0.0.16-dev.md`.
+
 ## Unreleased — 0.0.15-dev
 
 Slice 15 browser presentation rebuild after Phase 1 UAT (AC-43 failed).

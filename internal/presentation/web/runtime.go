@@ -86,6 +86,7 @@ type Runtime interface {
 	TranscribePaper(ctx context.Context, token, incidentID string, input PaperInput) error
 	IncidentBriefPDF(ctx context.Context, token, incidentID, pageSize, printMode string) ([]byte, error)
 	EmergencyPackPDF(ctx context.Context, token, incidentID, pageSize, printMode string) ([]byte, error)
+	OrganisationPackPDF(ctx context.Context, token, pageSize, printMode string) ([]byte, error)
 
 	// Approvals: one surface and one decision path for every governed change.
 	Approvals(ctx context.Context, token, incidentID string) (ApprovalsView, error)

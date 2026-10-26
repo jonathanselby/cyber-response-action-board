@@ -447,9 +447,26 @@ func (r *operatorRuntime) IncidentBriefPDF(ctx context.Context, token, incidentI
 }
 
 func (r *operatorRuntime) EmergencyPackPDF(ctx context.Context, token, incidentID, pageSize, printMode string) ([]byte, error) {
-	principal, picture, err := r.scope(ctx, token, incidentID)
+	_, picture, err := r.scope(ctx, token, incidentID)
 	if err != nil {
 		return nil, err
+	}
+	return r.emergencyPackPDF(ctx, token, picture.Incident.Mode, pageSize, printMode)
+}
+
+// OrganisationPackPDF generates the organisation Emergency Response Pack,
+// which is not tied to any incident (UAT 2 notes 2.4).
+func (r *operatorRuntime) OrganisationPackPDF(ctx context.Context, token, pageSize, printMode string) ([]byte, error) {
+	return r.emergencyPackPDF(ctx, token, "live", pageSize, printMode)
+}
+
+func (r *operatorRuntime) emergencyPackPDF(ctx context.Context, token, mode, pageSize, printMode string) ([]byte, error) {
+	principal, ok, err := r.principal(ctx, token)
+	if err != nil {
+		return nil, err
+	}
+	if !ok {
+		return nil, app.ErrAuthorisationDenied
 	}
 	service, capture, defaultSize, err := r.printService()
 	if err != nil {
@@ -458,20 +475,29 @@ func (r *operatorRuntime) EmergencyPackPDF(ctx context.Context, token, incidentI
 	if pageSize == "" {
 		pageSize = defaultSize
 	}
-	pack := domain.EmergencyResponsePack{
-		Organisation: "Incident " + incidentID,
-		Mode:         picture.Incident.Mode,
+	pack, err := r.emergencyPack(ctx, mode)
+	if err != nil {
+		return nil, err
+	}
+	if _, err := service.GenerateEmergencyResponsePack(ctx, principal, pack, pageSize, printMode, r.kernel.Clock().Read().Now); err != nil {
+		return nil, err
+	}
+	return capture.bytes, nil
+}
+
+// emergencyPack composes the pack content. Organisation emergency
+// configuration replaces the generic sections once it is confirmed.
+func (r *operatorRuntime) emergencyPack(_ context.Context, mode string) (domain.EmergencyResponsePack, error) {
+	return domain.EmergencyResponsePack{
+		Organisation: "CRAB organisation",
+		Mode:         mode,
 		Sections: []domain.PackSection{
 			{Title: "Operating rule", Body: "The model proposes. One person makes. Another confirms. Nothing is erased."},
 			{Title: "Degraded operation", Body: "If live CRAB or PostgreSQL is unavailable, use these paper forms. Preserve original occurrence times and source references. Reconcile named-human transcriptions into CRAB after restoration; do not backdate the digital ledger."},
 			{Title: "Authority", Body: "Paper operation does not create new authority. Existing incident roles, compartment boundaries and maker-checker responsibilities continue to apply."},
 		},
 		Forms: domain.DefaultContingencyForms(),
-	}
-	if _, err := service.GenerateEmergencyResponsePack(ctx, principal, pack, pageSize, printMode, time.Now().UTC()); err != nil {
-		return nil, err
-	}
-	return capture.bytes, nil
+	}, nil
 }
 
 // ---- approvals ----------------------------------------------------------------

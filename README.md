@@ -6,7 +6,7 @@ CRAB is a single Go application for running a cyber incident from first report t
 
 ## Build status
 
-**0.0.15-dev — Slice 15 browser presentation rebuilt on `go-app-shell` after Phase 1 UAT; awaiting Phase 2 human UAT.**
+**0.0.16-dev — Phase 2 UAT passed functionally; building the Phase 2 response (`UAT2-BUILD-NOTES.md`) before Phase 3 UAT.**
 
 The frozen product contract is PRD V0.2 and EDD V0.4. The implementation may simplify mechanisms; it may not silently weaken product outcomes, security boundaries or degraded-operation behaviour.
 

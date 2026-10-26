@@ -289,6 +289,9 @@ func (f *fakeRuntime) IncidentBriefPDF(context.Context, string, string, string, 
 func (f *fakeRuntime) EmergencyPackPDF(context.Context, string, string, string, string) ([]byte, error) {
 	return []byte("%PDF-1.7 pack"), nil
 }
+func (f *fakeRuntime) OrganisationPackPDF(context.Context, string, string, string) ([]byte, error) {
+	return []byte("%PDF-1.7 pack"), nil
+}
 
 func (f *fakeRuntime) Approvals(context.Context, string, string) (ApprovalsView, error) {
 	return ApprovalsView{

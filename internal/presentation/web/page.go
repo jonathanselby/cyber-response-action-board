@@ -511,7 +511,10 @@ var templateFuncs = template.FuncMap{
 	"outcomes": func(m map[string][]domain.NotificationOutcomeView, id string) []domain.NotificationOutcomeView {
 		return m[id]
 	},
-	"inc":      func(n int) int { return n + 1 },
+	"inc": func(n int) int { return n + 1 },
+	"paper": func(action, id, label string) map[string]string {
+		return map[string]string{"Action": action, "ID": id, "Label": label}
+	},
 	"sameTime": func(a, b time.Time) bool { return a.Equal(b) },
 }
 
@@ -594,6 +597,20 @@ func humanRecordType(recordType string) string {
 		return "Change"
 	}
 	return strings.ToUpper(name[:1]) + name[1:]
+}
+
+// writeInlinePDF shows a CRAB-generated PDF in the browser's viewer (T-197).
+// The HTML content policy is replaced by one suited to a PDF body: no
+// framing, no sniffing, no caching. Evidence attachments never use this.
+func writeInlinePDF(w http.ResponseWriter, filename string, body []byte) {
+	w.Header().Set("Content-Type", "application/pdf")
+	w.Header().Set("Content-Disposition", `inline; filename="`+filename+`"`)
+	w.Header().Set("Content-Security-Policy", "frame-ancestors 'none'")
+	w.Header().Set("Cache-Control", "no-store")
+	w.Header().Set("X-Content-Type-Options", "nosniff")
+	w.Header().Set("X-Frame-Options", "DENY")
+	w.Header().Set("Content-Length", strconv.Itoa(len(body)))
+	_, _ = io.Copy(w, bytes.NewReader(body))
 }
 
 // writeAttachment streams bytes as a no-store attachment.

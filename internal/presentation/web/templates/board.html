@@ -192,11 +192,7 @@
 <section class="gas-panel gas-stack" aria-labelledby="resilience">
 <h2 id="resilience">Resilience</h2>
 {{if $b.Readiness}}<ul class="gas-stack">{{range $b.Readiness}}<li><span class="gas-badge gas-badge--{{statusBadge .Status}}">{{upper .Status}}</span> {{.Name}} — {{.Message}}</li>{{end}}</ul>{{else}}<p class="gas-muted">No readiness warnings for this incident.</p>{{end}}
-<form class="gas-cluster" method="get" action="{{incidentURL $id "/brief.pdf"}}">
-<div class="gas-field"><label for="br-size">Page size</label><select id="br-size" name="size"><option value="A4">A4</option><option value="LETTER">US Letter</option></select></div>
-<div class="gas-field"><label for="br-mode">Print</label><select id="br-mode" name="mode"><option value="colour">Colour</option><option value="monochrome">Black and white</option></select></div>
-<button class="gas-button gas-button--primary">Download Incident Brief</button>
-</form>
+{{template "paper-form" (paper (incidentURL $id "/brief.pdf") "br" "Incident Brief")}}
 </section>
 
 <section class="gas-panel gas-stack" aria-labelledby="guidance">

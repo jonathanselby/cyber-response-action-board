@@ -5,5 +5,10 @@
 <thead><tr><th scope="col">Check</th><th scope="col">Result</th><th scope="col">Detail</th></tr></thead>
 <tbody>{{range .Checks}}<tr><th scope="row">{{.Name}}</th><td><span class="gas-badge gas-badge--{{statusBadge .Status}}">{{upper .Status}}</span></td><td>{{.Message}}</td></tr>{{end}}</tbody>
 </table></div></section>
+<section class="gas-panel gas-stack" aria-labelledby="pack">
+<h2 id="pack">Emergency Response Pack</h2>
+<p>The organisation pack: contacts, escalation, role cards, procedures and blank paper forms. Print it and keep it with your response kit.</p>
+{{template "paper-form" (paper "/pack.pdf" "org-pack" "Emergency Response Pack")}}
+</section>
 <p class="gas-help">External notification tests are explicit operator actions and are never sent by this page.</p>
 {{end}}{{end}}

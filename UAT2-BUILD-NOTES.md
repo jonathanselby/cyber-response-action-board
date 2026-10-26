@@ -213,4 +213,11 @@ All are `governed`, `SYSTEM` compartment, Propose → Decide through the one `/d
 
 ## 8. Implementation record
 
-Filled in as each stage lands.
+### Stage 1 — 0.0.16-dev
+
+- Time status is treated as an upper bound: the kernel stores `WeakerTimeStatus(record, clock)` for every record without a human cryptographic signature. Callers may downgrade, never upgrade.
+- The access and corpus projections stopped comparing a decision's time status with its proposal's (decisions are stamped at decision time). Version, payload, maker, compartment and mode binding is unchanged.
+- First reports with no stated time confidence take the clock's reading instead of `trusted`.
+- Inline PDFs carry `frame-ancestors 'none'` rather than the HTML policy, so built-in PDF viewers are not blocked by `object-src 'none'`.
+- The PDF footer states `TIME VERIFIED`, `TIME DRIFTING` or `TIME UNVERIFIED` in words.
+- Evidence: `docs/build-evidence-0.0.16-dev.md`.
