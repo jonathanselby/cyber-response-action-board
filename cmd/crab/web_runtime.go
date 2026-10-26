@@ -46,7 +46,7 @@ func (r *operatorRuntime) Frame(ctx context.Context, token, incidentID string) (
 		frame.Status.Isolate = isolate
 	}
 	if cfg, err := config.Load(); err == nil {
-		frame.Status.PackStale = packFreshnessCheck(cfg).Status != "pass"
+		frame.Status.PackStale = packFreshnessCheck(cfg, r.emergencyChangedAt(ctx)).Status != "pass"
 	}
 	if approvals, err := r.approvals(ctx, principal, ""); err == nil {
 		frame.Status.PendingApprovals = len(approvals.Waiting)
@@ -189,7 +189,7 @@ func (r *operatorRuntime) Board(ctx context.Context, token, incidentID, compartm
 	}
 
 	if cfg, err := config.Load(); err == nil {
-		for _, check := range []app.Check{timeCheck(r.kernel.Clock()), packFreshnessCheck(cfg), exportPathCheck(cfg), storageCheck(cfg)} {
+		for _, check := range []app.Check{timeCheck(r.kernel.Clock()), packFreshnessCheck(cfg, r.emergencyChangedAt(ctx)), exportPathCheck(cfg), storageCheck(cfg)} {
 			if check.Status != "pass" {
 				out.Readiness = append(out.Readiness, web.ReadinessCheckView{Name: humanCheckName(check.Name), Status: check.Status, Message: check.Message})
 			}
@@ -623,6 +623,13 @@ func (r *operatorRuntime) approvals(ctx context.Context, principal authz.Princip
 				}
 			}
 		}
+		if principal.Role == authz.RoleMajor {
+			if pending, err := r.organisation.Pending(ctx, principal); err == nil {
+				for _, p := range pending {
+					add(approvalSource{"organisation", "", p.RecordType, p.RecordID, "SYSTEM", p.Version, p.Maker, p.At})
+				}
+			}
+		}
 		if principal.Custodian {
 			if pending, err := r.access.PendingAccessAdministration(ctx); err == nil {
 				for _, p := range pending {
@@ -653,6 +660,18 @@ func (r *operatorRuntime) approvalView(ctx context.Context, s approvalSource, ti
 	if s.kind != "obligation" || s.scopeID != "" {
 		item.IncidentID = s.scopeID
 		item.IncidentTitle = titles[s.scopeID]
+	}
+	if s.kind == "organisation" {
+		if s.compartment == "SYSTEM" {
+			item.Compartment = ""
+		}
+		if !s.proposedAt.IsZero() {
+			item.ProposedAt = s.proposedAt.UTC().Format(displayTime)
+		}
+		if payload, found, err := r.kernel.ProposalPayload(ctx, s.kind, s.scopeID, s.recordType, s.recordID); err == nil && found {
+			item.Summary, item.Consequence, item.Proposed = organisationSummary(s.recordType, payload)
+		}
+		return item
 	}
 	if !s.proposedAt.IsZero() {
 		item.ProposedAt = s.proposedAt.UTC().Format(displayTime)
@@ -705,6 +724,10 @@ func approvalLabel(recordType string) string {
 		"security.compartment_controller":    "Compartment controller",
 		"security.isolate_mode":              "Isolate mode",
 		"security.output_permission":         "Print or download permission",
+		domain.TypeSeverityScale:             "Severity scale",
+		domain.TypeEmergencyConfiguration:    "Emergency information",
+		domain.TypeChecklistTemplate:         "Checklist template",
+		domain.TypeSinglePersonWindow:        "Single-person window",
 	}
 	if label, ok := labels[recordType]; ok {
 		return label
@@ -886,6 +909,11 @@ func (r *operatorRuntime) DecideProposal(ctx context.Context, token string, in w
 		return r.DecideCommunication(ctx, token, in.ScopeID, in.RecordType, in.RecordID, in.Version, in.Outcome)
 	case "access":
 		return r.DecideAccess(ctx, token, in.ScopeID, in.RecordType, in.RecordID, in.Version, in.Outcome)
+	case "organisation":
+		if !domain.IsOrganisationType(in.RecordType) {
+			return errors.New("unknown approval kind")
+		}
+		return r.DecideOrganisation(ctx, token, in.RecordID, in.Version, in.Outcome)
 	case "recovery":
 		principal, ok, err := r.principal(ctx, token)
 		if err != nil {
@@ -898,4 +926,12 @@ func (r *operatorRuntime) DecideProposal(ctx context.Context, token string, in w
 		return err
 	}
 	return errors.New("unknown approval kind")
+}
+
+func (r *operatorRuntime) emergencyChangedAt(ctx context.Context) time.Time {
+	at, err := r.organisation.EmergencyChangedAt(ctx)
+	if err != nil {
+		return time.Time{}
+	}
+	return at
 }

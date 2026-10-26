@@ -90,6 +90,7 @@ func New() (*Server, error) {
 	s.registerEvidenceRoutes()
 	s.registerCommunicationRoutes()
 	s.registerAccessRoutes()
+	s.registerOrganisationRoutes()
 	return s, nil
 }
 

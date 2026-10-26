@@ -50,6 +50,16 @@ func seedDemo(t *testing.T, e *e2e) (alice, bob string) {
 	e.declare(alice, bob, "INC-014", "Payment outage", "Severity level 3")
 	e.declare(alice, bob, "INC-011", "Credential compromise", "Severity level 2")
 
+	e.post("/organisation/emergency", alice, url.Values{
+		"organisation": {"Bafflewick Ltd"},
+		"contacts":     {"Alice Smith | Incident commander | +44 7700 900001 | +44 20 7946 0001\nBob Jones | Technical lead | +44 7700 900002 | +44 20 7946 0002\nCarol White | Communications lead | +44 7700 900003"},
+		"parties":      {"insurer | Example Mutual cyber line | +44 20 7946 0000 | claims@example.org | Policy CY-1234\nregulator | Information Commissioner's Office | 0303 123 1113 | | 72-hour reporting\ncounsel | Smith & Partners LLP | +44 20 7946 0100"},
+		"escalation":   {"Duty manager\nHead of IT operations\nChief Information Officer\nChief Executive"},
+		"role_cards":   {"Incident commander | Owns the response, chairs calls, approves containment | Bob Jones\nCommunications lead | Drafts and issues all internal and external messages | Alice Smith"},
+		"procedures":   {"## Ransomware: first hour\nIsolate affected hosts from the network.\nDo not power off encrypted machines.\nCall the insurer hotline before engaging any third party.\n\n## Suspected data breach\nRecord the awareness time.\nStart the regulator clock in CRAB or on paper."},
+	})
+	e.approveAll(bob)
+
 	inc := "/incident/INC-014"
 	// bob joins INC-014 so the second person can confirm its proposals.
 	e.post(inc+"/access/member", alice, url.Values{"human_id": {"bob"}, "active": {"true"}, "reason": {"Technical lead for the response"}})

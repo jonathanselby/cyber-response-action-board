@@ -186,7 +186,7 @@ func (r *operatorRuntime) Readiness(ctx context.Context, token string) (web.Read
 		check.Message = "ledger verification failed; read-only integrity mode"
 	}
 	setReadinessCheck(&value, check)
-	enrichReadiness(cfg, &value, r.kernel.Clock())
+	enrichReadiness(cfg, &value, r.kernel.Clock(), r.emergencyChangedAt(ctx))
 	value = app.FinaliseReadiness(value)
 	out := web.ReadinessPage{Ready: value.Ready}
 	for _, item := range value.Checks {

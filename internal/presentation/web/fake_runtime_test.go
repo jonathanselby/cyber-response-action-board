@@ -362,3 +362,15 @@ func postForm(t *testing.T, s *Server, path string, form url.Values) *httptest.R
 	s.Handler().ServeHTTP(w, r)
 	return w
 }
+
+func (f *fakeRuntime) Organisation(context.Context, string) (OrganisationPage, error) {
+	f.read("Organisation")
+	return OrganisationPage{CanPropose: true, CanReadContacts: true, Severity: domain.DefaultSeverityScale().Levels, SeverityMeta: &ConfirmedBy{Maker: "alice", Confirmer: "bob", At: "26 Oct 2026 03:00 UTC"},
+		Emergency: &domain.EmergencyConfiguration{Organisation: "Bafflewick Ltd", Contacts: []domain.EmergencyContact{{Name: "Alice Smith", Role: "Incident commander", Primary: "+44 7700 900001", Alternative: "+44 20 7946 0001"}}, Parties: []domain.ExternalParty{{Category: "insurer", Name: "Example Mutual", Primary: "+44 20 7946 0000"}}, Escalation: []string{"Duty manager", "CIO"}, RoleCards: []domain.RoleCard{{Title: "Incident commander", Responsibilities: "Runs the response", Deputy: "bob"}}, Procedures: []domain.Procedure{{Title: "Ransomware first hour", Body: "Isolate. Preserve. Call insurer."}}}}, nil
+}
+func (f *fakeRuntime) ProposeSeverityScale(_ context.Context, _ string, labels []string) error {
+	return f.record("scale:" + strings.Join(labels, "|"))
+}
+func (f *fakeRuntime) ProposeEmergencyConfiguration(_ context.Context, _ string, v domain.EmergencyConfiguration) error {
+	return f.record("emergency:" + v.Organisation)
+}

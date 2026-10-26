@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased — 0.0.18-dev
+
+UAT Phase 2 response, Stage 3: organisation configuration.
+
+- New Organisation screen for governed policy, proposed by one Major and confirmed by another.
+- Severity scale: confirmed by both people at setup (default Severity level 1–5); declarations and severity changes choose only from it (T-202).
+- Emergency information (contacts, insurers, regulators, advisers, escalation route, role cards, procedures) fills the Emergency Response Pack and the Incident Brief contacts (T-203); a change marks the printed pack stale until regenerated (T-204).
+- Migration 016: rebuildable organisation projections.
+
 ## Unreleased — 0.0.17-dev
 
 UAT Phase 2 response, Stage 2: Storm Blue.

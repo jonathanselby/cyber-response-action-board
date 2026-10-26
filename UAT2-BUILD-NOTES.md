@@ -233,3 +233,12 @@ All are `governed`, `SYSTEM` compartment, Propose → Decide through the one `/d
 - PDF masthead, metadata bar and tables are drawn by the existing gopdf renderer with Go Regular and Go Bold from the already-pinned `golang.org/x/image`.
 - Visual capture: `cmd/crab` end-to-end harness (own database `crab_e2e`), `scripts/visual-capture.sh`, `.github/workflows/visual-capture.yml` publishing to `ci/visual-capture`.
 - Evidence: `docs/build-evidence-0.0.17-dev.md`.
+
+### Stage 3 — 0.0.18-dev
+
+- Organisation records are SYSTEM governed records decided through `/decide` kind `organisation`. One current record per type and key (`current` for the scale and emergency information; template and window identifiers later).
+- `IncidentService` and `ContinuityService` take an optional `SeverityPolicy`; the composition passes the organisation service, so browser, API and MCP paths all enforce the scale.
+- The setup ceremony appends the scale proposal (prepared by) and its confirmation (confirmed by) in the same atomic batch as the identity records.
+- `PrintService` reads emergency information only after print authority is checked.
+- Pack freshness checks `emergency-response-pack.pdf` specifically and compares it with the last confirmed emergency information.
+- Evidence: `docs/build-evidence-0.0.18-dev.md`.

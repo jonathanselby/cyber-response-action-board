@@ -71,7 +71,7 @@ type navItem struct{ key, label, path string }
 
 var responseNav = []navItem{{"incidents", "Command Summary", "/"}, {"approvals", "Approvals", "/approvals"}, {"intake", "First reports", "/intake"}}
 var incidentNav = []navItem{{"board", "Board", ""}, {"evidence", "Evidence", "/evidence"}, {"communications", "Communications", "/communications"}, {"access", "Access", "/access"}, {"close", "Close-out", "/close"}}
-var systemNav = []navItem{{"readiness", "Readiness", "/readiness"}, {"obligations", "Obligation library", "/obligations"}, {"access-admin", "Access admin", "/access"}}
+var systemNav = []navItem{{"readiness", "Readiness", "/readiness"}, {"organisation", "Organisation", "/organisation"}, {"obligations", "Obligation library", "/obligations"}, {"access-admin", "Access admin", "/access"}}
 
 func (s *Server) navigation(frame FrameView, current string) []shell.NavGroup {
 	group := func(label string, items []navItem, prefix string) shell.NavGroup {
@@ -511,7 +511,14 @@ var templateFuncs = template.FuncMap{
 	"outcomes": func(m map[string][]domain.NotificationOutcomeView, id string) []domain.NotificationOutcomeView {
 		return m[id]
 	},
-	"inc": func(n int) int { return n + 1 },
+	"inc":           func(n int) int { return n + 1 },
+	"emergencyText": emergencyText,
+	"partyLabel": func(category string) string {
+		if category == "" {
+			return ""
+		}
+		return strings.ToUpper(category[:1]) + category[1:]
+	},
 	"paper": func(action, id, label string) map[string]string {
 		return map[string]string{"Action": action, "ID": id, "Label": label}
 	},

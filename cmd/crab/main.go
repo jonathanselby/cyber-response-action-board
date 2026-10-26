@@ -113,7 +113,7 @@ func runReadiness(stdout, stderr io.Writer) int {
 			}
 		}
 	}
-	enrichReadiness(cfg, &r, clock.NewHost())
+	enrichReadiness(cfg, &r, clock.NewHost(), time.Time{})
 	r = app.FinaliseReadiness(r)
 	enc := json.NewEncoder(stdout)
 	enc.SetIndent("", "  ")

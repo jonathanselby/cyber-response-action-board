@@ -75,6 +75,11 @@ type Runtime interface {
 	ProposeIncidentMembership(ctx context.Context, token, incidentID, humanID string, active bool, effectiveAt, expiresAt *time.Time, reason string) error
 	ProposeCompartmentMembership(ctx context.Context, token, incidentID, humanID, compartment string, active bool, effectiveAt, expiresAt *time.Time, reason string) error
 	ProposeOutputPermission(ctx context.Context, token, humanID, action string, active bool) error
+
+	// Organisation configuration (UAT 2 items 2, 4, 5, 6).
+	Organisation(ctx context.Context, token string) (OrganisationPage, error)
+	ProposeSeverityScale(ctx context.Context, token string, labels []string) error
+	ProposeEmergencyConfiguration(ctx context.Context, token string, value domain.EmergencyConfiguration) error
 	Readiness(context.Context, string) (ReadinessPage, error)
 
 	// Close-out and paper.
@@ -554,4 +559,22 @@ type PaperInput struct {
 	PaperOccurredAt time.Time
 	SourceReference string
 	TimeConfidence  string
+}
+
+// ---- Organisation ----------------------------------------------------------
+
+type ConfirmedBy struct {
+	Maker, Confirmer, At string
+	SelfApproval         bool
+	TimeUnverified       bool
+}
+
+type OrganisationPage struct {
+	CanPropose      bool
+	CanReadContacts bool
+	Severity        []domain.SeverityLevel
+	SeverityMeta    *ConfirmedBy
+	Emergency       *domain.EmergencyConfiguration
+	EmergencyMeta   *ConfirmedBy
+	Pending         int
 }

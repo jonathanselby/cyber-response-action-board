@@ -50,6 +50,8 @@ func TestVisualCapture(t *testing.T) {
 	page("14-access-admin", "/access", alice)
 	page("15-offline", "/offline", "")
 	page("16-declare-open", "/?open=declare", alice)
+	page("17-organisation", "/organisation", alice)
+	page("18-organisation-edit", "/organisation?open=emergency#emergency", alice)
 
 	for _, asset := range []string{"/_app-shell/shell.css", "/_app-shell/pwa.js", "/static/crab.css", "/static/logo.png", "/static/logo-dark.png", "/static/icon.svg", "/static/favicon.png"} {
 		w := e.do(http.MethodGet, asset, "", nil)

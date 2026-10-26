@@ -15,7 +15,7 @@ import (
 // decisionKinds is the closed set accepted by POST /decide (UI notes 6.4).
 var decisionKinds = map[string]bool{
 	"declaration": true, "incident": true, "severity": true, "obligation": true,
-	"communication": true, "access": true, "recovery": true,
+	"communication": true, "access": true, "recovery": true, "organisation": true,
 }
 
 var (
