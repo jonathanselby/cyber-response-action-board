@@ -40,7 +40,7 @@
 
 ## Self-check of the reference renders
 
-The `ci/visual-capture` branch holds screenshots of 18 views at 1366 px (light and dark), 768 px and 390 px, plus the Brief in colour and monochrome and the Pack on Letter. Checked before handing to UAT: Storm Blue tokens in light and dark, status colours only on state badges, the logo on sign-in and setup, the Command Summary listing only authorised items, the Organisation screen tables, and the PDF masthead and ruled forms. No defect found that needs fixing before UAT. This check is not a substitute for T-211 to T-213.
+The `ci/visual-capture` branch holds screenshots of 18 views at 1366 px (light and dark), 768 px and 390 px, plus the Brief in colour and monochrome and the Pack on Letter. Checked before handing to UAT: Storm Blue tokens in light and dark, status colours only on state badges, the logo on sign-in and setup, the Command Summary listing only authorised items, the Organisation screen tables, and the PDF masthead and ruled forms. Found and fixed: PDF footers in developer builds and the reference renders said `config 0.0.15-dev` because the `buildinfo` default had not followed `VERSION`; the default now matches and `TestDefaultVersionMatchesVERSIONFile` keeps it so (release builds already stamped the right value through `scripts/build.sh`). Observed, not changed: at 390 px the header status text is truncated with an ellipsis (go-app-shell header); the full status remains in the Board warning and the Command Summary. This check is not a substitute for T-211 to T-213.
 
 ## Known limits carried into Phase 3 UAT
 

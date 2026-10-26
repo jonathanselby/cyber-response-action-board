@@ -156,4 +156,5 @@ And for each Phase 2 concern, whether it is now resolved:
 
 - **Only the two setup people.** There is no way yet to add further accounts or role eligibility after setup. Routed to the product track (PRD access administration), not part of this response.
 - **Header logo and signed-out navigation rail** — go-app-shell v0.1.0 limits, requested for v0.2.
+- **Phone header** — at phone width the status text in the header is shortened with an ellipsis (go-app-shell header); the same states are shown in full on the Board and the Command Summary.
 - **Time check** reads the host's synchronisation state (Linux `adjtimex`); it does not query time servers itself.
