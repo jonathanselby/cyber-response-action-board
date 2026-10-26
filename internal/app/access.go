@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/jonathanselby/cyber-response-action-board/internal/domain"
@@ -20,6 +21,7 @@ type AccessBackend interface {
 	HasSponsor(context.Context, string) (bool, error)
 	IsController(context.Context, string, string, string) (bool, error)
 	IsMajorEligible(context.Context, string) (bool, error)
+	IsCustodian(context.Context, string) (bool, error)
 	HasRoleEligibility(context.Context, string) (bool, error)
 	IncidentExists(context.Context, string) (bool, error)
 	HasIncidentMembershipAt(context.Context, string, string, time.Time) (bool, error)
@@ -104,6 +106,47 @@ func (s AccessService) ProposeCompartmentMembership(ctx context.Context, princip
 		return ledger.Record{}, ErrAuthorisationDenied
 	}
 	return s.propose(ctx, principal.HumanID, scope, recordID, access.RecordCompartmentMembership, payload, now)
+}
+
+// ProposeOutputPermission lets a Custodian propose granting or withdrawing a
+// separate output permission (print, download) for a named person. Another
+// Custodian confirms it. Read access never implies output authority.
+func (s AccessService) ProposeOutputPermission(ctx context.Context, principal authz.Principal, recordID, humanID string, action authz.Action, active bool, now time.Time) (ledger.Record, error) {
+	if err := s.ready(); err != nil {
+		return ledger.Record{}, err
+	}
+	if d := authz.Authorise(principal, authz.ActionAdminIdentityMetadata, authz.ObjectScope{SystemMetadata: true}); !d.Allowed {
+		return ledger.Record{}, ErrAuthorisationDenied
+	}
+	if action != authz.ActionPrint && action != authz.ActionDownload {
+		return ledger.Record{}, errors.New("only print and download permissions are administered here")
+	}
+	if strings.TrimSpace(humanID) == "" {
+		return ledger.Record{}, errors.New("person is required")
+	}
+	eligible, err := s.Backend.HasRoleEligibility(ctx, humanID)
+	if err != nil {
+		return ledger.Record{}, err
+	}
+	if !eligible {
+		return ledger.Record{}, errors.New("that person has no CRAB role")
+	}
+	payload := map[string]any{"human_id": strings.TrimSpace(humanID), "action": action, "active": active}
+	raw, err := json.Marshal(payload)
+	if err != nil {
+		return ledger.Record{}, err
+	}
+	if _, _, err := access.Decode(access.RecordOutputPermission, raw); err != nil {
+		return ledger.Record{}, err
+	}
+	record, err := domain.ProposeSystemGoverned(access.RecordOutputPermission, recordID, principal.HumanID, now, payload)
+	if err != nil {
+		return ledger.Record{}, err
+	}
+	if err := s.Backend.AppendAccess(ctx, record); err != nil {
+		return ledger.Record{}, err
+	}
+	return record, nil
 }
 
 func (s AccessService) Decide(ctx context.Context, principal authz.Principal, scopeID, recordType, recordID, expectedVersion, outcome string, now time.Time) (ledger.Record, error) {
@@ -272,6 +315,14 @@ func (s AccessService) authoriseMakerAtDecision(ctx context.Context, maker strin
 		}
 	case access.RecordCompartmentMembership:
 		allowed, err := s.Backend.IsController(ctx, maker, change.IncidentID, change.Compartment)
+		if err != nil {
+			return err
+		}
+		if !allowed {
+			return ErrAuthorisationDenied
+		}
+	case access.RecordOutputPermission:
+		allowed, err := s.Backend.IsCustodian(ctx, maker)
 		if err != nil {
 			return err
 		}

@@ -24,6 +24,13 @@ type AdministrationView struct {
 	Controllers            []DesignationView
 	IncidentMemberships    []MembershipView
 	CompartmentMemberships []MembershipView
+	OutputPermissions      []OutputPermissionView
+}
+
+// OutputPermissionView is one confirmed separate output permission.
+type OutputPermissionView struct {
+	HumanID string
+	Action  string
 }
 
 func WindowStatus(effectiveAt, expiresAt *time.Time, now time.Time) string {

@@ -335,6 +335,12 @@ func (s *AccessStore) IsController(ctx context.Context, humanID, incidentID, com
 	return result, err
 }
 
+func (s *AccessStore) IsCustodian(ctx context.Context, humanID string) (bool, error) {
+	var result bool
+	err := s.pool.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM crab.custodian_designations WHERE human_id=$1)`, humanID).Scan(&result)
+	return result, err
+}
+
 func (s *AccessStore) IsMajorEligible(ctx context.Context, humanID string) (bool, error) {
 	var result bool
 	err := s.pool.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM crab.role_eligibility WHERE human_id=$1 AND role='Major')`, humanID).Scan(&result)
@@ -361,6 +367,22 @@ func (s *AccessStore) HasIncidentMembershipAt(ctx context.Context, humanID, inci
 
 func (s *AccessStore) AdministrationView(ctx context.Context, now time.Time) (access.AdministrationView, error) {
 	var view access.AdministrationView
+	outputs, err := s.pool.Query(ctx, `SELECT human_id,action FROM crab.output_permissions ORDER BY human_id,action`)
+	if err != nil {
+		return view, err
+	}
+	for outputs.Next() {
+		var v access.OutputPermissionView
+		if err := outputs.Scan(&v.HumanID, &v.Action); err != nil {
+			outputs.Close()
+			return view, err
+		}
+		view.OutputPermissions = append(view.OutputPermissions, v)
+	}
+	outputs.Close()
+	if err := outputs.Err(); err != nil {
+		return view, err
+	}
 	rows, err := s.pool.Query(ctx, `SELECT human_id,incident_id FROM crab.incident_sponsors ORDER BY incident_id,human_id`)
 	if err != nil {
 		return view, err

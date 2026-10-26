@@ -710,6 +710,7 @@ func approvalLabel(recordType string) string {
 		"security.incident_sponsor":          "Incident sponsor",
 		"security.compartment_controller":    "Compartment controller",
 		"security.isolate_mode":              "Isolate mode",
+		"security.output_permission":         "Print or download permission",
 	}
 	if label, ok := labels[recordType]; ok {
 		return label

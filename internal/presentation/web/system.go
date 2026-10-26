@@ -48,7 +48,7 @@ func (s *Server) registerSystemRoutes() {
 	admin := adminScreen
 	admin.load = func(r *http.Request, token string, _ FrameView) (any, []Action, error) {
 		v, err := s.runtime.AccessAdministration(r.Context(), token, time.Now().UTC())
-		return v, nil, err
+		return v, []Action{{Label: "Grant print or download", URL: "?open=output#output", Primary: true}}, err
 	}
 
 	s.mux.HandleFunc("GET /{$}", s.home(incidents))
@@ -77,6 +77,9 @@ func (s *Server) registerSystemRoutes() {
 	s.mux.HandleFunc("GET /obligations", s.show(library))
 	s.mux.HandleFunc("POST /obligations/definition", s.post(library, func(*http.Request) string { return "/obligations" }, "proposed", s.proposeObligationDefinition))
 	s.mux.HandleFunc("GET /access", s.show(admin))
+	s.mux.HandleFunc("POST /access/output", s.post(admin, func(*http.Request) string { return "/access" }, "proposed", func(r *http.Request, token string) error {
+		return s.runtime.ProposeOutputPermission(r.Context(), token, formValue(r, "human_id"), formValue(r, "action"), formValue(r, "active") != "false")
+	}))
 
 	// Removed global screens redirect for one release (UI notes 8.1).
 	s.mux.HandleFunc("GET /control", func(w http.ResponseWriter, r *http.Request) { http.Redirect(w, r, "/", http.StatusMovedPermanently) })

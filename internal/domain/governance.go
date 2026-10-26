@@ -15,3 +15,11 @@ func ProposeGoverned(scope Scope, recordType, recordID, maker string, now time.T
 	}
 	return proposedRecord(scope, recordType, recordID, maker, now, payload)
 }
+
+// ProposeSystemGoverned is the envelope for organisation-level governed
+// changes that belong to no incident (output permissions, organisation
+// configuration). They are SYSTEM-compartment proposals decided through the
+// same maker-checker as everything else.
+func ProposeSystemGoverned(recordType, recordID, maker string, now time.Time, payload any) (ledger.Record, error) {
+	return proposedRecord(Scope{Mode: "system", Compartment: "SYSTEM"}, recordType, recordID, maker, now, payload)
+}

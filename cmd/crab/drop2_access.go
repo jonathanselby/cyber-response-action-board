@@ -55,7 +55,22 @@ func (r *operatorRuntime) AccessAdministration(ctx context.Context, token string
 	for _, value := range pending {
 		out.Pending = append(out.Pending, web.AccessPendingView{ScopeID: value.ScopeID, RecordID: value.RecordID, RecordType: value.RecordType, Compartment: value.Compartment, Version: value.Version, Maker: value.Maker, Mode: value.Mode, ProposedAt: value.ProposedAt.UTC().Format(displayTime)})
 	}
+	for _, value := range view.OutputPermissions {
+		out.OutputPermissions = append(out.OutputPermissions, web.AccessOutputView{HumanID: value.HumanID, Action: value.Action})
+	}
 	return out, nil
+}
+
+func (r *operatorRuntime) ProposeOutputPermission(ctx context.Context, token, humanID, action string, active bool) error {
+	principal, ok, err := r.principal(ctx, token)
+	if err != nil {
+		return err
+	}
+	if !ok {
+		return app.ErrAuthorisationDenied
+	}
+	_, err = r.accessService.ProposeOutputPermission(ctx, principal, newOperatorID("OUTPUT"), humanID, authz.Action(action), active, r.kernel.Clock().Read().Now)
+	return err
 }
 
 func (r *operatorRuntime) IncidentAccess(ctx context.Context, token, incidentID string, now time.Time) (web.AccessAdministrationPage, error) {

@@ -266,6 +266,9 @@ func (f *fakeRuntime) ProposeIncidentMembership(context.Context, string, string,
 func (f *fakeRuntime) ProposeCompartmentMembership(context.Context, string, string, string, string, bool, *time.Time, *time.Time, string) error {
 	return f.record("ProposeCompartmentMembership")
 }
+func (f *fakeRuntime) ProposeOutputPermission(_ context.Context, _, humanID, action string, active bool) error {
+	return f.record("output:" + humanID + ":" + action)
+}
 func (f *fakeRuntime) Readiness(context.Context, string) (ReadinessPage, error) {
 	f.read("Readiness")
 	return ReadinessPage{Ready: false, Checks: []ReadinessCheckView{{Name: "emergency_pack", Status: "warn", Message: "no generated PDF found"}}}, nil

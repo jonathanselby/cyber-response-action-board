@@ -74,6 +74,7 @@ type Runtime interface {
 	ProposeController(ctx context.Context, token, incidentID, humanID, compartment string, active bool) error
 	ProposeIncidentMembership(ctx context.Context, token, incidentID, humanID string, active bool, effectiveAt, expiresAt *time.Time, reason string) error
 	ProposeCompartmentMembership(ctx context.Context, token, incidentID, humanID, compartment string, active bool, effectiveAt, expiresAt *time.Time, reason string) error
+	ProposeOutputPermission(ctx context.Context, token, humanID, action string, active bool) error
 	Readiness(context.Context, string) (ReadinessPage, error)
 
 	// Close-out and paper.
@@ -418,12 +419,15 @@ type AccessPendingView struct {
 }
 
 type AccessAdministrationPage struct {
+	OutputPermissions      []AccessOutputView
 	Sponsors               []AccessDesignationView
 	Controllers            []AccessDesignationView
 	IncidentMemberships    []AccessMembershipView
 	CompartmentMemberships []AccessMembershipView
 	Pending                []AccessPendingView
 }
+
+type AccessOutputView struct{ HumanID, Action string }
 
 type ReadinessCheckView struct {
 	Name    string

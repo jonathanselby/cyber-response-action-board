@@ -1,0 +1,42 @@
+name: visual-capture
+
+# Screenshots of every screen with seeded data, plus sample PDFs, for human
+# visual review (T-211, T-212). Evidence only: it gates nothing.
+on:
+  workflow_dispatch:
+  push:
+    branches: ['uat2/**']
+
+jobs:
+  capture:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: crab_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d crab_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      CRAB_TEST_POSTGRES_ADMIN_URL: postgres://postgres:postgres@127.0.0.1:5432/crab_test?sslmode=disable
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.27.2'
+      - name: Capture screens and PDFs
+        run: ./scripts/visual-capture.sh visual-capture
+      - uses: actions/upload-artifact@v4
+        with:
+          name: visual-capture
+          path: |
+            visual-capture/shots
+            visual-capture/pdf
+          retention-days: 14
