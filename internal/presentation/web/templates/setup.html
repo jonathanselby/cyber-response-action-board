@@ -1,5 +1,6 @@
 {{define "setup"}}{{template "feedback" .}}
-<section class="gas-panel gas-stack">
+<section class="gas-panel gas-stack" aria-label="First-run setup">
+{{template "brand"}}
 <p>Available only from this host, before first use. The person who prepares setup and the person who confirms it must be different people. Both become Custodians and incident Majors, and each holds one break-glass key.</p>
 <form class="gas-form gas-stack" method="post" action="/setup">
 <h2>Prepared by</h2>

@@ -170,6 +170,10 @@ type HomeView struct {
 	CanDeclare          bool
 	Incidents           []IncidentLink
 	PendingDeclarations []PendingDeclaration
+	// Command Summary attention items, already scoped to this user (T-198).
+	WaitingApprovals int
+	CanTriage        bool
+	AwaitingTriage   int
 }
 
 type PendingDeclaration struct {

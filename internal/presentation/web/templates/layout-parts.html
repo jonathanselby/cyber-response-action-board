@@ -7,9 +7,9 @@
 {{define "write-record"}}<p class="gas-help">Preserved as supplied. It does not change the incident's effective state.</p>{{end}}
 {{define "write-governed"}}<p class="gas-help">Takes effect when another eligible person confirms.</p>{{end}}
 
-{{define "refused"}}<section class="gas-panel gas-stack"><p class="gas-notice gas-notice--danger" role="alert"><strong>Not available.</strong> {{.Error}}</p><p><a class="gas-button" href="/">Back to incidents</a></p></section>{{end}}
+{{define "refused"}}<section class="gas-panel gas-stack"><p class="gas-notice gas-notice--danger" role="alert"><strong>Not available.</strong> {{.Error}}</p><p><a class="gas-button" href="/">Back to Command Summary</a></p></section>{{end}}
 
-{{define "render-failed"}}<p class="gas-notice gas-notice--danger" role="alert">This page could not be displayed. Reload, or return to <a href="/">Incidents</a>.</p>{{end}}
+{{define "render-failed"}}<p class="gas-notice gas-notice--danger" role="alert">This page could not be displayed. Reload, or return to the <a href="/">Command Summary</a>.</p>{{end}}
 
 {{define "unconfigured"}}<section class="gas-panel gas-stack"><p class="gas-notice gas-notice--warning">The CRAB operator runtime is not configured on this host.</p><p>Configure <code>CRAB_DATABASE_URL</code>, <code>CRAB_LEDGER_KEYRING_FILE</code> and <code>CRAB_SERVER_SIGNING_KEY_FILE</code>, then restart <code>crab serve</code>. Run <code>crab readiness</code> to check the deployment.</p></section>{{end}}
 
@@ -37,3 +37,5 @@
 <button class="gas-button gas-button--primary" name="view" value="inline" formtarget="_blank">Preview {{.Label}}</button>
 <button class="gas-button">Download PDF</button>
 </form>{{end}}
+
+{{define "brand"}}<picture><source srcset="/static/logo-dark.png" media="(prefers-color-scheme: dark)"><img src="/static/logo.png" alt="CRAB — Cyber Response Action Board" width="224" height="71"></picture>{{end}}

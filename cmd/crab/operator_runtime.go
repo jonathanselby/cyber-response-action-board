@@ -304,7 +304,37 @@ func (r *operatorRuntime) Home(ctx context.Context, token string) (web.HomeView,
 			return web.HomeView{}, false, err
 		}
 		if found {
-			home.Incidents = append(home.Incidents, web.IncidentLink{IncidentID: id, Mode: picture.Incident.Mode, Title: picture.Incident.Title, Severity: picture.Incident.Severity})
+			link := web.IncidentLink{IncidentID: id, Mode: picture.Incident.Mode, Title: picture.Incident.Title, Severity: picture.Incident.Severity, Phase: humanPhase(domain.PhaseActiveResponse)}
+			if state, ok, err := r.recovery.State(ctx, principal, id, "GENERAL"); err == nil && ok && state.Phase != "" {
+				link.Phase = humanPhase(state.Phase)
+			}
+			home.Incidents = append(home.Incidents, link)
+		}
+	}
+	// Attention items come from the same scoped listings the frame and the
+	// First reports screen use; nothing here can name a hidden incident.
+	if approvals, err := r.approvals(ctx, principal, ""); err == nil {
+		home.WaitingApprovals = len(approvals.Waiting)
+		pending := map[string]int{}
+		for _, item := range approvals.Waiting {
+			if item.IncidentID != "" {
+				pending[item.IncidentID]++
+			}
+		}
+		for i := range home.Incidents {
+			home.Incidents[i].Pending = pending[home.Incidents[i].IncidentID]
+		}
+	}
+	if principal.Role == authz.RoleMajor {
+		home.CanTriage = true
+		if service, err := r.continuityService(); err == nil {
+			if reports, err := service.FirstReports(ctx, principal); err == nil {
+				for _, report := range reports {
+					if report.Disposition == nil {
+						home.AwaitingTriage++
+					}
+				}
+			}
 		}
 	}
 	if principal.Role == authz.RoleMajor {

@@ -1,6 +1,11 @@
-/* CRAB theme for go-app-shell v0.1.0: tokens, native elements, print. Layout belongs to the shell. */
-:root{--gas-accent:#274b36;--gas-on-accent:#fff;--gas-focus:#1f6a3c;--gas-info:#2b5f8a}
-@media (prefers-color-scheme:dark){:root{--gas-accent:#7fbf98;--gas-on-accent:#0d1410;--gas-focus:#9fd8b4;--gas-info:#7fb2dc}}
+/* CRAB Storm Blue theme for go-app-shell v0.1.0: tokens, native elements, print. */
+:root{--gas-accent:#334a5e;--gas-on-accent:#fff;--gas-focus:#334a5e;--gas-info:#334a5e;--gas-text:#17212b;--gas-text-muted:#687786;--gas-border:#e7eaec;--gas-surface:#fff;--gas-surface-raised:#f7f7f5;--gas-success:#2e7d5a;--gas-warning:#c6922d;--gas-danger:#b74b4b;--gas-radius:.375rem;--crab-page:#f7f7f5;--crab-line:#687786}
+@media (prefers-color-scheme:dark){:root{--gas-accent:#9fb4c7;--gas-on-accent:#17212b;--gas-focus:#b9cad9;--gas-info:#9fb4c7;--gas-text:#e7eaec;--gas-text-muted:#a3aeb9;--gas-border:#2c3a47;--gas-surface:#18212a;--gas-surface-raised:#1f2a35;--gas-success:#6fbf97;--gas-warning:#e0b35c;--gas-danger:#e58a8a;--crab-page:#10161d;--crab-line:#8796a5}}
+body{background:var(--crab-page)}
+.gas-app-name{font-weight:800;letter-spacing:.04em}
+.gas-page-summary,.gas-nav-group__label{color:var(--gas-text)}
+.gas-empty{background:var(--gas-surface)}
+.gas-field>input,.gas-field>select,.gas-field>textarea{border-color:var(--crab-line)}
 form.gas-cluster{align-items:flex-end}
 summary{cursor:pointer;font-weight:650;min-height:2.75rem;display:flex;align-items:center;gap:.5rem}
 summary h2{display:inline;margin:0;font-size:1.15rem}
@@ -9,8 +14,9 @@ fieldset.gas-field{border:0;padding:0;margin:0}
 fieldset.gas-field legend{font-weight:600;padding:0;margin-bottom:.5rem}
 fieldset.gas-field label{display:flex;gap:.5rem;align-items:center;min-height:2.75rem}
 @media print{
+body{background:#fff}
 details{display:block}details>summary,form,.gas-page-actions{display:none!important}
-.gas-header{display:flex!important;position:static;border-bottom:2px solid #000}
+.gas-header{display:flex!important;position:static;border-bottom:2px solid #17212b}
 .gas-app-context,.gas-status-text{display:inline!important;color:#000}
 .gas-panel{break-inside:avoid}
 }

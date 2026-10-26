@@ -41,8 +41,8 @@ func New() (*Server, error) {
 		AssetBase:             shellAssetBase,
 		Language:              "en",
 		AdditionalStylesheets: []string{"/static/crab.css?v=" + build},
-		ThemeColorLight:       "#ffffff",
-		ThemeColorDark:        "#101613",
+		ThemeColorLight:       "#F7F7F5",
+		ThemeColorDark:        "#10161D",
 	})
 	if err != nil {
 		return nil, err
@@ -67,6 +67,10 @@ func New() (*Server, error) {
 	s.mux.Handle("GET "+shellAssetBase+"/", http.StripPrefix(shellAssetBase+"/", http.FileServer(http.FS(shellAssets))))
 	s.mux.Handle("GET /static/", http.StripPrefix("/static/", http.FileServer(http.FS(staticFS))))
 	s.mux.HandleFunc("GET /healthz", s.health)
+	s.mux.HandleFunc("GET /favicon.ico", func(w http.ResponseWriter, r *http.Request) {
+		r.URL.Path = "/favicon.png"
+		http.FileServer(http.FS(staticFS)).ServeHTTP(w, r)
+	})
 	s.mux.HandleFunc("GET /manifest.webmanifest", s.serveBytes("application/manifest+json", func() []byte { return s.manifest }))
 	s.mux.HandleFunc("GET /service-worker.js", s.serveBytes("text/javascript; charset=utf-8", func() []byte { return s.worker }))
 	s.mux.HandleFunc("GET /offline", s.serveBytes("text/html; charset=utf-8", func() []byte { return s.offline }))
@@ -98,12 +102,16 @@ func (s *Server) preparePWA() error {
 		StartURL:        "/",
 		Scope:           "/",
 		Display:         "standalone",
-		ThemeColor:      "#274b36",
-		BackgroundColor: "#ffffff",
-		Icons:           []shell.PWAIcon{{Src: "/static/icon.svg", Sizes: "any", Type: "image/svg+xml"}},
-		Precache:        []string{shellAssetBase + "/shell.css", shellAssetBase + "/pwa.js", "/static/crab.css?v=" + s.build, "/static/icon.svg"},
-		OfflineURL:      "/offline",
-		CacheVersion:    s.build,
+		ThemeColor:      "#334A5E",
+		BackgroundColor: "#F7F7F5",
+		Icons: []shell.PWAIcon{
+			{Src: "/static/icon.svg", Sizes: "any", Type: "image/svg+xml"},
+			{Src: "/static/app-icon-192.png", Sizes: "192x192", Type: "image/png"},
+			{Src: "/static/app-icon-512.png", Sizes: "512x512", Type: "image/png"},
+		},
+		Precache:     []string{shellAssetBase + "/shell.css", shellAssetBase + "/pwa.js", "/static/crab.css?v=" + s.build, "/static/icon.svg"},
+		OfflineURL:   "/offline",
+		CacheVersion: s.build,
 	}
 	var err error
 	if s.manifest, err = shell.Manifest(cfg); err != nil {

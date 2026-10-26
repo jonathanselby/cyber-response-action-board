@@ -51,6 +51,10 @@ type IncidentBrief struct {
 type PackSection struct {
 	Title string
 	Body  string
+	// Optional table, printed before the body text.
+	Columns []string
+	Widths  []float64
+	Rows    [][]string
 }
 
 type BlankForm struct {
@@ -133,8 +137,8 @@ func ValidateEmergencyResponsePack(value EmergencyResponsePack) error {
 		return errors.New("emergency response pack requires approved sections and blank forms")
 	}
 	for _, section := range value.Sections {
-		if strings.TrimSpace(section.Title) == "" || strings.TrimSpace(section.Body) == "" {
-			return errors.New("emergency response pack section requires title and body")
+		if strings.TrimSpace(section.Title) == "" || (strings.TrimSpace(section.Body) == "" && len(section.Rows) == 0) {
+			return errors.New("emergency response pack section requires title and body or rows")
 		}
 	}
 	for _, form := range value.Forms {

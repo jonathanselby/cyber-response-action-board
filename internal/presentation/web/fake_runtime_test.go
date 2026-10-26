@@ -31,6 +31,14 @@ type fakeRuntime struct {
 	capture      FirstReportCapture
 	evidenceComp string
 	pdfErr       error
+	reads        map[string]int // read calls, for frame/summary cost tests
+}
+
+func (f *fakeRuntime) read(name string) {
+	if f.reads == nil {
+		f.reads = map[string]int{}
+	}
+	f.reads[name]++
 }
 
 const testIncident = "INC-1"
@@ -70,6 +78,7 @@ func (f *fakeRuntime) Authenticate(_ context.Context, id, _ string) (string, err
 func (f *fakeRuntime) Logout(context.Context, string) error { return nil }
 
 func (f *fakeRuntime) Frame(_ context.Context, token, incidentID string) (FrameView, bool, error) {
+	f.read("Frame")
 	if token == "" || token == "expired" {
 		return FrameView{}, false, nil
 	}
@@ -85,7 +94,8 @@ func (f *fakeRuntime) Frame(_ context.Context, token, incidentID string) (FrameV
 }
 
 func (f *fakeRuntime) Home(context.Context, string) (HomeView, bool, error) {
-	return HomeView{HumanID: "alice", Role: "Major", CanDeclare: true, Incidents: []IncidentLink{{IncidentID: testIncident, Mode: f.incidentMode(), Title: "Bafflewick payroll", Severity: "High", Phase: "Active response", Pending: 2}}}, true, nil
+	f.read("Home")
+	return HomeView{HumanID: "alice", Role: "Major", CanDeclare: true, Incidents: []IncidentLink{{IncidentID: testIncident, Mode: f.incidentMode(), Title: "Bafflewick payroll", Severity: "High", Phase: "Active response", Pending: 2}}, WaitingApprovals: 2, CanTriage: true, AwaitingTriage: 1}, true, nil
 }
 
 func (f *fakeRuntime) Incident(_ context.Context, _ string, id string) (IncidentView, bool, error) {
@@ -149,6 +159,7 @@ func (f *fakeRuntime) Retrieve(_ context.Context, _ string, _ string, q string) 
 }
 
 func (f *fakeRuntime) Intake(context.Context, string) (IntakeView, bool, error) {
+	f.read("Intake")
 	return IntakeView{HumanID: "alice", Role: "Major", CanTriage: true, Reports: []IntakeReportRow{{ReportID: "REPORT-1", Description: "Phone report", SourceChannel: "phone", ReceivedAt: "2026-10-21T01:00:00Z"}}}, true, nil
 }
 func (f *fakeRuntime) CaptureFirstReport(_ context.Context, _ string, input FirstReportCapture) error {
@@ -256,6 +267,7 @@ func (f *fakeRuntime) ProposeCompartmentMembership(context.Context, string, stri
 	return f.record("ProposeCompartmentMembership")
 }
 func (f *fakeRuntime) Readiness(context.Context, string) (ReadinessPage, error) {
+	f.read("Readiness")
 	return ReadinessPage{Ready: false, Checks: []ReadinessCheckView{{Name: "emergency_pack", Status: "warn", Message: "no generated PDF found"}}}, nil
 }
 
@@ -294,6 +306,7 @@ func (f *fakeRuntime) OrganisationPackPDF(context.Context, string, string, strin
 }
 
 func (f *fakeRuntime) Approvals(context.Context, string, string) (ApprovalsView, error) {
+	f.read("Approvals")
 	return ApprovalsView{
 		Incidents: []IncidentLink{{IncidentID: testIncident, Title: "Bafflewick payroll"}},
 		Waiting: []ApprovalView{{

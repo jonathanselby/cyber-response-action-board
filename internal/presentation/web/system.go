@@ -19,7 +19,7 @@ var decisionKinds = map[string]bool{
 }
 
 var (
-	incidentsScreen = screen{nav: "incidents", title: "Incidents", summary: "Incidents you are assigned to."}
+	incidentsScreen = screen{nav: "incidents", title: "Command Summary", summary: "What needs your attention now."}
 	approvalsScreen = screen{nav: "approvals", title: "Approvals", summary: "Changes waiting for a second person.", tmpl: "approvals"}
 	intakeScreen    = screen{nav: "intake", title: "First reports", summary: "Capture what was reported before anyone declares an incident.", tmpl: "intake"}
 	readinessScreen = screen{nav: "readiness", title: "Readiness", summary: "Will CRAB work when it is needed?", tmpl: "readiness"}

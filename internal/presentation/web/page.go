@@ -69,7 +69,7 @@ var messages = map[string]string{
 
 type navItem struct{ key, label, path string }
 
-var responseNav = []navItem{{"incidents", "Incidents", "/"}, {"approvals", "Approvals", "/approvals"}, {"intake", "First reports", "/intake"}}
+var responseNav = []navItem{{"incidents", "Command Summary", "/"}, {"approvals", "Approvals", "/approvals"}, {"intake", "First reports", "/intake"}}
 var incidentNav = []navItem{{"board", "Board", ""}, {"evidence", "Evidence", "/evidence"}, {"communications", "Communications", "/communications"}, {"access", "Access", "/access"}, {"close", "Close-out", "/close"}}
 var systemNav = []navItem{{"readiness", "Readiness", "/readiness"}, {"obligations", "Obligation library", "/obligations"}, {"access-admin", "Access admin", "/access"}}
 

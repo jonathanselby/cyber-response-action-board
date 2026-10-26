@@ -1,5 +1,7 @@
 {{define "signin"}}{{template "feedback" .}}
-<section class="gas-panel gas-stack">
+<section class="gas-panel gas-stack" aria-label="Sign in">
+{{template "brand"}}
+<p>Cyber incident response that keeps working when corporate systems do not.</p>
 <form class="gas-form gas-stack" method="post" action="/login">
 <div class="gas-field"><label for="human_id">Your CRAB ID</label><input id="human_id" name="human_id" autocomplete="username" required value="{{.Form.Get "human_id"}}"{{if .Error}} aria-invalid="true"{{end}}></div>
 <div class="gas-field"><label for="password">Password</label><input id="password" type="password" name="password" autocomplete="current-password" required></div>
