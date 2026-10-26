@@ -237,7 +237,7 @@ func immediateRecord(scope Scope, recordType, recordID, maker string, now time.T
 	record := ledger.Record{
 		SchemaVersion:  1,
 		Timestamp:      now.UTC(),
-		TimeStatus:     "trusted",
+		TimeStatus:     ledger.TimeTrusted,
 		IncidentID:     scope.IncidentID,
 		IncidentMode:   scope.Mode,
 		WriteSemantic:  "record",
@@ -274,7 +274,7 @@ func proposedRecord(scope Scope, recordType, recordID, maker string, now time.Ti
 	record := ledger.Record{
 		SchemaVersion:  1,
 		Timestamp:      now.UTC(),
-		TimeStatus:     "trusted",
+		TimeStatus:     ledger.TimeTrusted,
 		IncidentID:     scope.IncidentID,
 		IncidentMode:   scope.Mode,
 		WriteSemantic:  "governed",

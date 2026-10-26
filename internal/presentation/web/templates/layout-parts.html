@@ -27,4 +27,6 @@
 
 {{define "time-help"}}<p class="gas-help">Date and time in UTC.</p>{{end}}
 
-{{define "time-confidence"}}<div class="gas-field"><label for="{{.}}-tc">Time confidence</label><select id="{{.}}-tc" name="time_confidence"><option value="trusted">Trusted — taken from a reliable clock</option><option value="drifting">Approximate</option><option value="untrusted">Unverified</option></select></div>{{end}}
+{{define "time-trust"}}{{if .Frame.HumanID}}{{if and .Frame.Status.TimeStatus (ne .Frame.Status.TimeStatus "trusted")}}<p class="gas-notice gas-notice--warning" role="note"><strong>TIME UNVERIFIED</strong> — CRAB cannot verify this host's clock. CRAB keeps working; new entries and deadlines are marked unverified.</p>{{end}}{{end}}{{end}}
+
+{{define "time-confidence"}}<div class="gas-field"><label for="{{.}}-tc">Time confidence</label><select id="{{.}}-tc" name="time_confidence"><option value="">Use CRAB's clock status</option><option value="trusted">Trusted — taken from a reliable clock</option><option value="drifting">Approximate</option><option value="untrusted">Unverified</option></select></div>{{end}}

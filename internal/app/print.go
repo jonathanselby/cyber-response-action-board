@@ -55,6 +55,20 @@ type PrintService struct {
 	Renderer             PDFRenderer
 	Artifacts            ArtifactStore
 	ConfigurationVersion string
+	// TimeStatus reports the one clock at generation time. When set, the
+	// printed time-trust mark is the weaker of the ledger tail and the clock.
+	TimeStatus func() string
+}
+
+func (s PrintService) ledgerSource(ctx context.Context, now time.Time) (domain.PrintSourceMark, error) {
+	source, err := s.Source.LedgerSource(ctx, now, s.ConfigurationVersion)
+	if err != nil {
+		return domain.PrintSourceMark{}, err
+	}
+	if s.TimeStatus != nil {
+		source.TimeStatus = ledger.WeakerTimeStatus(source.TimeStatus, s.TimeStatus())
+	}
+	return source, nil
 }
 
 func (s PrintService) GenerateIncidentBrief(ctx context.Context, principal authz.Principal, incidentID, compartment string, contacts []domain.PrintContact, pageSize, printMode string, now time.Time) (PrintResult, error) {
@@ -71,7 +85,7 @@ func (s PrintService) GenerateIncidentBrief(ctx context.Context, principal authz
 	if !found {
 		return PrintResult{}, ErrAuthorisationDenied
 	}
-	source, err := s.Source.LedgerSource(ctx, now, s.ConfigurationVersion)
+	source, err := s.ledgerSource(ctx, now)
 	if err != nil {
 		return PrintResult{}, err
 	}
@@ -114,7 +128,7 @@ func (s PrintService) GenerateEvidenceRegister(ctx context.Context, principal au
 	if err != nil {
 		return PrintResult{}, err
 	}
-	source, err := s.Source.LedgerSource(ctx, now, s.ConfigurationVersion)
+	source, err := s.ledgerSource(ctx, now)
 	if err != nil {
 		return PrintResult{}, err
 	}
@@ -140,7 +154,7 @@ func (s PrintService) GenerateTimeline(ctx context.Context, principal authz.Prin
 		}
 		return PrintResult{}, ErrAuthorisationDenied
 	}
-	source, err := s.Source.LedgerSource(ctx, now, s.ConfigurationVersion)
+	source, err := s.ledgerSource(ctx, now)
 	if err != nil {
 		return PrintResult{}, err
 	}
@@ -159,7 +173,7 @@ func (s PrintService) GenerateEmergencyResponsePack(ctx context.Context, princip
 	if !principal.Authenticated || strings.TrimSpace(principal.HumanID) == "" || principal.Role != authz.RoleMajor || !principal.Outputs[authz.ActionPrint] {
 		return PrintResult{}, ErrAuthorisationDenied
 	}
-	source, err := s.Source.LedgerSource(ctx, now, s.ConfigurationVersion)
+	source, err := s.ledgerSource(ctx, now)
 	if err != nil {
 		return PrintResult{}, err
 	}
@@ -188,7 +202,7 @@ func (s PrintService) GenerateReviewClosure(ctx context.Context, principal authz
 		}
 		return PrintResult{}, ErrAuthorisationDenied
 	}
-	source, err := s.Source.LedgerSource(ctx, now, s.ConfigurationVersion)
+	source, err := s.ledgerSource(ctx, now)
 	if err != nil {
 		return PrintResult{}, err
 	}

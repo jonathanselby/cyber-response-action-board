@@ -166,7 +166,7 @@ func newOperatorRuntime() (web.Runtime, error) {
 		if err != nil {
 			return fail(err)
 		}
-		r.print = app.PrintService{Incident: r.incident, Evidence: printEvidenceReader{store: evidenceStore}, Source: printSource, Renderer: pdfpresentation.Renderer{}, Artifacts: artifactStore, ConfigurationVersion: buildinfo.Version}
+		r.print = app.PrintService{Incident: r.incident, Evidence: printEvidenceReader{store: evidenceStore}, Source: printSource, Renderer: pdfpresentation.Renderer{}, Artifacts: artifactStore, ConfigurationVersion: buildinfo.Version, TimeStatus: func() string { return kernel.Clock().Read().Status }}
 	}
 	return r, nil
 }
@@ -205,15 +205,20 @@ func (r *operatorRuntime) Bootstrapped(ctx context.Context) (bool, error) {
 }
 
 func (r *operatorRuntime) Bootstrap(ctx context.Context, input web.BootstrapInput) error {
+	if input.PreparedBy == input.ConfirmedBy {
+		return errors.New("bootstrap requires two distinct humans")
+	}
+	for _, password := range []string{input.PreparedPassword, input.ConfirmedPassword} {
+		if err := authn.ValidateNewPassword(password); err != nil {
+			return err
+		}
+	}
 	ready, err := r.Bootstrapped(ctx)
 	if err != nil {
 		return err
 	}
 	if ready {
 		return errors.New("bootstrap already complete")
-	}
-	if input.PreparedBy == input.ConfirmedBy {
-		return errors.New("bootstrap requires two distinct humans")
 	}
 	prepared, err := authn.NewPasswordRecord(input.PreparedBy, input.PreparedPassword, authn.MinPBKDF2Iterations)
 	if err != nil {

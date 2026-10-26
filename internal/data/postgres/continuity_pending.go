@@ -100,7 +100,7 @@ func pendingSeverityRecord(incidentID, recordID, version, maker, compartment, mo
 	record := ledger.Record{
 		SchemaVersion:  1,
 		Timestamp:      proposedAt.UTC(),
-		TimeStatus:     "trusted",
+		TimeStatus:     ledger.TimeTrusted,
 		IncidentID:     strings.TrimSpace(incidentID),
 		IncidentMode:   mode,
 		WriteSemantic:  "governed",

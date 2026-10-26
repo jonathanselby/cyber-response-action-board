@@ -129,12 +129,14 @@ func (s *Server) setup(w http.ResponseWriter, r *http.Request) {
 	}
 	input := BootstrapInput{PreparedBy: formValue(r, "prepared_by"), PreparedPassword: r.FormValue("prepared_password"), ConfirmedBy: formValue(r, "confirmed_by"), ConfirmedPassword: r.FormValue("confirmed_password")}
 	setupScreen := screen{title: "First-run setup", summary: "Two different people create the first accounts together.", tmpl: "setup"}
-	if input.PreparedBy == "" || input.PreparedBy == input.ConfirmedBy || len(input.PreparedPassword) < 12 || len(input.ConfirmedPassword) < 12 {
-		s.page(w, http.StatusUnprocessableEntity, setupScreen, pageData{Error: "Two distinct people and passwords of at least 12 characters are required.", Form: url.Values{"prepared_by": {input.PreparedBy}, "confirmed_by": {input.ConfirmedBy}}}, nil)
+	keep := url.Values{"prepared_by": {input.PreparedBy}, "confirmed_by": {input.ConfirmedBy}}
+	if input.PreparedBy == "" || input.ConfirmedBy == "" || input.PreparedBy == input.ConfirmedBy {
+		s.page(w, http.StatusUnprocessableEntity, setupScreen, pageData{Error: "Two distinct people are required.", Form: keep}, nil)
 		return
 	}
+	// The password rule lives in the security tier (T-193); its refusal is shown here.
 	if err := s.runtime.Bootstrap(r.Context(), input); err != nil {
-		s.page(w, http.StatusUnprocessableEntity, setupScreen, pageData{Error: refusalText(err)}, nil)
+		s.page(w, http.StatusUnprocessableEntity, setupScreen, pageData{Error: refusalText(err), Form: keep}, nil)
 		return
 	}
 	http.Redirect(w, r, "/", http.StatusSeeOther)

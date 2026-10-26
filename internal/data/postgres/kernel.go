@@ -13,6 +13,7 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/jonathanselby/cyber-response-action-board/internal/adapters/clock"
 	"github.com/jonathanselby/cyber-response-action-board/internal/ledger"
 )
 
@@ -46,6 +47,7 @@ type Kernel struct {
 	tailHash string
 	failed   atomic.Bool
 	initial  ledger.VerifyResult
+	clock    clock.Clock
 }
 
 // OpenKernel validates the runtime database boundary and performs the required
@@ -60,7 +62,7 @@ func OpenKernel(ctx context.Context, pool *pgxpool.Pool, keys ledger.Keyring) (*
 	if err := ValidateRuntimeRole(ctx, pool); err != nil {
 		return nil, err
 	}
-	k := &Kernel{pool: pool, keys: keys}
+	k := &Kernel{pool: pool, keys: keys, clock: clock.NewHost()}
 	res, seq, hash, err := k.verifyDatabase(ctx)
 	if err != nil {
 		return nil, err
@@ -75,7 +77,42 @@ func OpenKernel(ctx context.Context, pool *pgxpool.Pool, keys ledger.Keyring) (*
 }
 
 func (k *Kernel) InitialVerification() ledger.VerifyResult { return k.initial }
-func (k *Kernel) IntegrityFailed() bool                    { return k.failed.Load() }
+
+// SetClock replaces the time authority. Tests and replays use a fixed clock.
+func (k *Kernel) SetClock(c clock.Clock) {
+	k.mu.Lock()
+	defer k.mu.Unlock()
+	if c != nil {
+		k.clock = c
+	}
+}
+
+// Clock returns the kernel's time authority so composition can show the same
+// reading that writes are stamped with.
+func (k *Kernel) Clock() clock.Clock {
+	k.mu.Lock()
+	defer k.mu.Unlock()
+	if k.clock == nil {
+		return clock.NewHost()
+	}
+	return k.clock
+}
+
+// stampTime caps a record's time status by the one clock (T-194). Records
+// carrying a human cryptographic signature were stamped before signing and
+// are left byte-identical.
+func (k *Kernel) stampTime(record ledger.Record) ledger.Record {
+	if record.MakerSignature.Value != "" || record.ConfirmerSignature.Value != "" {
+		return record
+	}
+	c := k.clock
+	if c == nil {
+		c = clock.NewHost()
+	}
+	record.TimeStatus = ledger.WeakerTimeStatus(record.TimeStatus, c.Read().Status)
+	return record
+}
+func (k *Kernel) IntegrityFailed() bool { return k.failed.Load() }
 
 // Verify performs a full independent verification. A failure is sticky and
 // places the process in integrity-failed read-only mode. Verification alone
@@ -125,7 +162,7 @@ func (k *Kernel) Append(ctx context.Context, record ledger.Record, signer Signer
 		return ledger.Entry{}, ErrUnexpectedTail
 	}
 
-	entry, err := ledger.BuildEntry(seq+1, hash, record, signer.KeyID, signer.PrivateKey, k.keys)
+	entry, err := ledger.BuildEntry(seq+1, hash, k.stampTime(record), signer.KeyID, signer.PrivateKey, k.keys)
 	if err != nil {
 		return ledger.Entry{}, fmt.Errorf("build ledger entry: %w", err)
 	}

@@ -44,7 +44,7 @@ func (r *ObligationRuntime) PendingObligation(ctx context.Context, scopeID, reco
 	if err != nil {
 		return ledger.Record{}, false, err
 	}
-	timeStatus := "trusted"
+	timeStatus := ledger.TimeTrusted
 	if recordType == domain.TypeObligationTrigger && scopeID != "" {
 		if err := r.Store.pool.QueryRow(ctx, `SELECT time_status FROM crab.obligation_clocks WHERE incident_id=$1 AND clock_id=$2 AND lifecycle='provisional'`, scopeID, recordID).Scan(&timeStatus); err != nil {
 			if !errors.Is(err, pgx.ErrNoRows) {

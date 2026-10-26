@@ -63,7 +63,7 @@ func (AccessProjection) Apply(ctx context.Context, tx pgx.Tx, entry ledger.Entry
 			if err != nil {
 				return err
 			}
-			if version != data.Version || maker != record.Maker || compartment != record.Compartment || mode != record.IncidentMode || timeStatus != record.TimeStatus || !bytes.Equal(payload, []byte(data.Payload)) {
+			if version != data.Version || maker != record.Maker || compartment != record.Compartment || mode != record.IncidentMode || !bytes.Equal(payload, []byte(data.Payload)) {
 				return errors.New("access decision does not match exact pending proposal")
 			}
 			if record.Status == "confirmed" {

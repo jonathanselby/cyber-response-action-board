@@ -67,7 +67,8 @@ func (r *operatorRuntime) CaptureFirstReport(ctx context.Context, token string, 
 	}
 	confidence := strings.TrimSpace(input.TimeConfidence)
 	if confidence == "" {
-		confidence = "trusted"
+		// No stated confidence: CRAB asserts only what its own clock supports.
+		confidence = r.kernel.Clock().Read().Status
 	}
 	attachments := make([]app.FirstReportAttachmentInput, 0, len(input.Attachments))
 	for _, attachment := range input.Attachments {

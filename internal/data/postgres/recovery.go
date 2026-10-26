@@ -396,7 +396,7 @@ func (r *RecoveryRuntime) PendingRecovery(ctx context.Context, incidentID, recor
 	if err != nil {
 		return ledger.Record{}, false, err
 	}
-	record := ledger.Record{SchemaVersion: 1, Timestamp: proposedAt.UTC(), TimeStatus: "trusted", IncidentID: incidentID, IncidentMode: mode, WriteSemantic: "governed", RecordType: recordType, RecordID: recordID, Status: "proposed", Maker: maker, Compartment: compartment, Data: wrapped, MakerSignature: ledger.Signature{MissingReason: "maker authenticated on immutable proposal entry"}}
+	record := ledger.Record{SchemaVersion: 1, Timestamp: proposedAt.UTC(), TimeStatus: ledger.TimeTrusted, IncidentID: incidentID, IncidentMode: mode, WriteSemantic: "governed", RecordType: recordType, RecordID: recordID, Status: "proposed", Maker: maker, Compartment: compartment, Data: wrapped, MakerSignature: ledger.Signature{MissingReason: "maker authenticated on immutable proposal entry"}}
 	if _, err := domain.ProposalVersion(record); err != nil {
 		return ledger.Record{}, false, err
 	}

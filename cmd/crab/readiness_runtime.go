@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/jonathanselby/cyber-response-action-board/internal/adapters/clock"
 	"os"
 	"path/filepath"
 	"strings"
@@ -32,13 +33,13 @@ func setReadinessCheck(r *app.Readiness, check app.Check) {
 	r.Checks = append(r.Checks, check)
 }
 
-func enrichReadiness(cfg config.Config, r *app.Readiness) {
+func enrichReadiness(cfg config.Config, r *app.Readiness, c clock.Clock) {
 	setReadinessCheck(r, keyCustodyCheck(cfg))
 	setReadinessCheck(r, backupRestoreReadiness(cfg))
 	setReadinessCheck(r, exportPathCheck(cfg))
 	setReadinessCheck(r, packFreshnessCheck(cfg))
 	setReadinessCheck(r, storageCheck(cfg))
-	setReadinessCheck(r, app.Check{Name: "time_status", Status: "warn", Message: "host clock is in use; incident records preserve trusted/drifting/untrusted time status explicitly"})
+	setReadinessCheck(r, timeCheck(c))
 	setReadinessCheck(r, notificationDeploymentReadiness(cfg))
 	setReadinessCheck(r, modelDeploymentReadiness(cfg))
 	if strings.HasPrefix(strings.ToLower(cfg.PublicBaseURL), "https://") {
@@ -46,6 +47,21 @@ func enrichReadiness(cfg config.Config, r *app.Readiness) {
 	} else {
 		setReadinessCheck(r, app.Check{Name: "certificate_hostname", Status: "warn", Message: "no HTTPS public base URL configured; current listener remains loopback-only"})
 	}
+}
+
+// timeCheck reports the live reading of the one clock (T-196).
+func timeCheck(c clock.Clock) app.Check {
+	if c == nil {
+		c = clock.NewHost()
+	}
+	reading := c.Read()
+	switch reading.Status {
+	case clock.Trusted:
+		return app.Check{Name: "time_status", Status: "pass", Message: reading.Detail}
+	case clock.Drifting:
+		return app.Check{Name: "time_status", Status: "warn", Message: reading.Detail + "; new times are marked TIME DRIFTING"}
+	}
+	return app.Check{Name: "time_status", Status: "warn", Message: reading.Detail + "; CRAB keeps operating and marks new times TIME UNVERIFIED"}
 }
 
 func keyCustodyCheck(cfg config.Config) app.Check {

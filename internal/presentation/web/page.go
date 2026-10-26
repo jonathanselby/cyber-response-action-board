@@ -186,6 +186,7 @@ func (s *Server) compose(sc screen, data pageData, actions []Action) ([]byte, er
 	if data.Frame.Incident != nil {
 		_ = s.templates.ExecuteTemplate(&framed, "incident-context", data)
 	}
+	_ = s.templates.ExecuteTemplate(&framed, "time-trust", data)
 	framed.Write(body.Bytes())
 	framed.WriteString(`</div>`)
 

@@ -39,6 +39,7 @@ func (r *operatorRuntime) Frame(ctx context.Context, token, incidentID string) (
 	}
 	frame := web.FrameView{HumanID: principal.HumanID, Role: string(principal.Role), Custodian: principal.Custodian}
 	frame.Status.BreakGlass = session.BreakGlass
+	frame.Status.TimeStatus = r.kernel.Clock().Read().Status
 	frame.Status.IntegrityFailed = r.kernel.IntegrityFailed()
 	if isolate, err := r.access.IsolateMode(ctx); err == nil {
 		frame.Status.Isolate = isolate
@@ -187,7 +188,7 @@ func (r *operatorRuntime) Board(ctx context.Context, token, incidentID, compartm
 	}
 
 	if cfg, err := config.Load(); err == nil {
-		for _, check := range []app.Check{packFreshnessCheck(cfg), exportPathCheck(cfg), storageCheck(cfg)} {
+		for _, check := range []app.Check{timeCheck(r.kernel.Clock()), packFreshnessCheck(cfg), exportPathCheck(cfg), storageCheck(cfg)} {
 			if check.Status != "pass" {
 				out.Readiness = append(out.Readiness, web.ReadinessCheckView{Name: humanCheckName(check.Name), Status: check.Status, Message: check.Message})
 			}
@@ -207,6 +208,8 @@ func humanCheckName(name string) string {
 		return "Export locations"
 	case "storage_headroom":
 		return "Storage"
+	case "time_status":
+		return "Time"
 	}
 	return strings.ReplaceAll(name, "_", " ")
 }

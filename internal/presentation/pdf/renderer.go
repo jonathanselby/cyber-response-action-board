@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/jonathanselby/cyber-response-action-board/internal/domain"
+	"github.com/jonathanselby/cyber-response-action-board/internal/ledger"
 	"github.com/signintech/gopdf"
 	"golang.org/x/image/font/gofont/goregular"
 )
@@ -376,6 +377,17 @@ func (d *document) splitLongWord(word string, width float64) []string {
 	return parts
 }
 
+// timeTrustLabel states time trust in words that do not depend on colour.
+func timeTrustLabel(status string) string {
+	switch status {
+	case ledger.TimeTrusted:
+		return "TIME VERIFIED"
+	case ledger.TimeDrifting:
+		return "TIME DRIFTING"
+	}
+	return "TIME UNVERIFIED"
+}
+
 func (d *document) footer() {
 	oldY := d.y
 	d.y = d.pageH - 25
@@ -383,8 +395,7 @@ func (d *document) footer() {
 	if len(shortHash) > 12 {
 		shortHash = shortHash[:12]
 	}
-	status := strings.ToUpper(d.source.TimeStatus)
-	footer := fmt.Sprintf("Page %d | ledger %d/%s | config %s | generated %s | time %s", d.page, d.source.LedgerSequence, shortHash, d.source.ConfigurationVersion, d.source.GeneratedAt.UTC().Format(time.RFC3339), status)
+	footer := fmt.Sprintf("Page %d | ledger %d/%s | config %s | generated %s | %s", d.page, d.source.LedgerSequence, shortHash, d.source.ConfigurationVersion, d.source.GeneratedAt.UTC().Format(time.RFC3339), timeTrustLabel(d.source.TimeStatus))
 	d.text(footer, 6.7, false)
 	d.y = oldY
 }

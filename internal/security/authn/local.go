@@ -8,6 +8,7 @@ import (
 	"crypto/subtle"
 	"encoding/base64"
 	"errors"
+	"unicode"
 )
 
 const (
@@ -60,6 +61,33 @@ func NewPasswordRecord(humanID, password string, iterations int) (PasswordRecord
 		Iterations: iterations,
 		Hash:       base64.StdEncoding.EncodeToString(h),
 	}, nil
+}
+
+// MinPasswordLength is the minimum length of a human-chosen password.
+const MinPasswordLength = 12
+
+// ValidateNewPassword is the single rule for human-chosen passwords (T-193):
+// at least 12 characters with an upper-case letter, a lower-case letter and a
+// character that is neither a letter nor a digit. Generated break-glass keys
+// are not human-chosen and keep their own rule.
+func ValidateNewPassword(password string) error {
+	var upper, lower, symbol bool
+	count := 0
+	for _, r := range password {
+		count++
+		switch {
+		case unicode.IsUpper(r):
+			upper = true
+		case unicode.IsLower(r):
+			lower = true
+		case !unicode.IsLetter(r) && !unicode.IsDigit(r) && !unicode.IsSpace(r) && !unicode.IsControl(r):
+			symbol = true
+		}
+	}
+	if count < MinPasswordLength || !upper || !lower || !symbol {
+		return errors.New("password must be at least 12 characters and include an upper-case letter, a lower-case letter and a symbol")
+	}
+	return nil
 }
 
 func ValidatePasswordRecord(r PasswordRecord) error {

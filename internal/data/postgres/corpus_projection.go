@@ -64,7 +64,7 @@ func (CorpusProjection) Apply(ctx context.Context, tx pgx.Tx, entry ledger.Entry
 		}
 		return err
 	}
-	if incidentID != record.IncidentID || mode != record.IncidentMode || compartment != record.Compartment || version != data.Version || maker != record.Maker || timeStatus != record.TimeStatus || !bytes.Equal(payload, []byte(data.Payload)) {
+	if incidentID != record.IncidentID || mode != record.IncidentMode || compartment != record.Compartment || version != data.Version || maker != record.Maker || !bytes.Equal(payload, []byte(data.Payload)) {
 		return errors.New("corpus decision does not match exact pending proposal")
 	}
 	if record.Status == "confirmed" {

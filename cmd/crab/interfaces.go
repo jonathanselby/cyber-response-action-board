@@ -201,6 +201,7 @@ func authenticatedPrintService(sessionFile string) (app.PrintService, authz.Prin
 		Renderer:             pdfpresentation.Renderer{},
 		Artifacts:            artifactStore,
 		ConfigurationVersion: buildinfo.Version,
+		TimeStatus:           func() string { return runtime.kernel.Clock().Read().Status },
 	}
 	return service, principal, cfg, nil
 }
