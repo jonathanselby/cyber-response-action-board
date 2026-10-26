@@ -485,7 +485,7 @@ var templateFuncs = template.FuncMap{
 	"pathEscape": url.PathEscape,
 	"statusBadge": func(status string) string {
 		switch strings.ToLower(status) {
-		case "pass", "delivered", "complete", "confirmed", "firm", "verified", "met", "live":
+		case "pass", "delivered", "complete", "confirmed", "firm", "verified", "met":
 			return "success"
 		case "warn", "provisional", "suppressed", "in_progress", "not-configured", "exercise", "skipped":
 			return "warning"

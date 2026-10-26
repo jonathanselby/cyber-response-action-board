@@ -7,6 +7,9 @@ on:
   push:
     branches: ['uat2/**']
 
+permissions:
+  contents: write
+
 jobs:
   capture:
     runs-on: ubuntu-latest
@@ -33,6 +36,22 @@ jobs:
           go-version: '1.27.2'
       - name: Capture screens and PDFs
         run: ./scripts/visual-capture.sh visual-capture
+      - name: Publish to the visual-capture branch (single orphan commit)
+        if: github.event_name == 'push'
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p publish
+          for f in visual-capture/shots/*.png; do
+            convert "$f" -quality 82 "publish/$(basename "${f%.png}").jpg"
+          done
+          cp visual-capture/pdf/*.pdf publish/
+          cd publish
+          git init -q
+          git checkout -q -b ci/visual-capture
+          git -c user.name=ci -c user.email=ci@localhost add .
+          git -c user.name=ci -c user.email=ci@localhost commit -q -m "visual capture for ${GITHUB_SHA}"
+          git push -q -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" ci/visual-capture
       - uses: actions/upload-artifact@v4
         with:
           name: visual-capture
