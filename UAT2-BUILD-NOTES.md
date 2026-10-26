@@ -258,3 +258,10 @@ All are `governed`, `SYSTEM` compartment, Propose → Decide through the one `/d
 - Self-approved severity changes and communication issues are written to the timeline as well as badged.
 - Bafflewick phase 9 added; threshold 9/9.
 - Evidence: `docs/build-evidence-0.0.20-dev.md`.
+
+### Stage 6 — 0.0.21-dev
+
+- Release candidate for Phase 3 UAT. No product behaviour changed.
+- UAT script `docs/uat-phase3-script.md`; Phase 3 record opened in `docs/visual-acceptance.md`.
+- Demo seed extended with a single-person window and a self-approved decision for the reference renders.
+- Evidence: `docs/build-evidence-0.0.21-dev.md`.

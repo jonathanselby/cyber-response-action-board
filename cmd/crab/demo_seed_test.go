@@ -93,6 +93,16 @@ func seedDemo(t *testing.T, e *e2e) (alice, bob string) {
 	e.approveAll(bob)
 	e.post(inc+"/checklist", alice, url.Values{"template_id": {"suspected-data-breach"}})
 
+	// A single-person window for alice and one self-approved decision, so
+	// the SELF-APPROVAL markings appear in the capture and the UAT data.
+	now := time.Now().UTC()
+	e.post("/organisation/window", alice, windowForm("overnight-cover", now, now.Add(8*time.Hour), "alice", "incident.decision", "incident.severity_change"))
+	e.approveAll(bob)
+	e.post(inc+"/decision", alice, url.Values{"decision": {"Restore payroll from the 02:00 backup"}, "rationale": {"Backup verified clean by bob before he went off shift"}})
+	if resp := e.selfDecide(alice, "Bob off shift until 08:00; payroll run due at 06:00"); resp == nil || resp.StatusCode != 303 {
+		t.Fatalf("seed self-approval failed: %v", resp)
+	}
+
 	e.postMultipart("/intake", alice, map[string]string{
 		"reporter": "Service desk", "contact_route": "ext 4400", "description": "Staff report ransom note on shared drive",
 		"affected": "Finance share", "immediate_impact": "Finance team cannot work", "source_channel": "phone",
@@ -112,6 +122,9 @@ func TestDemoSeedRuns(t *testing.T) {
 		if !strings.Contains(board, want) {
 			t.Fatalf("board missing %q", want)
 		}
+	}
+	if !strings.Contains(board, "SELF-APPROVAL") {
+		t.Fatal("seeded self-approval not shown on the Board")
 	}
 	if strings.Contains(board, "No operational roles assigned") {
 		t.Fatal("seeded roles were not confirmed by the second person")

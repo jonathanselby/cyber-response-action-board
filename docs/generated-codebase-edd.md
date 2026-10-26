@@ -202,7 +202,7 @@ Non-loopback serving is refused unless TLS certificate/key and an HTTPS public b
 - `/healthz` exposes a small runtime/version/time health response; detailed operational confidence is provided through readiness logic.
 - CI enforces module tidiness, gofmt, vet, race-enabled full tests, both architecture builds and explicit core acceptance.
 - `internal/architecture/imports_test.go` protects tier import boundaries.
-- Bafflewick adds an explicit 8/8 end-to-end regression gate over existing production-path tests.
+- Bafflewick adds an explicit 9/9 end-to-end regression gate over existing production-path tests.
 - Projection replay is deliberately bounded one verified sequence at a time rather than loading an unbounded ledger into memory.
 - Physical Pi performance remains to be measured rather than inferred from CI.
 

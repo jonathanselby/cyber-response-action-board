@@ -6,7 +6,7 @@ CRAB is a single Go application for running a cyber incident from first report t
 
 ## Build status
 
-**0.0.20-dev — Phase 2 UAT passed functionally; building the Phase 2 response (`UAT2-BUILD-NOTES.md`) before Phase 3 UAT.**
+**0.0.21-dev — Phase 2 UAT response complete; release candidate for Phase 3 UAT (`docs/uat-phase3-script.md`).**
 
 The frozen product contract is PRD V0.2 and EDD V0.4. The implementation may simplify mechanisms; it may not silently weaken product outcomes, security boundaries or degraded-operation behaviour.
 
@@ -38,11 +38,11 @@ CI-proven now:
 - local Custodian recovery that is refused while normal Custodian quorum is demonstrably usable and never grants incident-content access;
 - non-loopback serving refused unless TLS certificate/key and an HTTPS public base URL are configured;
 - file-first optional model and notification deployment composition, with local model endpoints constrained to loopback and managed endpoints constrained to HTTPS;
-- explicit Bafflewick end-to-end regression acceptance with an 8/8 mandatory threshold;
+- explicit Bafflewick end-to-end regression acceptance with a 9/9 mandatory threshold;
 - generated codebase-to-EDD comparison against frozen EDD V0.4 with no material architecture drift found;
 - automated visual/accessibility preflight covering responsive/mobile contracts, keyboard focus, touch targets and local A4/Letter/monochrome print contracts.
 
-The current candidate passes normal module/gofmt/`go vet`/race-enabled PostgreSQL CI, Linux amd64 and arm64 builds, the explicit core acceptance gate, Bafflewick 8/8 and the visual/accessibility preflight. See `docs/final-acceptance-progress.md`.
+The current candidate passes normal module/gofmt/`go vet`/race-enabled PostgreSQL CI, Linux amd64 and arm64 builds, the explicit core acceptance gate, Bafflewick 9/9 and the visual/accessibility preflight. See `docs/final-acceptance-progress.md`.
 
 ### Remaining release evidence
 
@@ -158,10 +158,11 @@ PostgreSQL RLS was empirically tested. It was not retained in V0.4 because the e
 - `UI-SHELL-BUILD-NOTES.md` — Slice 15 browser presentation rebuild on `go-app-shell` (Phase 1 UAT response).
 - `UAT2-BUILD-NOTES.md` — Phase 2 UAT response: time authority, Storm Blue, organisation configuration, related incidents, checklists, single-person window.
 - `docs/uat-phase2-triage.md` — Phase 2 UAT triage and plan.
+- `docs/uat-phase3-script.md` — Phase 3 UAT script mapping every Phase 2 concern to its fix and tests.
 - `docs/go-app-shell-dependency-decision.md` — EDD §26 dependency decision for `go-app-shell`.
 - `docs/build-evidence-0.0.14-dev.md` — code-complete implementation checkpoint evidence.
 - `docs/build-evidence-0.0.15-dev.md` — Slice 15 browser presentation rebuild evidence.
-- `docs/build-evidence-0.0.16-dev.md` to `docs/build-evidence-0.0.20-dev.md` — Phase 2 UAT response, Stages 1–5.
+- `docs/build-evidence-0.0.16-dev.md` to `docs/build-evidence-0.0.21-dev.md` — Phase 2 UAT response, Stages 1–6.
 - `docs/bafflewick-acceptance.md` — explicit operational regression gate.
 - `docs/generated-codebase-edd.md` and `docs/edd-drift-review.md` — recovered implementation architecture and frozen-EDD comparison.
 - `docs/visual-acceptance.md` — automated preflight plus human rendered-review contract.

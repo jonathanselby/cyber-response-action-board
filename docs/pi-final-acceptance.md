@@ -29,7 +29,7 @@ That single run executes and records:
 - module contract;
 - gofmt contract;
 - vet;
-- Bafflewick 8/8 operational scenario, including degraded-operation/failure paths;
+- Bafflewick 9/9 operational scenario, including degraded-operation/failure paths;
 - automated browser/print accessibility/visual preflight;
 - full Go/PostgreSQL tests;
 - native arm64 build;

@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased — 0.0.21-dev
+
+UAT Phase 2 response, Stage 6: release candidate for Phase 3 UAT.
+
+- Phase 3 UAT script (`docs/uat-phase3-script.md`) mapping every Phase 2 concern to what to check and its tests.
+- Phase 3 human UAT record opened in `docs/visual-acceptance.md`.
+- Seeded demo data now includes a single-person window and a self-approved decision.
+- Documentation brought to Bafflewick 9/9.
+
 ## Unreleased — 0.0.20-dev
 
 UAT Phase 2 response, Stage 5: single-person emergency approval window.
