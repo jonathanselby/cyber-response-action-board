@@ -1,0 +1,33 @@
+name: uat-linux-amd64
+
+on:
+  push:
+    branches:
+      - uat/linux-amd64-build
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    env:
+      CRAB_SOURCE_COMMIT: 78bfd4ac0daa38731f20ae17e21bffca42992866
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.27.2'
+      - name: Build Ubuntu amd64 UAT binary
+        run: ./scripts/build.sh ./dist/crab-uat-linux-amd64
+      - name: Verify executable and provenance
+        shell: bash
+        run: |
+          set -euo pipefail
+          chmod +x ./dist/crab-uat-linux-amd64
+          file ./dist/crab-uat-linux-amd64
+          ./dist/crab-uat-linux-amd64 version
+      - name: Upload UAT binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: crab-uat-linux-amd64
+          path: ./dist/crab-uat-linux-amd64
+          if-no-files-found: error
+          retention-days: 7
