@@ -4,9 +4,9 @@ One row per finding, so no UAT finding disappears during implementation. Detail 
 
 | ID | Severity | Finding | Fix | Test | Result |
 |---|---|---|---|---|---|
-| R-01 | P0 | No complete way to add and administer users after setup | `security.identity` record; eligibility maker rule; enrolment codes and reset; `account_usable`; Access admin *People*; readiness warns below three usable Custodians (S22) | T-214–T-221, T-248, T-249 | open |
+| R-01 | P0 | No complete way to add and administer users after setup | `security.identity` record; eligibility maker rule; enrolment codes and reset; `account_usable`; Access admin *People*; readiness warns below three usable Custodians (S22) | T-214–T-221, T-248, T-249 | in progress — core pass (C1, `build-evidence-0.0.22-dev.md`); browser journey C2 |
 | R-02 | P0 | External responders represented but not usable | External flag, required expiry, required TOTP (U-16), EXTERNAL badge on the same identity/scope model (S22–S23) | T-222, T-224, T-250 | open |
-| R-03 | P0 | Access changes must take effect in active sessions | Per-request principal reload (exists, proven); account check at principal load; clock-based expiry; session deletion (S22–S23) | T-218, T-219, T-223, T-226 | open |
+| R-03 | P0 | Access changes must take effect in active sessions | Per-request principal reload (exists, proven); account check at principal load; clock-based expiry; session deletion (S22–S23) | T-218, T-219, T-223, T-226 | in progress — principal rule, account state and clock expiry pass (C1); live-session matrix C3 |
 | R-04 | P0 | 72-hour shift and surge operation | Bafflewick phase 10 *the long night* (S24) | T-227 | open |
 | R-05 | P1 | Notifications too thin | **Blocked on Garage notifier release** (U-13; requirement in `docs/notifier-v0.2-requirement.md`). Then: per-person routes in supporting state with masked ledger audit; request record, delivery display, manual resend; no auto retry; the five V1 events (U-20), scope-safe counts, debounce, shared destinations content-free and event 4 only (S25N) | T-233, T-234, T-251, T-252 | open (blocked) |
 | R-06 | P1 | Vendor-neutral first-report intake | Intake keys (scoped, revocable, rotatable, bound to an accountable human); `POST /api/v1/first-reports`; idempotent, rate-bounded, documented; addendum A4 (S25) | T-230 | open |
@@ -26,10 +26,11 @@ One row per finding, so no UAT finding disappears during implementation. Detail 
 | R-20 | — | Mechanical UX defects | Status wrap; defects from browser runs; logo and signed-out navigation per U-14 (S26) | T-237 | open |
 | R-21 | — | Command-board stress | Stress fixture; Now block; top N per section (S26) | T-235 | open |
 | R-22 | — | Approval comprehension | Reject consequence, EXTERNAL, access approvals in operator language (S26) | T-236 | open |
-| F-1 | P1 | Browser login is password-only; TOTP and passkeys not wired | TOTP required for external people (U-16); internal policy unchanged (S22) | T-250 | open |
-| F-2 | P0 | Membership expiry uses `time.Now()` not the governed clock | Pass the kernel clock to `PrincipalAt` (S22) | T-219 | open |
-| F-3 | P1 | Expired sessions never swept | Bounded sweep on the existing timed-wait cadence (S22) | T-220 | open |
+| F-1 | P1 | Browser login is password-only; TOTP and passkeys not wired | TOTP required for external people (U-16); internal policy unchanged (S22) | T-250 | pass — TOTP required for external people (C1) |
+| F-2 | P0 | Membership expiry uses `time.Now()` not the governed clock | Pass the kernel clock to `PrincipalAt` (S22) | T-219 | pass (C1) |
+| F-3 | P1 | Expired sessions never swept | Bounded sweep on the existing timed-wait cadence (S22) | T-220 | pass — swept on sign-in, bounded (C1) |
 | F-4 | P1 | Blob written before its ledger record | Prove; report orphans in readiness; no automatic delete (S27) | T-240 | open |
 | F-5 | P1 | `Frame` reads the configuration file on every request | Measure; load once at start if shown (S27) | T-238 | open |
 | F-7 | P1 | Policy in the composition tier (`cmd/crab`): approval eligibility hints, kind exclusions and approval wording; 14 role/authorisation references across 6 files | Move into an app-tier approvals query (S26); policy-reference ratchet that only goes down and is zero in touched files (S22 onward); §3.17 tier placement | T-253 | open |
+| F-8 | P1 | Browser sign-in has no failure rate limit (`authn.FailureLimiter` exists but is unwired); found in C1 review | Wire the existing limiter into sign-in and enrolment, keyed by person and source, with the generic refusal (C3) | C3 abuse suite | open |
 | F-6 | — | Phase 3 human UAT outcome not recorded | Record it in `docs/visual-acceptance.md` (S22) | — | open |

@@ -1,5 +1,17 @@
 # Changelog
 
+## Unreleased — 0.0.22-dev
+
+Post-UAT remediation, chunk C1: identity and credential core.
+
+- People now have governed identity records: name, organisation, internal or external, active, suspended or disabled, and account expiry. Disabled is final.
+- One account rule applies at sign-in and on every request: a suspended, disabled or expired person's existing sessions stop working at once (T-218).
+- Role eligibility can be granted after setup by two Custodians, for people with an identity record (T-215).
+- One-time enrolment codes need two Custodians and are shown only to the confirmer; the person sets their own password before any session (T-216, T-217).
+- External people must use TOTP (T-250).
+- Access expiry follows CRAB's governed clock; expired sessions are swept (T-219, T-220).
+- Migration 018.
+
 ## Unreleased — 0.0.21-dev
 
 UAT Phase 2 response, Stage 6: release candidate for Phase 3 UAT.

@@ -29,11 +29,11 @@ In order of precedence. If something in the build seems to need a different answ
 This block is refreshed at the end of every chunk. If it cannot be stated in these lines, stop and reset (§9).
 
 ```text
-Authoritative design   PRD V0.2 + EDD V0.4; addendum V0.2.1 DRAFT (awaiting approval)
-Branch / implementation main @ 66b188a (0.0.21-dev); planning docs on uat3/remediation (C0)
-Last green gate        66b188a — local: gofmt, vet, race tests + PostgreSQL, Bafflewick 9/9, visual preflight (2 Nov)
-Known defects          register R-01…R-22, F-1…F-7 (all open; R-05 blocked on notifier v0.2)
-Next coherent chunk    C0 — publish planning documents; then C1 identity core
+Authoritative design   PRD V0.2 + EDD V0.4; addendum V0.2.1 DRAFT (needed before C5)
+Branch / implementation main @ C1 merge (0.0.22-dev)
+Last green gate        C1 — local and GitHub CI: gofmt, vet, race tests + PostgreSQL, Bafflewick 9/9, visual preflight
+Known defects          register: R-01 and R-03 in progress; F-1–F-3 pass; F-8 new (sign-in rate limit → C3); R-05 blocked on notifier v0.2
+Next coherent chunk    C2 — user administration in the browser
 UAT started            no (Phase 4 human UAT follows C13)
 Release frozen         no
 ```
