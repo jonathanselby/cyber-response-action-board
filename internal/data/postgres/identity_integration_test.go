@@ -241,7 +241,11 @@ func TestIdentityLifecycleIsDualControlledAndDisabledIsFinal(t *testing.T) {
 	f.decide("carol", "alice", f.propose(f.service.ProposeIdentity(f.ctx, f.principal("carol"), f.id("IDENTITY"), jane, f.now)))
 	disable := jane
 	disable.Status, disable.Reason = access.IdentityDisabled, "engagement ended"
+	f.setPassword("jane", "Forensic-Night-26!")
 	f.decide("alice", "bob", f.propose(f.service.ProposeIdentity(f.ctx, f.principal("alice"), f.id("IDENTITY"), disable, f.now)))
+	if _, found, _ := f.creds.GetCredential(f.ctx, "jane"); found {
+		t.Fatal("disabled person's credential material was kept")
+	}
 	if _, err := f.service.ProposeIdentity(f.ctx, f.principal("alice"), f.id("IDENTITY"), jane, f.now); !errors.Is(err, access.ErrIdentityDisabled) {
 		t.Fatalf("reactivating a disabled identity err=%v", err)
 	}
