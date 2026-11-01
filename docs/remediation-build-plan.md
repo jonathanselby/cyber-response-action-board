@@ -97,7 +97,7 @@ Every chunk follows the same steps. Nothing is skipped and nothing is added.
 | 6. Commit 1: implementation | One commit: code, migrations, tests, the new `TEST-ACCEPTANCE-NOTES.md` rows, embedded templates | Formatter output preserved exactly; no hand edits after formatting |
 | 7. CI | Publish the branch; wait for every workflow | Green. A red result is fixed **in this chunk** before anything else |
 | 8. Review gate | Red-team review of the **stable** branch. Every finding is classified (§5) | Only genuine defects fixed; rerun 5 and 7 |
-| 9. Commit 2: evidence | `docs/build-evidence-<version>.md`, `CHANGELOG.md`, `VERSION`, register rows → `pass` with evidence, README build-status line, state block | Evidence describes what was proven, nothing more |
+| 9. Commit 2: evidence | `docs/build-evidence-<version>.md`, `CHANGELOG.md`, `VERSION` **and `internal/buildinfo` default version** (T: `TestDefaultVersionMatchesVERSIONFile`), register rows → `pass` with evidence, README build-status line, state block. **The full local gate runs again before this push** | Evidence describes what was proven, nothing more |
 | 10. Merge | Branch → `main`; CI green on `main` | Repository clean; next chunk may start |
 
 **Size rule.** A chunk holds one family of architectural decisions. If, during step 4, it starts to hold two, or becomes hard to reason about, split it at the next natural engineering boundary. Finish the first part through step 10 before continuing.
