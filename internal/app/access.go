@@ -26,6 +26,7 @@ type AccessBackend interface {
 	IncidentExists(context.Context, string) (bool, error)
 	HasIncidentMembershipAt(context.Context, string, string, time.Time) (bool, error)
 	AdministrationView(context.Context, time.Time) (access.AdministrationView, error)
+	IdentityState(context.Context, string) (access.IdentityState, bool, error)
 }
 
 type AccessService struct{ Backend AccessBackend }
@@ -150,58 +151,107 @@ func (s AccessService) ProposeOutputPermission(ctx context.Context, principal au
 }
 
 func (s AccessService) Decide(ctx context.Context, principal authz.Principal, scopeID, recordType, recordID, expectedVersion, outcome string, now time.Time) (ledger.Record, error) {
-	if err := s.ready(); err != nil {
-		return ledger.Record{}, err
-	}
-	if d := authz.Authorise(principal, authz.ActionAdminIdentityMetadata, authz.ObjectScope{SystemMetadata: true}); !d.Allowed {
-		return ledger.Record{}, ErrAuthorisationDenied
+	decided, _, err := s.decide(ctx, principal, scopeID, recordType, recordID, expectedVersion, outcome, now, false)
+	return decided, err
+}
+
+// decide is the one access decision path. Confirming re-checks, at decision
+// time, that the confirmer and the maker are both usable accounts, that the
+// maker still holds the authority to have proposed the change, and that the
+// change is still valid against current state.
+func (s AccessService) decide(ctx context.Context, principal authz.Principal, scopeID, recordType, recordID, expectedVersion, outcome string, now time.Time, credentialPath bool) (ledger.Record, access.Change, error) {
+	if err := s.requireUsableCustodian(ctx, principal, now); err != nil {
+		return ledger.Record{}, access.Change{}, err
 	}
 	proposal, found, err := s.Backend.PendingAccess(ctx, scopeID, recordType, recordID)
 	if err != nil {
-		return ledger.Record{}, err
+		return ledger.Record{}, access.Change{}, err
 	}
 	if !found {
-		return ledger.Record{}, ErrProposalNotFound
+		return ledger.Record{}, access.Change{}, ErrProposalNotFound
 	}
 	data, err := domain.DecodeGovernedData(proposal.Data)
 	if err != nil {
-		return ledger.Record{}, err
+		return ledger.Record{}, access.Change{}, err
 	}
 	change, recognised, err := access.Decode(proposal.RecordType, data.Payload)
 	if err != nil || !recognised {
-		return ledger.Record{}, err
+		return ledger.Record{}, access.Change{}, err
 	}
-	if err := s.authoriseMakerAtDecision(ctx, proposal.Maker, change); err != nil {
-		return ledger.Record{}, err
-	}
-	if outcome == "confirmed" && change.Active {
-		switch change.RecordType {
-		case access.RecordIncidentMembership:
-			eligible, err := s.Backend.HasRoleEligibility(ctx, change.HumanID)
-			if err != nil {
-				return ledger.Record{}, err
-			}
-			if !eligible {
-				return ledger.Record{}, ErrAuthorisationDenied
-			}
-		case access.RecordCompartmentMembership:
-			member, err := s.Backend.HasIncidentMembershipAt(ctx, change.HumanID, change.IncidentID, now)
-			if err != nil {
-				return ledger.Record{}, err
-			}
-			if !member {
-				return ledger.Record{}, ErrAuthorisationDenied
-			}
+	if outcome == "confirmed" {
+		if change.RecordType == access.RecordCredentialReset && !credentialPath {
+			return ledger.Record{}, access.Change{}, ErrUseCredentialResetPath
+		}
+		makerUsable, err := s.usable(ctx, proposal.Maker, now)
+		if err != nil {
+			return ledger.Record{}, access.Change{}, err
+		}
+		if !makerUsable {
+			return ledger.Record{}, access.Change{}, ErrAuthorisationDenied
+		}
+		if err := s.authoriseMakerAtDecision(ctx, proposal.Maker, change); err != nil {
+			return ledger.Record{}, access.Change{}, err
+		}
+		if err := s.validateAtConfirmation(ctx, change, now); err != nil {
+			return ledger.Record{}, access.Change{}, err
 		}
 	}
 	decided, err := domain.Decide(proposal, expectedVersion, principal.HumanID, outcome, now)
 	if err != nil {
-		return ledger.Record{}, err
+		return ledger.Record{}, access.Change{}, err
 	}
 	if err := s.Backend.AppendAccess(ctx, decided); err != nil {
-		return ledger.Record{}, err
+		return ledger.Record{}, access.Change{}, err
 	}
-	return decided, nil
+	return decided, change, nil
+}
+
+func (s AccessService) validateAtConfirmation(ctx context.Context, change access.Change, now time.Time) error {
+	switch change.RecordType {
+	case access.RecordIdentity:
+		current, _, err := s.Backend.IdentityState(ctx, change.HumanID)
+		if err != nil {
+			return err
+		}
+		return access.ValidateIdentityTransition(*change.Identity, current, now)
+	case access.RecordRoleEligibility, access.RecordCustodianDesignation:
+		if change.Active {
+			return s.requireIdentityForGrant(ctx, change.HumanID, now)
+		}
+	case access.RecordCredentialReset:
+		ok, err := s.usable(ctx, change.HumanID, now)
+		if err != nil {
+			return err
+		}
+		if !ok {
+			return access.ErrIdentityNotUsable
+		}
+	case access.RecordIncidentMembership:
+		if change.Active {
+			eligible, err := s.Backend.HasRoleEligibility(ctx, change.HumanID)
+			if err != nil {
+				return err
+			}
+			ok, err := s.usable(ctx, change.HumanID, now)
+			if err != nil {
+				return err
+			}
+			if !eligible || !ok {
+				return ErrAuthorisationDenied
+			}
+		}
+	case access.RecordCompartmentMembership:
+		if change.Active {
+			member, err := s.Backend.HasIncidentMembershipAt(ctx, change.HumanID, change.IncidentID, now)
+			if err != nil {
+				return err
+			}
+			if !member {
+				return ErrAuthorisationDenied
+			}
+		}
+	}
+	return nil
 }
 
 func (s AccessService) Administration(ctx context.Context, principal authz.Principal, now time.Time) (access.AdministrationView, error) {
@@ -321,7 +371,7 @@ func (s AccessService) authoriseMakerAtDecision(ctx context.Context, maker strin
 		if !allowed {
 			return ErrAuthorisationDenied
 		}
-	case access.RecordOutputPermission:
+	case access.RecordOutputPermission, access.RecordIdentity, access.RecordRoleEligibility, access.RecordCustodianDesignation, access.RecordCredentialReset:
 		allowed, err := s.Backend.IsCustodian(ctx, maker)
 		if err != nil {
 			return err

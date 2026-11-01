@@ -31,12 +31,8 @@ const displayTime = "2 Jan 2006 15:04 UTC"
 // ---- frame -------------------------------------------------------------------
 
 func (r *operatorRuntime) Frame(ctx context.Context, token, incidentID string) (web.FrameView, bool, error) {
-	session, ok, err := r.sessions.Resolve(ctx, token)
+	principal, session, ok, err := r.principals.ForToken(ctx, token)
 	if err != nil || !ok {
-		return web.FrameView{}, false, err
-	}
-	principal, err := r.access.Principal(ctx, session.HumanID, true)
-	if err != nil {
 		return web.FrameView{}, false, err
 	}
 	frame := web.FrameView{HumanID: principal.HumanID, Role: string(principal.Role), Custodian: principal.Custodian}

@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"flag"
@@ -12,6 +13,7 @@ import (
 	"time"
 
 	"github.com/jonathanselby/cyber-response-action-board/internal/data/postgres"
+	"github.com/jonathanselby/cyber-response-action-board/internal/security/authn"
 	"github.com/jonathanselby/cyber-response-action-board/internal/security/ceremony"
 )
 
@@ -110,4 +112,29 @@ func readPrivateJSONFile(path string, target any) error {
 		return fmt.Errorf("parse recovery request file: %w", err)
 	}
 	return nil
+}
+
+// loadCredentialWrapKey reads the optional 32-byte credential wrap key used to
+// encrypt TOTP secrets at rest. The file holds the key in standard base64 and
+// must be private to the current user. No file means TOTP enrolment is refused.
+func loadCredentialWrapKey(path string) ([]byte, error) {
+	if strings.TrimSpace(path) == "" {
+		return nil, nil
+	}
+	info, err := os.Stat(path)
+	if err != nil {
+		return nil, fmt.Errorf("credential wrap key: %w", err)
+	}
+	if !info.Mode().IsRegular() || info.Mode().Perm()&0o077 != 0 {
+		return nil, errors.New("credential wrap key must be a regular file not readable or writable by group/other")
+	}
+	b, err := os.ReadFile(path)
+	if err != nil {
+		return nil, fmt.Errorf("read credential wrap key: %w", err)
+	}
+	key, err := base64.StdEncoding.DecodeString(strings.TrimSpace(string(b)))
+	if err != nil || len(key) != authn.CredentialWrapKeyBytes {
+		return nil, errors.New("credential wrap key must be 32 bytes in standard base64")
+	}
+	return key, nil
 }

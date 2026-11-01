@@ -49,8 +49,10 @@ type operatorRuntime struct {
 	relationStore   *postgres.RelationshipRuntime
 	print           app.PrintService
 	pageSizeDefault string
-	local           authn.Local
 	sessions        authn.Sessions
+	credentials     postgres.CredentialStore
+	principals      app.Principals
+	auth            app.Authentication
 }
 
 type signingKeyFile struct {
@@ -147,8 +149,14 @@ func newOperatorRuntime() (web.Runtime, error) {
 	}
 
 	r := &operatorRuntime{kernel: kernel, signer: signer, security: security, access: accessStore, incidents: incidents}
-	r.local = authn.Local{Store: security}
-	r.sessions = authn.Sessions{Store: security, TTL: operatorSessionTTL}
+	wrapKey, err := loadCredentialWrapKey(cfg.CredentialWrapKeyFile)
+	if err != nil {
+		return fail(err)
+	}
+	r.sessions = authn.Sessions{Store: security, TTL: operatorSessionTTL, Now: func() time.Time { return kernel.Clock().Read().Now }}
+	r.credentials = postgres.CredentialStore{Security: security, WrapKey: wrapKey}
+	r.principals = app.Principals{Sessions: r.sessions, Source: accessStore, Now: func() time.Time { return kernel.Clock().Read().Now }}
+	r.auth = app.Authentication{Credentials: r.credentials, Sessions: r.sessions, Identities: accessStore, Issuer: "CRAB"}
 	organisationBackend, err := postgres.NewOrganisationRuntime(kernel, signer)
 	if err != nil {
 		return fail(err)
@@ -307,31 +315,17 @@ func (r *operatorRuntime) Bootstrap(ctx context.Context, input web.BootstrapInpu
 }
 
 func (r *operatorRuntime) Authenticate(ctx context.Context, humanID, password string) (string, error) {
-	ok, err := r.local.Authenticate(ctx, humanID, password)
-	if err != nil {
-		return "", err
-	}
-	if !ok {
-		return "", errors.New("authentication failed")
-	}
-	token, _, err := r.sessions.Create(ctx, humanID, "local-password", false)
-	return token, err
+	return r.auth.Authenticate(ctx, humanID, password, "", r.kernel.Clock().Read().Now)
 }
 
 func (r *operatorRuntime) Logout(ctx context.Context, token string) error {
 	return r.sessions.Revoke(ctx, token)
 }
 
+// principal resolves a session token through the one principal rule.
 func (r *operatorRuntime) principal(ctx context.Context, token string) (authz.Principal, bool, error) {
-	session, ok, err := r.sessions.Resolve(ctx, token)
-	if err != nil || !ok {
-		return authz.Principal{}, ok, err
-	}
-	principal, err := r.access.Principal(ctx, session.HumanID, true)
-	if err != nil {
-		return authz.Principal{}, false, err
-	}
-	return principal, true, nil
+	principal, _, ok, err := r.principals.ForToken(ctx, token)
+	return principal, ok, err
 }
 
 func (r *operatorRuntime) Home(ctx context.Context, token string) (web.HomeView, bool, error) {

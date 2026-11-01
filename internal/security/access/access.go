@@ -65,11 +65,13 @@ type Change struct {
 	EffectiveAt *time.Time
 	ExpiresAt   *time.Time
 	Reason      string
+	// Identity carries the decoded payload of a security.identity change.
+	Identity *IdentityChange
 }
 
 func IsRecordType(recordType string) bool {
 	switch recordType {
-	case RecordRoleEligibility, RecordCustodianDesignation, RecordIncidentSponsor, RecordCompartmentController, RecordIncidentMembership, RecordCompartmentMembership, RecordOutputPermission, RecordIsolateMode:
+	case RecordRoleEligibility, RecordCustodianDesignation, RecordIncidentSponsor, RecordCompartmentController, RecordIncidentMembership, RecordCompartmentMembership, RecordOutputPermission, RecordIsolateMode, RecordIdentity, RecordCredentialReset:
 		return true
 	default:
 		return false
@@ -169,6 +171,29 @@ func Decode(recordType string, raw []byte) (Change, bool, error) {
 			return Change{}, true, err
 		}
 		change.Active = payload.Active
+	case RecordIdentity:
+		var payload IdentityChange
+		if err := decodeStrict(raw, &payload); err != nil {
+			return Change{}, true, err
+		}
+		if err := validateIdentityPayload(payload); err != nil {
+			return Change{}, true, err
+		}
+		if payload.AccountExpiresAt != nil {
+			expiry := payload.AccountExpiresAt.UTC()
+			payload.AccountExpiresAt = &expiry
+		}
+		change.HumanID, change.Active, change.Reason = payload.HumanID, payload.Status == IdentityActive, payload.Reason
+		change.Identity = &payload
+	case RecordCredentialReset:
+		var payload CredentialReset
+		if err := decodeStrict(raw, &payload); err != nil {
+			return Change{}, true, err
+		}
+		if strings.TrimSpace(payload.HumanID) == "" || strings.TrimSpace(payload.Reason) == "" {
+			return Change{}, true, errors.New("a credential reset needs a person and a reason")
+		}
+		change.HumanID, change.Active, change.Reason = payload.HumanID, true, payload.Reason
 	default:
 		return Change{}, false, nil
 	}

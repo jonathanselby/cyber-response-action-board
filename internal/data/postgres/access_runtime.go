@@ -90,3 +90,7 @@ func (r *AccessRuntime) HasIncidentMembershipAt(ctx context.Context, humanID, in
 func (r *AccessRuntime) AdministrationView(ctx context.Context, now time.Time) (access.AdministrationView, error) {
 	return r.Store.AdministrationView(ctx, now)
 }
+
+func (r *AccessRuntime) IdentityState(ctx context.Context, humanID string) (access.IdentityState, bool, error) {
+	return r.Store.IdentityState(ctx, humanID)
+}

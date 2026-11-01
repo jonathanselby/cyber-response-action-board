@@ -20,7 +20,7 @@ import (
 type AccessProjection struct{}
 
 func (AccessProjection) Reset(ctx context.Context, tx pgx.Tx) error {
-	_, err := tx.Exec(ctx, `TRUNCATE crab.access_proposals, crab.security_state, crab.output_permissions, crab.compartment_memberships, crab.incident_memberships, crab.compartment_controllers, crab.incident_sponsors, crab.custodian_designations, crab.role_eligibility`)
+	_, err := tx.Exec(ctx, `TRUNCATE crab.access_proposals, crab.identities, crab.security_state, crab.output_permissions, crab.compartment_memberships, crab.incident_memberships, crab.compartment_controllers, crab.incident_sponsors, crab.custodian_designations, crab.role_eligibility`)
 	return err
 }
 
@@ -188,6 +188,11 @@ func applyConfirmedAccess(ctx context.Context, tx pgx.Tx, record ledger.Record, 
 		}
 	case access.RecordIsolateMode:
 		_, err = tx.Exec(ctx, `INSERT INTO crab.security_state(state_key, bool_value) VALUES ('isolate_mode',$1) ON CONFLICT (state_key) DO UPDATE SET bool_value=EXCLUDED.bool_value`, change.Active)
+	case access.RecordIdentity:
+		err = applyIdentity(ctx, tx, record, change)
+	case access.RecordCredentialReset:
+		// Audit only. Credential side effects happen in the application after
+		// the decision commits, so replay never touches current credentials.
 	}
 	if err != nil {
 		return fmt.Errorf("apply access projection: %w", err)
@@ -195,9 +200,46 @@ func applyConfirmedAccess(ctx context.Context, tx pgx.Tx, record ledger.Record, 
 	return nil
 }
 
+// applyIdentity projects a confirmed identity change. A disabled identity is
+// final: replay refuses a later change, which the application never proposes.
+// When a person stops being active, every session they hold is deleted in the
+// same transaction. The account rule at principal load is the control; this is
+// defence in depth and stops stale sessions accumulating.
+func applyIdentity(ctx context.Context, tx pgx.Tx, record ledger.Record, change access.Change) error {
+	id := change.Identity
+	if id == nil {
+		return errors.New("identity change payload missing")
+	}
+	var current string
+	err := tx.QueryRow(ctx, `SELECT status FROM crab.identities WHERE human_id=$1`, id.HumanID).Scan(&current)
+	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
+		return err
+	}
+	if current == access.IdentityDisabled {
+		return access.ErrIdentityDisabled
+	}
+	var expires any
+	if id.AccountExpiresAt != nil {
+		expires = id.AccountExpiresAt.UTC()
+	}
+	if _, err := tx.Exec(ctx, `INSERT INTO crab.identities(human_id,display_name,organisation,external,status,account_expires_at,reason,updated_at)
+		VALUES($1,$2,$3,$4,$5,$6,$7,$8)
+		ON CONFLICT(human_id) DO UPDATE SET display_name=EXCLUDED.display_name, organisation=EXCLUDED.organisation, external=EXCLUDED.external,
+			status=EXCLUDED.status, account_expires_at=EXCLUDED.account_expires_at, reason=EXCLUDED.reason, updated_at=EXCLUDED.updated_at`,
+		id.HumanID, id.DisplayName, id.Organisation, id.External, id.Status, expires, id.Reason, record.Timestamp); err != nil {
+		return err
+	}
+	if id.Status != access.IdentityActive {
+		if _, err := tx.Exec(ctx, `DELETE FROM crab.sessions WHERE human_id=$1`, id.HumanID); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func validateAccessEnvelope(record ledger.Record, change access.Change) error {
 	switch change.RecordType {
-	case access.RecordRoleEligibility, access.RecordCustodianDesignation, access.RecordOutputPermission, access.RecordIsolateMode:
+	case access.RecordRoleEligibility, access.RecordCustodianDesignation, access.RecordOutputPermission, access.RecordIsolateMode, access.RecordIdentity, access.RecordCredentialReset:
 		if record.IncidentMode != "system" || record.IncidentID != "" {
 			return errors.New("system access metadata requires system ledger scope")
 		}
@@ -235,10 +277,6 @@ func (s *AccessStore) IsolateMode(ctx context.Context) (bool, error) {
 		return false, fmt.Errorf("read isolate mode: %w", err)
 	}
 	return active, nil
-}
-
-func (s *AccessStore) Principal(ctx context.Context, humanID string, authenticated bool) (authz.Principal, error) {
-	return s.PrincipalAt(ctx, humanID, authenticated, time.Now().UTC())
 }
 
 func (s *AccessStore) PrincipalAt(ctx context.Context, humanID string, authenticated bool, now time.Time) (authz.Principal, error) {
@@ -315,6 +353,32 @@ func (s *AccessStore) PrincipalAt(ctx context.Context, humanID string, authentic
 	}
 	rows.Close()
 	return principal, nil
+}
+
+// IdentityState returns the projected identity of one person and whether they
+// are a legacy account (role eligibility or Custodian designation with no
+// identity record). It reports state only; the account rule is access.Usable.
+func (s *AccessStore) IdentityState(ctx context.Context, humanID string) (access.IdentityState, bool, error) {
+	var state access.IdentityState
+	var expires sql.NullTime
+	err := s.pool.QueryRow(ctx, `SELECT display_name,organisation,external,status,account_expires_at FROM crab.identities WHERE human_id=$1`, humanID).
+		Scan(&state.DisplayName, &state.Organisation, &state.External, &state.Status, &expires)
+	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
+		return access.IdentityState{}, false, fmt.Errorf("read identity: %w", err)
+	}
+	if err == nil {
+		state.Found = true
+		if expires.Valid {
+			v := expires.Time.UTC()
+			state.AccountExpiresAt = &v
+		}
+		return state, false, nil
+	}
+	var legacy bool
+	if err := s.pool.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM crab.role_eligibility WHERE human_id=$1) OR EXISTS(SELECT 1 FROM crab.custodian_designations WHERE human_id=$1)`, humanID).Scan(&legacy); err != nil {
+		return access.IdentityState{}, false, fmt.Errorf("read legacy eligibility: %w", err)
+	}
+	return state, legacy, nil
 }
 
 func (s *AccessStore) IsSponsor(ctx context.Context, humanID, incidentID string) (bool, error) {

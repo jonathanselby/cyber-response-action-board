@@ -317,3 +317,22 @@ Phase 2 human UAT passed functionally and set a new locked visual direction plus
 | T-213 | human: Command Summary | Phase 3 build with seeded data | a responder signs in | states what needs attention and opens the right item within 30 seconds | UAT 2 |
 
 UAT Phase 2 therefore carries **21 additional named tests**. No earlier test is removed or weakened.
+
+## 5. Post-UAT remediation additions
+
+From the post-UAT remediation brief (see `docs/uat-remediation-triage.md`, `docs/remediation-register.md` and `docs/remediation-build-plan.md`). Rows are added chunk by chunk as each is built. No earlier test is removed or weakened.
+
+| ID | Area | Given | When | Then | Source |
+|---|---|---|---|---|---|
+| T-214 | identity | three Custodians and a non-Custodian | a person is created, suspended, reactivated and disabled | each change needs a Custodian maker and a different usable Custodian confirmer; a non-Custodian can neither propose nor confirm; disabled is final; every change is a ledger version and rebuilds identically | R-01 / `TestIdentityLifecycleIsDualControlledAndDisabledIsFinal` |
+| T-215 | identity | a person with and without an identity record | role eligibility is proposed after setup | refused without an active identity record; maker cannot confirm; a different Custodian confirms | R-01 / `TestRoleEligibilityAfterSetupNeedsIdentityAndDualControl` |
+| T-216 | credentials | a new person | an enrolment code is requested | proposed by one Custodian, confirmed by another through the reset path only, shown once to the confirmer, never stored in clear, expires after 24 hours, creates no session until a compliant password is set, and cannot be reused | R-01 / `TestEnrolmentCodeLifecycle` |
+| T-217 | credentials | a person with two sessions | a credential reset is confirmed | every session and the old password stop working | R-01 / `TestEnrolmentCodeLifecycle` |
+| T-218 | account state | a person with two live sessions | suspended, then reactivated, then past account expiry | sign-in is refused and the next request of every existing session is refused; suspension removes their sessions | R-03 / `TestAccountStateEndsLiveSessions` |
+| T-219 | expiry | an incident membership with an expiry, the governed clock far from host time | the governed clock passes the expiry | the session's principal loses the incident with no timer | R-03 / F-2 / `TestMembershipExpiryFollowsGovernedClock` |
+| T-220 | sessions | 150 expired sessions | two people sign in | each sign-in removes at most 100 expired sessions; none remain after the second | F-3 / `TestExpiredSessionsAreSwept` |
+| T-248 | Custodian edge cases | a Custodian's proposal pending, then that Custodian suspended | anyone confirms it, or the suspended Custodian confirms another | confirmation refused, rejection allowed; the suspended Custodian cannot confirm or sign in | U-15 / `TestUnusableCustodiansCannotCompleteGovernedChanges` |
+| T-250 | external MFA | an external person | they enrol and sign in | account expiry required and at most 30 days; enrolment needs a valid TOTP code; sign-in without TOTP refused; internal sign-in unchanged; reset clears TOTP | U-16 / `TestExternalPeopleNeedTOTP` |
+| T-253 | tier placement | presentation and `cmd/crab` adapters | the build runs | policy references never exceed the per-file baseline measured at `66b188a`, and a reduction must lower the baseline | §3.17 / `TestPolicyReferenceRatchet` |
+
+Also covered: legacy accounts from before identity records stay usable but eligibility cannot be granted without an identity record (`TestLegacyAccountsRemainUsableButCannotGrow`), and identity and reset payloads decode strictly with no room for contact data (`TestIdentityAndResetDecodeStrictly`).

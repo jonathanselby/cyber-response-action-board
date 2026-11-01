@@ -8,6 +8,7 @@ import (
 	"crypto/subtle"
 	"encoding/base64"
 	"errors"
+	"time"
 	"unicode"
 )
 
@@ -116,4 +117,18 @@ func VerifyPassword(r PasswordRecord, password string) bool {
 		return false
 	}
 	return subtle.ConstantTimeCompare(want, got) == 1
+}
+
+// Credential is a stored local credential and its lifecycle state. An
+// enrolment code is stored like a password but must be replaced on first use
+// and expires.
+type Credential struct {
+	Record          PasswordRecord
+	MustSetPassword bool
+	ExpiresAt       *time.Time
+}
+
+// Usable reports whether the credential may be presented at time now.
+func (c Credential) Usable(now time.Time) bool {
+	return c.ExpiresAt == nil || c.ExpiresAt.After(now)
 }

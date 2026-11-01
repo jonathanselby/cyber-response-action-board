@@ -70,8 +70,19 @@ func TestBootstrapCreatesNoIncidentVisibility(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(records) != 5 {
+	// One bootstrap record, then per person: identity, role eligibility and
+	// Custodian designation.
+	if len(records) != 7 {
 		t.Fatalf("bootstrap records=%d", len(records))
+	}
+	identities := 0
+	for _, record := range records {
+		if record.RecordType == "security.identity" {
+			identities++
+		}
+	}
+	if identities != 2 {
+		t.Fatalf("bootstrap identity records=%d, want one per person", identities)
 	}
 	for _, record := range records {
 		if record.IncidentID != "" || record.IncidentMode != "system" {

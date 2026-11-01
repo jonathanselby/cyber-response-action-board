@@ -118,6 +118,13 @@ func BootstrapRecords(plan BootstrapPlan, now time.Time) ([]ledger.Record, error
 	}
 	records = append(records, record)
 	for _, identity := range identities {
+		// Every bootstrap person gets an identity record first, so the account
+		// rule never needs the legacy path for new installations.
+		idRecord, err := governedSystemRecord(access.RecordIdentity, "identity:"+identity.HumanID, plan.PreparedBy, plan.ConfirmedBy, access.IdentityChange{HumanID: identity.HumanID, DisplayName: identity.HumanID, Status: access.IdentityActive}, now)
+		if err != nil {
+			return nil, err
+		}
+		records = append(records, idRecord)
 		if identity.MajorEligible {
 			r, err := governedSystemRecord(access.RecordRoleEligibility, "role:"+identity.HumanID, plan.PreparedBy, plan.ConfirmedBy, map[string]any{"human_id": identity.HumanID, "role": authz.RoleMajor, "active": true}, now)
 			if err != nil {

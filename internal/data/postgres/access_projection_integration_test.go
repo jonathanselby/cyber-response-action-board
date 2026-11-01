@@ -97,7 +97,7 @@ func TestAccessProjectionAndPrincipalAreDenyByDefault(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	principal, err := store.Principal(ctx, "human-1", true)
+	principal, err := store.PrincipalAt(ctx, "human-1", true, time.Now().UTC())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -117,13 +117,13 @@ func TestAccessProjectionAndPrincipalAreDenyByDefault(t *testing.T) {
 	if _, err := kernel.Rebuild(ctx, projection); err != nil {
 		t.Fatal(err)
 	}
-	rebuilt, err := store.Principal(ctx, "human-1", true)
+	rebuilt, err := store.PrincipalAt(ctx, "human-1", true, time.Now().UTC())
 	if err != nil || !rebuilt.Incidents["INC-A"] || !rebuilt.Compartments["INC-A"]["LEGAL"] {
 		t.Fatalf("rebuilt principal=%+v err=%v", rebuilt, err)
 	}
 
 	appendChange(confirmedAccessRecord(t, keys, access.RecordIncidentMembership, "incident-access-2", "INC-A", "live", "GENERAL", map[string]any{"human_id": "human-1", "incident_id": "INC-A", "active": false}))
-	revoked, err := store.Principal(ctx, "human-1", true)
+	revoked, err := store.PrincipalAt(ctx, "human-1", true, time.Now().UTC())
 	if err != nil {
 		t.Fatal(err)
 	}
