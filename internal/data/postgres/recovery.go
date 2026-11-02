@@ -466,41 +466,40 @@ func (r *RecoveryRuntime) CommonOperatingPicture(ctx context.Context, incidentID
 // pending proposals by record type (the closure proposal itself excluded) and
 // active obligation clocks whose deadline is still ahead at now.
 func (r *RecoveryRuntime) ClosureOutstanding(ctx context.Context, incidentID string, now time.Time) (domain.ClosureOutstanding, error) {
-	out := domain.ClosureOutstanding{PendingByType: map[string]int{}}
+	out := domain.ClosureOutstanding{}
 	rows, err := r.Store.pool.Query(ctx, `
-		SELECT record_type, count(*) FROM (
-			SELECT record_type FROM crab.incident_proposals WHERE incident_id=$1
-			UNION ALL SELECT record_type FROM crab.continuity_proposals WHERE incident_id=$1
-			UNION ALL SELECT record_type FROM crab.obligation_proposals WHERE scope_id=$1
-			UNION ALL SELECT record_type FROM crab.communication_proposals WHERE incident_id=$1
-			UNION ALL SELECT record_type FROM crab.access_proposals WHERE scope_id=$1
-			UNION ALL SELECT record_type FROM crab.incident_recovery_proposals WHERE incident_id=$1 AND record_type <> $2
-			UNION ALL SELECT 'incident.relationship' FROM crab.incident_relationship_proposals WHERE incident_id=$1
-		) p GROUP BY record_type ORDER BY record_type`, incidentID, domain.TypeClosure)
+		SELECT record_type, compartment, count(*) FROM (
+			SELECT record_type, compartment FROM crab.incident_proposals WHERE incident_id=$1
+			UNION ALL SELECT record_type, compartment FROM crab.continuity_proposals WHERE incident_id=$1
+			UNION ALL SELECT record_type, compartment FROM crab.obligation_proposals WHERE scope_id=$1
+			UNION ALL SELECT record_type, compartment FROM crab.communication_proposals WHERE incident_id=$1
+			UNION ALL SELECT record_type, compartment FROM crab.access_proposals WHERE scope_id=$1
+			UNION ALL SELECT record_type, compartment FROM crab.incident_recovery_proposals WHERE incident_id=$1 AND record_type <> $2
+			UNION ALL SELECT 'incident.relationship', 'GENERAL' FROM crab.incident_relationship_proposals WHERE incident_id=$1
+		) p GROUP BY record_type, compartment ORDER BY record_type, compartment`, incidentID, domain.TypeClosure)
 	if err != nil {
 		return out, fmt.Errorf("read pending proposals: %w", err)
 	}
 	for rows.Next() {
-		var recordType string
-		var n int
-		if err := rows.Scan(&recordType, &n); err != nil {
+		var m domain.PendingMatter
+		if err := rows.Scan(&m.RecordType, &m.Compartment, &m.Count); err != nil {
 			rows.Close()
 			return out, err
 		}
-		out.PendingByType[recordType] = n
+		out.Pending = append(out.Pending, m)
 	}
 	rows.Close()
 	if err := rows.Err(); err != nil {
 		return out, err
 	}
-	clocks, err := r.Store.pool.Query(ctx, `SELECT name, deadline FROM crab.obligation_clocks WHERE incident_id=$1 AND status='active' AND deadline > $2 ORDER BY deadline, name`, incidentID, now)
+	clocks, err := r.Store.pool.Query(ctx, `SELECT name, compartment, deadline FROM crab.obligation_clocks WHERE incident_id=$1 AND status='active' AND deadline > $2 ORDER BY deadline, name`, incidentID, now)
 	if err != nil {
 		return out, fmt.Errorf("read obligation clocks: %w", err)
 	}
 	defer clocks.Close()
 	for clocks.Next() {
 		var c domain.RunningClock
-		if err := clocks.Scan(&c.Name, &c.Deadline); err != nil {
+		if err := clocks.Scan(&c.Name, &c.Compartment, &c.Deadline); err != nil {
 			return out, err
 		}
 		out.RunningClocks = append(out.RunningClocks, c)

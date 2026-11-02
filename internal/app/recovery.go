@@ -69,7 +69,7 @@ func (s RecoveryService) ProposeClosure(ctx context.Context, principal authz.Pri
 	if !found {
 		return ledger.Record{}, errors.New("incident not found")
 	}
-	if err := s.closureAllowed(ctx, state, now); err != nil {
+	if err := s.closureAllowed(ctx, principal, state, now); err != nil {
 		return ledger.Record{}, err
 	}
 	record, err := domain.ProposeClosure(scope, recordID, principal.HumanID, now, value)
@@ -112,7 +112,7 @@ func (s RecoveryService) Decide(ctx context.Context, principal authz.Principal, 
 		if !found {
 			return ledger.Record{}, errors.New("incident not found")
 		}
-		if err := s.closureAllowed(ctx, state, now); err != nil {
+		if err := s.closureAllowed(ctx, principal, state, now); err != nil {
 			return ledger.Record{}, err
 		}
 	}
@@ -240,22 +240,36 @@ func (s RecoveryService) ClosureBlockers(ctx context.Context, principal authz.Pr
 	if !found || state.ClosedAt != nil {
 		return nil, nil
 	}
-	return s.blockers(ctx, state, now)
+	return s.blockers(ctx, principal, state, now)
 }
 
-func (s RecoveryService) blockers(ctx context.Context, state domain.RecoveryState, now time.Time) ([]string, error) {
+// blockers names what stops closure. Matters in compartments the principal
+// cannot read are counted, never named, so the Close page and the closure
+// refusal leak nothing across compartments.
+func (s RecoveryService) blockers(ctx context.Context, principal authz.Principal, state domain.RecoveryState, now time.Time) ([]string, error) {
 	out := domain.ClosureBlockers(state)
 	outstanding, err := s.Backend.ClosureOutstanding(ctx, state.IncidentID, now)
 	if err != nil {
 		return nil, err
 	}
-	types := make([]string, 0, len(outstanding.PendingByType))
-	for t := range outstanding.PendingByType {
+	readable := func(compartment string) bool {
+		return authz.Authorise(principal, authz.ActionRead, authz.ObjectScope{IncidentID: state.IncidentID, Compartment: compartment}).Allowed
+	}
+	counts, hidden := map[string]int{}, 0
+	for _, m := range outstanding.Pending {
+		if !readable(m.Compartment) {
+			hidden += m.Count
+			continue
+		}
+		counts[m.RecordType] += m.Count
+	}
+	types := make([]string, 0, len(counts))
+	for t := range counts {
 		types = append(types, t)
 	}
 	sort.Strings(types)
 	for _, t := range types {
-		n := outstanding.PendingByType[t]
+		n := counts[t]
 		label := strings.ReplaceAll(strings.TrimPrefix(strings.TrimPrefix(t, "incident."), "security."), "_", " ")
 		if n == 1 {
 			out = append(out, "1 pending "+label+" proposal")
@@ -264,17 +278,26 @@ func (s RecoveryService) blockers(ctx context.Context, state domain.RecoveryStat
 		}
 	}
 	for _, c := range outstanding.RunningClocks {
+		if !readable(c.Compartment) {
+			hidden++
+			continue
+		}
 		out = append(out, "obligation clock "+c.Name+" still running until "+c.Deadline.UTC().Format("2 Jan 2006 15:04 UTC"))
+	}
+	if hidden == 1 {
+		out = append(out, "1 outstanding matter in a compartment you cannot see")
+	} else if hidden > 1 {
+		out = append(out, fmt.Sprintf("%d outstanding matters in compartments you cannot see", hidden))
 	}
 	return out, nil
 }
 
 // closureAllowed refuses closure while anything is outstanding, naming it.
-func (s RecoveryService) closureAllowed(ctx context.Context, state domain.RecoveryState, now time.Time) error {
+func (s RecoveryService) closureAllowed(ctx context.Context, principal authz.Principal, state domain.RecoveryState, now time.Time) error {
 	if state.ClosedAt != nil {
 		return domain.ErrIncidentClosed
 	}
-	blockers, err := s.blockers(ctx, state, now)
+	blockers, err := s.blockers(ctx, principal, state, now)
 	if err != nil {
 		return err
 	}

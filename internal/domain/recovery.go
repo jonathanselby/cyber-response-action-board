@@ -117,14 +117,22 @@ type RecoveryState struct {
 // ClosureOutstanding is what is still open on an incident beyond the
 // recovery milestones: pending proposals and running obligation clocks.
 type ClosureOutstanding struct {
-	PendingByType map[string]int
+	Pending       []PendingMatter
 	RunningClocks []RunningClock
+}
+
+// PendingMatter counts pending proposals of one record type in one compartment.
+type PendingMatter struct {
+	RecordType  string
+	Compartment string
+	Count       int
 }
 
 // RunningClock is an active obligation clock whose deadline is still ahead.
 type RunningClock struct {
-	Name     string
-	Deadline time.Time
+	Name        string
+	Compartment string
+	Deadline    time.Time
 }
 
 // Reopening is the payload of a governed reopening.
