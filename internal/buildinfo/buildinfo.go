@@ -4,7 +4,7 @@ package buildinfo
 // Canonical release/acceptance builds override all three values through
 // scripts/build.sh using Go linker flags.
 var (
-	Version = "0.0.33-dev"
+	Version = "0.0.34-dev"
 	Commit  = "unknown"
 	BuiltAt = "unknown"
 )

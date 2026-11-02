@@ -6,7 +6,7 @@ name: final-gate
 
 on:
   push:
-    branches: [main, 'uat3/c13-*']
+    branches: [main]
   workflow_dispatch:
 
 jobs:
