@@ -90,3 +90,36 @@ func (l *FailureLimiter) prune(now time.Time) {
 		}
 	}
 }
+
+// Take admits and counts one event under a single lock, so concurrent callers
+// cannot exceed MaxFailures in a window. It is the rate-bound form of Allow
+// followed by Failure.
+func (l *FailureLimiter) Take(key string, now time.Time) bool {
+	key = strings.TrimSpace(key)
+	if key == "" || l.MaxFailures <= 0 || l.Window <= 0 || now.IsZero() {
+		return false
+	}
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	if l.entries == nil {
+		l.entries = make(map[string]limitEntry)
+	}
+	l.prune(now)
+	entry, exists := l.entries[key]
+	if !exists {
+		maxKeys := l.MaxKeys
+		if maxKeys <= 0 {
+			maxKeys = DefaultLimiterMaxKeys
+		}
+		if len(l.entries) >= maxKeys {
+			return false
+		}
+		entry = limitEntry{WindowStart: now}
+	}
+	if entry.Failures >= l.MaxFailures {
+		return false
+	}
+	entry.Failures++
+	l.entries[key] = entry
+	return true
+}

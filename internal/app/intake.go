@@ -241,10 +241,9 @@ func (s IntakeService) Submit(ctx context.Context, token, source, reportID strin
 	if err != nil {
 		return IntakeReceipt{}, err
 	}
-	if !s.Rate.Allow(key.KeyName, now) {
+	if !s.Rate.Take(key.KeyName, now) {
 		return IntakeReceipt{}, ErrIntakeRateLimited
 	}
-	s.Rate.Failure(key.KeyName, now) // counts the submission against the bound
 	ref := strings.TrimSpace(in.ExternalRef)
 	if utf8.RuneCountInString(ref) > maxExternalRefRunes || strings.IndexFunc(ref, unicode.IsControl) >= 0 {
 		return IntakeReceipt{}, fmt.Errorf("%w: external_ref is at most %d printable characters", ErrIntakeInvalid, maxExternalRefRunes)
@@ -306,6 +305,15 @@ func (s IntakeService) authenticate(ctx context.Context, token, source string, n
 	if !ok || name == "" || secret == "" || len(token) > 200 {
 		return refuse()
 	}
+	// The secret is checked first, so an unknown name and a known name with
+	// a wrong secret take the same path and the same time.
+	valid, err := s.Secrets.IntakeSecretValid(ctx, name, hashIntakeSecret(secret), now)
+	if err != nil {
+		return access.IntakeKeyState{}, err
+	}
+	if !valid {
+		return refuse()
+	}
 	key, err := s.Keys.IntakeKeyState(ctx, name)
 	if err != nil {
 		return access.IntakeKeyState{}, err
@@ -318,13 +326,6 @@ func (s IntakeService) authenticate(ctx context.Context, token, source string, n
 		return access.IntakeKeyState{}, err
 	}
 	if !access.Usable(identity, legacy, now) {
-		return refuse()
-	}
-	valid, err := s.Secrets.IntakeSecretValid(ctx, name, hashIntakeSecret(secret), now)
-	if err != nil {
-		return access.IntakeKeyState{}, err
-	}
-	if !valid {
 		return refuse()
 	}
 	return key, nil
