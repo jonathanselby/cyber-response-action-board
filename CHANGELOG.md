@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased — 0.0.33-dev
+
+Post-UAT remediation, chunk C12: notifications (R-05).
+
+- CRAB now sends through the Garage notifier v0.2.0. Besides local files and webhooks, it can reach people by email (SMTP, STARTTLS required) and SMS (HTTPS gateway). Teams and Slack webhooks take a plain-text body. Existing deployment files still work. Webhook bodies are now the notifier's `{"message": …}`, the communication's subject and body as text.
+- Each person can have one notification route, set on *Your account* or by a Custodian under People. The address never enters the ledger; only a masked hint is recorded.
+- CRAB tells the person who must act about five things: a new assignment, items waiting for their decision, a deadline they own, a confirmed severity or phase change (if enabled), and temporary access they can renew. Each notice says only what kind of item it is and the incident ID; it never carries content and never approves anything. Without a route, *no route* is recorded and nothing is sent.
+- Sending an issued communication is recorded as a request before any attempt. The Communications screen shows each channel's outcome, *Failed — not retried automatically*, and *Resend to failed*. A failure stays on the Board until it is resent.
+- *Send issued communications* is now a permission Custodians can grant, next to print and download.
+
 ## Unreleased — 0.0.32-dev
 
 Post-UAT remediation, chunk C11: load and soak.
