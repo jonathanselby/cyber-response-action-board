@@ -7,7 +7,6 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/jonathanselby/cyber-response-action-board/internal/domain"
 )
@@ -47,7 +46,7 @@ func (s *Server) registerSystemRoutes() {
 	}
 	admin := adminScreen
 	admin.load = func(r *http.Request, token string, _ FrameView) (any, []Action, error) {
-		v, err := s.runtime.AccessAdministration(r.Context(), token, time.Now().UTC())
+		v, err := s.runtime.AccessAdministration(r.Context(), token)
 		return v, []Action{{Label: "Grant print or download", URL: "?open=output#output", Primary: true}}, err
 	}
 

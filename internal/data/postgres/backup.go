@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/jonathanselby/cyber-response-action-board/internal/proof"
 	"io"
 	"os"
 	"os/exec"
@@ -70,6 +71,7 @@ func backupWithRunner(ctx context.Context, databaseURL, output string, runner co
 	if err := runner.Run(ctx, "pg_dump", "--format=custom", "--no-owner", "--file", tmpName, databaseURL); err != nil {
 		return BackupMetadata{}, fmt.Errorf("pg_dump: %w", err)
 	}
+	proof.Hit("backup-mid")
 	meta, err := backupMetadata(tmpName, now().UTC())
 	if err != nil {
 		return BackupMetadata{}, err

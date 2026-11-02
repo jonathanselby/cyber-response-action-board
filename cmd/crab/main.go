@@ -56,6 +56,8 @@ func run(args []string, stdout, stderr io.Writer) int {
 		return runBackup(args[1:], stdout, stderr)
 	case "restore":
 		return runRestore(args[1:], stdout, stderr)
+	case "migrate":
+		return runMigrate(stdout, stderr)
 	case "setup":
 		return runSetup(stdout, stderr)
 	case "serve":
@@ -102,6 +104,9 @@ func runReadiness(stdout, stderr io.Writer) int {
 				} else {
 					check.Status = "pass"
 					check.Message = "schema, runtime role and full ledger verification passed"
+					if orphans, err := postgres.OrphanBlobs(ctx, pool); err == nil {
+						setReadinessCheck(&r, app.OrphanBlobCheck(orphans))
+					}
 				}
 				pool.Close()
 			}
@@ -372,6 +377,7 @@ Implemented through the current verified checkpoint:
   crab export-ledger --output <file>
   crab backup --output <path>
   crab restore --input <path>
+  crab migrate
   crab mcp --session-file <path>
   crab print incident-brief --incident <id> --session-file <path> [--page-size A4|LETTER]
   crab print emergency-pack --organisation <name> --session-file <path> [--page-size A4|LETTER]

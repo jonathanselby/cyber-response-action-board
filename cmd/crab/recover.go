@@ -7,6 +7,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"github.com/jonathanselby/cyber-response-action-board/internal/adapters/clock"
 	"io"
 	"os"
 	"strings"
@@ -51,7 +52,7 @@ func runRecover(args []string, stdout, stderr io.Writer) int {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
-	now := time.Now().UTC()
+	now := clock.NewHost().Read().Now
 	active, err := runtime.access.ActiveCustodianSessionCount(ctx, now)
 	if err != nil {
 		fmt.Fprintln(stderr, err)

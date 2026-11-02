@@ -3,6 +3,7 @@ package app
 import (
 	"context"
 	"errors"
+	"github.com/jonathanselby/cyber-response-action-board/internal/adapters/clock"
 	"time"
 
 	"github.com/jonathanselby/cyber-response-action-board/internal/domain"
@@ -40,6 +41,16 @@ type IncidentService struct {
 	// External identifies external people so role holders are marked (T-222).
 	// Optional: without it, nobody is marked.
 	External ExternalPeopleSource
+	// Now is the governed clock for read-time judgements such as overdue.
+	// Optional: without it, the host clock is used.
+	Now func() time.Time
+}
+
+func (s IncidentService) now() time.Time {
+	if s.Now != nil {
+		return s.Now()
+	}
+	return clock.NewHost().Read().Now
 }
 
 // ExternalPeopleSource reports which people are external.
@@ -217,7 +228,7 @@ func (s IncidentService) CommonOperatingPicture(ctx context.Context, principal a
 	}
 	picture = filterOperatingPicture(picture, compartment)
 	if backend, ok := s.Backend.(incidentObligationBackend); ok {
-		obligations, err := backend.ObligationClocks(ctx, incidentID, compartment, time.Now().UTC())
+		obligations, err := backend.ObligationClocks(ctx, incidentID, compartment, s.now())
 		if err != nil {
 			return domain.OperatingPicture{}, false, err
 		}

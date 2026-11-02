@@ -10,7 +10,7 @@ var accessScreen = screen{nav: "access", title: "Access", summary: "Who may work
 func (s *Server) registerAccessRoutes() {
 	sc := accessScreen
 	sc.load = func(r *http.Request, token string, _ FrameView) (any, []Action, error) {
-		view, err := s.runtime.IncidentAccess(r.Context(), token, r.PathValue("incidentID"), time.Now().UTC())
+		view, err := s.runtime.IncidentAccess(r.Context(), token, r.PathValue("incidentID"))
 		return view, []Action{{Label: "Request access", URL: "?open=member#member", Primary: true}, {Label: "Read into compartment", URL: "?open=compartment#compartment"}}, err
 	}
 	back := func(r *http.Request) string { return incidentURL(r, "/access") }

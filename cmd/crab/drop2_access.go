@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"github.com/jonathanselby/cyber-response-action-board/internal/data/postgres"
 	"time"
 
 	"github.com/jonathanselby/cyber-response-action-board/internal/app"
@@ -35,7 +36,8 @@ func accessMembershipViews(values []access.MembershipView, external map[string]b
 	return out
 }
 
-func (r *operatorRuntime) AccessAdministration(ctx context.Context, token string, now time.Time) (web.AccessAdministrationPage, error) {
+func (r *operatorRuntime) AccessAdministration(ctx context.Context, token string) (web.AccessAdministrationPage, error) {
+	now := r.kernel.Clock().Read().Now
 	principal, ok, err := r.principal(ctx, token)
 	if err != nil {
 		return web.AccessAdministrationPage{}, err
@@ -85,7 +87,8 @@ func (r *operatorRuntime) ProposeOutputPermission(ctx context.Context, token, hu
 	return err
 }
 
-func (r *operatorRuntime) IncidentAccess(ctx context.Context, token, incidentID string, now time.Time) (web.AccessAdministrationPage, error) {
+func (r *operatorRuntime) IncidentAccess(ctx context.Context, token, incidentID string) (web.AccessAdministrationPage, error) {
+	now := r.kernel.Clock().Read().Now
 	principal, _, err := r.scope(ctx, token, incidentID)
 	if err != nil {
 		return web.AccessAdministrationPage{}, err
@@ -205,6 +208,11 @@ func (r *operatorRuntime) Readiness(ctx context.Context, token string) (web.Read
 	enrichReadiness(cfg, &value, r.kernel.Clock(), r.emergencyChangedAt(ctx))
 	if custodians, err := r.accessService.CustodianReadiness(ctx, r.kernel.Clock().Read().Now); err == nil {
 		setReadinessCheck(&value, custodians)
+	}
+	if backend, ok := r.evidence.Backend.(*postgres.EvidenceRuntime); ok {
+		if orphans, err := backend.OrphanBlobs(ctx); err == nil {
+			setReadinessCheck(&value, app.OrphanBlobCheck(orphans))
+		}
 	}
 	value = app.FinaliseReadiness(value)
 	out := web.ReadinessPage{Ready: value.Ready}

@@ -5,6 +5,7 @@ import (
 	_ "embed"
 	"errors"
 	"fmt"
+	"github.com/jonathanselby/cyber-response-action-board/internal/proof"
 	"strings"
 
 	"github.com/jackc/pgx/v5"
@@ -175,6 +176,7 @@ func Migrate(ctx context.Context, owner *pgxpool.Pool, runtimeRole string) error
 			return fmt.Errorf("grant runtime privilege: %w", err)
 		}
 	}
+	proof.Hit("migration-before-commit")
 	if err := tx.Commit(ctx); err != nil {
 		return fmt.Errorf("commit migration: %w", err)
 	}

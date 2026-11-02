@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"github.com/jonathanselby/cyber-response-action-board/internal/proof"
 	"sort"
 	"strings"
 	"time"
@@ -221,6 +222,7 @@ func (s CommunicationService) NotifyIssued(ctx context.Context, principal authz.
 	}
 	message := NotificationMessage{CommunicationID: communication.RecordID, Mode: communication.Mode, Subject: communication.Issue.Subject, Body: communication.Issue.Body, Audience: append([]string(nil), communication.Issue.Audience...)}
 	outcomes := make([]domain.NotificationOutcome, 0, len(channels))
+	proof.Hit("notification-before-attempt")
 	for i, name := range channels {
 		attemptedAt := now.UTC()
 		channel, configured := s.channel(name)

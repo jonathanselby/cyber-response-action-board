@@ -6,10 +6,10 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
+	"github.com/jonathanselby/cyber-response-action-board/internal/adapters/clock"
 	"io"
 	"net/http"
 	"strings"
-	"time"
 
 	"github.com/jonathanselby/cyber-response-action-board/internal/domain"
 )
@@ -73,7 +73,7 @@ func (s *BlobStore) PutCorpus(ctx context.Context, scope domain.CorpusScope, fil
 	}
 	digest := hex.EncodeToString(h.Sum(nil))
 	detected := http.DetectContentType(sample)
-	now := time.Now().UTC()
+	now := clock.NewHost().Read().Now // blob metadata: supporting state, not a ledger time
 	if _, err := tx.Exec(ctx, `INSERT INTO crab.blobs(blob_id,incident_id,mode,compartment,sha256,size_bytes,original_filename,declared_media_type,detected_media_type,created_at) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`, blobID, scope.IncidentID, scope.Mode, scope.Compartment, digest, total, filename, declaredMediaType, detected, now); err != nil {
 		return domain.BlobReceipt{}, err
 	}

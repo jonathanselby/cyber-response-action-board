@@ -7,10 +7,11 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"github.com/jonathanselby/cyber-response-action-board/internal/adapters/clock"
+	"github.com/jonathanselby/cyber-response-action-board/internal/proof"
 	"io"
 	"net/http"
 	"strings"
-	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -101,13 +102,14 @@ func (s *BlobStore) Put(ctx context.Context, scope domain.Scope, filename, decla
 
 	digest := hex.EncodeToString(h.Sum(nil))
 	detected := http.DetectContentType(sample)
-	now := time.Now().UTC()
+	now := clock.NewHost().Read().Now // blob metadata: supporting state, not a ledger time
 	if _, err := tx.Exec(ctx, `INSERT INTO crab.blobs(blob_id,incident_id,mode,compartment,sha256,size_bytes,original_filename,declared_media_type,detected_media_type,created_at) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`, blobID, scope.IncidentID, scope.Mode, scope.Compartment, digest, total, filename, declaredMediaType, detected, now); err != nil {
 		return domain.BlobReceipt{}, err
 	}
 	if err := tx.Commit(ctx); err != nil {
 		return domain.BlobReceipt{}, err
 	}
+	proof.Hit("blob-stored") // bytes stored, no ledger record yet (F-4)
 	return domain.BlobReceipt{BlobID: blobID, SHA256: digest, SizeBytes: total, OriginalFilename: filename, DeclaredMediaType: declaredMediaType, DetectedMediaType: detected}, nil
 }
 
@@ -192,4 +194,33 @@ func opaqueBlobID() (string, error) {
 		return "", err
 	}
 	return "blob_" + hex.EncodeToString(raw), nil
+}
+
+// OrphanBlobs lists stored blobs that no evidence item, corpus source or first
+// report refers to. They come from an upload interrupted after its bytes were
+// stored and before its ledger record (F-4). They are reported, never deleted
+// automatically.
+func OrphanBlobs(ctx context.Context, pool *pgxpool.Pool) ([]string, error) {
+	rows, err := pool.Query(ctx, `SELECT b.blob_id FROM crab.blobs b
+		WHERE NOT EXISTS (SELECT 1 FROM crab.evidence_register e WHERE e.blob_id=b.blob_id)
+		  AND NOT EXISTS (SELECT 1 FROM crab.corpus_sources c WHERE c.blob_id=b.blob_id)
+		  AND NOT EXISTS (SELECT 1 FROM crab.first_reports f, jsonb_array_elements(COALESCE(f.payload->'attachments','[]'::jsonb)) a WHERE a->>'blob_id'=b.blob_id)
+		ORDER BY b.created_at, b.blob_id`)
+	if err != nil {
+		return nil, fmt.Errorf("find orphan blobs: %w", err)
+	}
+	defer rows.Close()
+	var out []string
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		out = append(out, id)
+	}
+	return out, rows.Err()
+}
+
+func (r *EvidenceRuntime) OrphanBlobs(ctx context.Context) ([]string, error) {
+	return OrphanBlobs(ctx, r.Store.pool)
 }

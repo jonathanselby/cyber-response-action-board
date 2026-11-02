@@ -311,10 +311,10 @@ func (f *fakeRuntime) NotifyCommunication(context.Context, string, string, strin
 	return f.record("NotifyCommunication")
 }
 
-func (f *fakeRuntime) AccessAdministration(context.Context, string, time.Time) (AccessAdministrationPage, error) {
+func (f *fakeRuntime) AccessAdministration(context.Context, string) (AccessAdministrationPage, error) {
 	return AccessAdministrationPage{People: f.people}, nil
 }
-func (f *fakeRuntime) IncidentAccess(context.Context, string, string, time.Time) (AccessAdministrationPage, error) {
+func (f *fakeRuntime) IncidentAccess(context.Context, string, string) (AccessAdministrationPage, error) {
 	return AccessAdministrationPage{IncidentMemberships: []AccessMembershipView{{HumanID: "dave", IncidentID: testIncident, Status: "active", ExpiresAt: "2026-11-02T00:00:00Z"}}}, nil
 }
 func (f *fakeRuntime) ProposeSponsor(context.Context, string, string, string, bool) error {

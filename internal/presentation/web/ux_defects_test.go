@@ -1,7 +1,10 @@
 package web
 
 import (
+	"context"
+	"errors"
 	"net/http"
+	"net/url"
 	"os"
 	"strings"
 	"testing"
@@ -39,5 +42,31 @@ func TestStatusLineWraps(t *testing.T) {
 	}
 	if !strings.Contains(string(raw), ".gas-status-text{white-space:normal;overflow:visible}") {
 		t.Fatal("status line still truncates")
+	}
+}
+
+type outageRuntime struct{ fakeRuntime }
+
+func (o *outageRuntime) RecordFact(context.Context, string, string, string, string) error {
+	return errors.New("connect: connection refused")
+}
+
+func (o *outageRuntime) Frame(context.Context, string, string) (FrameView, bool, error) {
+	return FrameView{}, false, errors.New("connect: connection refused")
+}
+
+// T-241 (found by the database harness): when CRAB cannot reach PostgreSQL a
+// request gets a plain 503 saying nothing was saved, and the session cookie is
+// kept so the person is still signed in when the database returns.
+func TestDatabaseOutageKeepsTheSession(t *testing.T) {
+	s := withRuntime(t, &outageRuntime{fakeRuntime{bootstrapped: true}})
+	w := postForm(t, s, "/incident/INC-1/fact", url.Values{"statement": {"Typed during the outage"}, "source": {"EDR"}})
+	if w.Code != http.StatusServiceUnavailable || !strings.Contains(w.Body.String(), "nothing was saved") || !strings.Contains(w.Body.String(), "Typed during the outage") {
+		t.Fatalf("outage response code=%d", w.Code)
+	}
+	for _, c := range w.Result().Cookies() {
+		if c.Name == sessionCookie && c.MaxAge < 0 {
+			t.Fatal("the session cookie was cleared during a database outage")
+		}
 	}
 }

@@ -76,8 +76,29 @@ func ValidateSchema(ctx context.Context, pool *pgxpool.Pool) error {
 	if err := pool.QueryRow(ctx, `SELECT COALESCE(MAX(version), 0) FROM crab.schema_migrations`).Scan(&version); err != nil {
 		return fmt.Errorf("CRAB schema unavailable: %w", err)
 	}
+	if version < currentMigrationVersion {
+		return fmt.Errorf("CRAB schema version %d is older than this release needs (%d): back up, then run `crab migrate`", version, currentMigrationVersion)
+	}
 	if version != currentMigrationVersion {
 		return fmt.Errorf("CRAB schema version %d is unsupported; required %d", version, currentMigrationVersion)
 	}
 	return nil
 }
+
+// SchemaVersion returns the applied CRAB schema version, or 0 when the
+// schema does not exist yet.
+func SchemaVersion(ctx context.Context, pool *pgxpool.Pool) (int, error) {
+	var exists bool
+	if err := pool.QueryRow(ctx, `SELECT to_regclass('crab.schema_migrations') IS NOT NULL`).Scan(&exists); err != nil {
+		return 0, err
+	}
+	if !exists {
+		return 0, nil
+	}
+	var version int
+	err := pool.QueryRow(ctx, `SELECT COALESCE(MAX(version), 0) FROM crab.schema_migrations`).Scan(&version)
+	return version, err
+}
+
+// CurrentSchemaVersion is the schema version this release requires.
+func CurrentSchemaVersion() int { return currentMigrationVersion }

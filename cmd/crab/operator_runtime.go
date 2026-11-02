@@ -151,6 +151,8 @@ func newOperatorRuntime() (web.Runtime, error) {
 		return fail(err)
 	}
 
+	governedNow := func() time.Time { return kernel.Clock().Read().Now }
+	incidents.Now = governedNow
 	r := &operatorRuntime{kernel: kernel, signer: signer, security: security, access: accessStore, incidents: incidents}
 	wrapKey, err := loadCredentialWrapKey(cfg.CredentialWrapKeyFile)
 	if err != nil {
@@ -167,7 +169,7 @@ func newOperatorRuntime() (web.Runtime, error) {
 	}
 	r.organisation = app.OrganisationService{Backend: organisationBackend, MajorEligible: accessStore.IsMajorEligible}
 	r.accessService = app.AccessService{Backend: accessBackend}
-	r.incident = app.IncidentService{Backend: incidentBackend, Severity: r.organisation, Window: r.organisation, External: r.accessService}
+	r.incident = app.IncidentService{Backend: incidentBackend, Severity: r.organisation, Window: r.organisation, External: r.accessService, Now: governedNow}
 	relationStore, err := postgres.NewRelationshipRuntime(kernel, signer)
 	if err != nil {
 		return fail(err)

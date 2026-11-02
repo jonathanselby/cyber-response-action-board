@@ -4,6 +4,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"github.com/jonathanselby/cyber-response-action-board/internal/adapters/clock"
 	"io"
 	"time"
 
@@ -132,7 +133,7 @@ func runRestore(args []string, stdout, stderr io.Writer) int {
 		return exitRefused
 	}
 
-	restoredAt := time.Now().UTC()
+	restoredAt := clock.NewHost().Read().Now
 	result := restoreResult{BackupVerified: true, LedgerValid: true, LedgerEntries: verify.Entries, RestoredAt: restoredAt}
 	evidence := restoreEvidence{Kind: "restore-rehearsal", RestoredAt: restoredAt, BackupSHA256: backupMeta.SHA256, LedgerEntries: verify.Entries, LedgerVerified: true}
 	if err := writeRestoreEvidence(cfg.ExportDir, evidence); err != nil {

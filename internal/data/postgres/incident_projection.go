@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/jonathanselby/cyber-response-action-board/internal/adapters/clock"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -222,6 +223,16 @@ func slice3Type(recordType string) bool {
 
 type IncidentStore struct {
 	pool *pgxpool.Pool
+	// Now is the governed clock for read-time overdue judgements. Optional:
+	// without it, the host clock is used.
+	Now func() time.Time
+}
+
+func (s *IncidentStore) now() time.Time {
+	if s.Now != nil {
+		return s.Now()
+	}
+	return clock.NewHost().Read().Now
 }
 
 func NewIncidentStore(pool *pgxpool.Pool) (*IncidentStore, error) {
@@ -249,7 +260,7 @@ func (s *IncidentStore) CommonOperatingPicture(ctx context.Context, incidentID s
 	if err := s.readDecisions(ctx, incidentID, &picture); err != nil {
 		return domain.OperatingPicture{}, false, err
 	}
-	if err := s.readActions(ctx, incidentID, &picture, time.Now().UTC()); err != nil {
+	if err := s.readActions(ctx, incidentID, &picture, s.now()); err != nil {
 		return domain.OperatingPicture{}, false, err
 	}
 	if err := s.readRoles(ctx, incidentID, &picture); err != nil {

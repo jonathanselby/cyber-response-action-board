@@ -47,7 +47,8 @@ COMMENT ON TABLE crab.decision_loops IS
     'CRAB authority=rebuildable; proposal and decision time of incident-scoped governed records';
 
 -- Backfill from the ledger so an upgraded deployment has its history at once.
--- A later rebuild produces the same rows.
+-- A later rebuild produces the same rows. Ledger times carry nanoseconds;
+-- they are truncated to microseconds as the Go driver does, not rounded.
 -- Migrations run on every start, so the backfill runs only before version 21
 -- is recorded.
 DO $backfill$
@@ -56,7 +57,7 @@ IF NOT EXISTS (SELECT 1 FROM crab.schema_migrations WHERE version = 21) THEN
 INSERT INTO crab.decision_loops(record_type, record_id, incident_id, mode, compartment, proposed_at)
 SELECT DISTINCT ON (e->'record'->>'record_type', e->'record'->>'record_id')
        e->'record'->>'record_type', e->'record'->>'record_id', e->'record'->>'incident_id', e->'record'->>'incident_mode',
-       e->'record'->>'compartment', (e->'record'->>'timestamp')::timestamptz
+       e->'record'->>'compartment', regexp_replace(e->'record'->>'timestamp', '(\.[0-9]{6})[0-9]+', '\1')::timestamptz
 FROM (SELECT convert_from(entry_bytes, 'UTF8')::jsonb AS e, seq FROM crab.ledger_entries) l
 WHERE e->'record'->>'write_semantic' = 'governed' AND e->'record'->>'status' = 'proposed'
   AND COALESCE(e->'record'->>'incident_id', '') <> ''
@@ -67,7 +68,7 @@ UPDATE crab.decision_loops d SET decided_at = x.decided_at, outcome = x.outcome
 FROM (
     SELECT DISTINCT ON (e->'record'->>'record_type', e->'record'->>'record_id')
            e->'record'->>'record_type' AS record_type, e->'record'->>'record_id' AS record_id,
-           (e->'record'->>'timestamp')::timestamptz AS decided_at, e->'record'->>'status' AS outcome
+           regexp_replace(e->'record'->>'timestamp', '(\.[0-9]{6})[0-9]+', '\1')::timestamptz AS decided_at, e->'record'->>'status' AS outcome
     FROM (SELECT convert_from(entry_bytes, 'UTF8')::jsonb AS e, seq FROM crab.ledger_entries) l
     WHERE e->'record'->>'write_semantic' = 'governed' AND e->'record'->>'status' IN ('confirmed','rejected')
       AND COALESCE(e->'record'->>'incident_id', '') <> ''

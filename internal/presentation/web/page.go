@@ -267,7 +267,17 @@ func (s *Server) render(w http.ResponseWriter, r *http.Request, token string, sc
 		incidentID = r.PathValue("incidentID")
 	}
 	frame, ok, err := s.runtime.Frame(r.Context(), token, incidentID)
-	if err != nil || !ok {
+	if err != nil {
+		// CRAB cannot reach its database. The session may still be valid, so
+		// it is kept; say plainly that nothing was saved (T-241).
+		page := pageData{Error: "CRAB cannot reach its database right now, so nothing was saved. Try again in a moment; you are still signed in."}
+		if r.Method == http.MethodPost {
+			page.Unsaved = unsavedFields(data.Form)
+		}
+		s.page(w, http.StatusServiceUnavailable, screen{title: "Temporarily unavailable", tmpl: "unavailable"}, page, nil)
+		return
+	}
+	if !ok {
 		s.clearSession(w)
 		if r.Method == http.MethodPost {
 			// The session ended while a form was open: say plainly that

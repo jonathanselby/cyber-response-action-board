@@ -7,9 +7,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/jonathanselby/cyber-response-action-board/internal/proof"
 	"io"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -114,6 +116,20 @@ func (k *Kernel) stampTime(record ledger.Record) ledger.Record {
 }
 func (k *Kernel) IntegrityFailed() bool { return k.failed.Load() }
 
+// guardBackwards marks a record untrusted when its time is earlier than the
+// last ledger record's (R-19): history is never written as if time had gone
+// backwards without saying so. The stated time is kept; only its status is
+// downgraded. Maker-signed records are left alone, as in stampTime.
+func guardBackwards(record ledger.Record, tailAt time.Time) ledger.Record {
+	if record.MakerSignature.Value != "" || record.ConfirmerSignature.Value != "" {
+		return record
+	}
+	if !tailAt.IsZero() && record.Timestamp.Before(tailAt) {
+		record.TimeStatus = ledger.TimeUntrusted
+	}
+	return record
+}
+
 // Verify performs a full independent verification. A failure is sticky and
 // places the process in integrity-failed read-only mode. Verification alone
 // never silently re-enables mutation; Rebuild is the explicit recovery action.
@@ -154,7 +170,7 @@ func (k *Kernel) Append(ctx context.Context, record ledger.Record, signer Signer
 	if err := lockLedger(ctx, tx); err != nil {
 		return ledger.Entry{}, err
 	}
-	seq, hash, err := readTail(ctx, tx)
+	seq, hash, tailAt, err := readTailEntry(ctx, tx)
 	if err != nil {
 		if errors.Is(err, ErrUnexpectedTail) {
 			k.failed.Store(true)
@@ -166,7 +182,7 @@ func (k *Kernel) Append(ctx context.Context, record ledger.Record, signer Signer
 		return ledger.Entry{}, ErrUnexpectedTail
 	}
 
-	entry, err := ledger.BuildEntry(seq+1, hash, k.stampTime(record), signer.KeyID, signer.PrivateKey, k.keys)
+	entry, err := ledger.BuildEntry(seq+1, hash, guardBackwards(k.stampTime(record), tailAt), signer.KeyID, signer.PrivateKey, k.keys)
 	if err != nil {
 		return ledger.Entry{}, fmt.Errorf("build ledger entry: %w", err)
 	}
@@ -192,9 +208,11 @@ func (k *Kernel) Append(ctx context.Context, record ledger.Record, signer Signer
 			return ledger.Entry{}, fmt.Errorf("apply projection: %w", err)
 		}
 	}
+	proof.Hit("ledger-before-commit")
 	if err := tx.Commit(ctx); err != nil {
 		return ledger.Entry{}, fmt.Errorf("commit ledger append: %w", err)
 	}
+	proof.Hit("ledger-after-commit")
 	k.tailSeq, k.tailHash = entry.Seq, entry.Hash
 	return entry, nil
 }
@@ -409,6 +427,13 @@ func lockLedger(ctx context.Context, tx pgx.Tx) error {
 }
 
 func readTail(ctx context.Context, tx pgx.Tx) (uint64, string, error) {
+	seq, hash, _, err := readTailEntry(ctx, tx)
+	return seq, hash, err
+}
+
+// readTailEntry also returns the tail record's timestamp, for the
+// backwards-clock guard.
+func readTailEntry(ctx context.Context, tx pgx.Tx) (uint64, string, time.Time, error) {
 	var dbSeq int64
 	var dbPrev, dbHash string
 	var raw []byte
@@ -418,17 +443,17 @@ func readTail(ctx context.Context, tx pgx.Tx) (uint64, string, error) {
 		ORDER BY seq DESC
 		LIMIT 1`).Scan(&dbSeq, &dbPrev, &dbHash, &raw)
 	if errors.Is(err, pgx.ErrNoRows) {
-		return 0, "", nil
+		return 0, "", time.Time{}, nil
 	}
 	if err != nil {
-		return 0, "", fmt.Errorf("read ledger tail: %w", err)
+		return 0, "", time.Time{}, fmt.Errorf("read ledger tail: %w", err)
 	}
 	var entry ledger.Entry
 	if err := json.Unmarshal(raw, &entry); err != nil {
-		return 0, "", fmt.Errorf("decode ledger tail: %w", err)
+		return 0, "", time.Time{}, fmt.Errorf("decode ledger tail: %w", err)
 	}
 	if entry.Seq != uint64(dbSeq) || entry.PrevHash != dbPrev || entry.Hash != dbHash {
-		return 0, "", ErrUnexpectedTail
+		return 0, "", time.Time{}, ErrUnexpectedTail
 	}
-	return entry.Seq, entry.Hash, nil
+	return entry.Seq, entry.Hash, entry.Record.Timestamp, nil
 }

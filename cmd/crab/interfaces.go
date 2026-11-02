@@ -6,6 +6,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"github.com/jonathanselby/cyber-response-action-board/internal/adapters/clock"
 	"io"
 	"os"
 	"strings"
@@ -100,7 +101,7 @@ func runPrintIncidentBrief(args []string, stdout, stderr io.Writer) int {
 	if selectedPageSize == "" {
 		selectedPageSize = cfg.PageSizeDefault
 	}
-	result, err := service.GenerateIncidentBrief(context.Background(), principal, strings.TrimSpace(*incidentID), strings.TrimSpace(*compartment), nil, selectedPageSize, *mode, time.Now().UTC())
+	result, err := service.GenerateIncidentBrief(context.Background(), principal, strings.TrimSpace(*incidentID), strings.TrimSpace(*compartment), nil, selectedPageSize, *mode, clock.NewHost().Read().Now)
 	if err != nil {
 		fmt.Fprintln(stderr, err)
 		return exitRefused
@@ -139,7 +140,7 @@ func runPrintEmergencyPack(args []string, stdout, stderr io.Writer) int {
 		},
 		Forms: domain.DefaultContingencyForms(),
 	}
-	result, err := service.GenerateEmergencyResponsePack(context.Background(), principal, pack, selectedPageSize, *printMode, time.Now().UTC())
+	result, err := service.GenerateEmergencyResponsePack(context.Background(), principal, pack, selectedPageSize, *printMode, clock.NewHost().Read().Now)
 	if err != nil {
 		fmt.Fprintln(stderr, err)
 		return exitRefused

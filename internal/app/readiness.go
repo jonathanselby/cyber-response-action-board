@@ -1,6 +1,11 @@
 package app
 
-import "github.com/jonathanselby/cyber-response-action-board/internal/config"
+import (
+	"fmt"
+	"strings"
+
+	"github.com/jonathanselby/cyber-response-action-board/internal/config"
+)
 
 type Check struct {
 	Name    string `json:"name"`
@@ -50,4 +55,17 @@ func FinaliseReadiness(r Readiness) Readiness {
 		}
 	}
 	return r
+}
+
+// OrphanBlobCheck reports stored files with no record (F-4). They are kept
+// for an operator to examine; CRAB never deletes them on its own.
+func OrphanBlobCheck(ids []string) Check {
+	if len(ids) == 0 {
+		return Check{Name: "orphan_blobs", Status: "pass", Message: "every stored file belongs to an evidence item, runbook source or first report"}
+	}
+	shown := ids
+	if len(shown) > 5 {
+		shown = shown[:5]
+	}
+	return Check{Name: "orphan_blobs", Status: "warn", Message: fmt.Sprintf("%d stored file(s) have no record, usually from an interrupted upload: %s. They are kept, not deleted; examine them before removing.", len(ids), strings.Join(shown, ", "))}
 }

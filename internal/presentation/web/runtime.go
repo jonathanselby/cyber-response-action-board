@@ -89,8 +89,8 @@ type Runtime interface {
 	SubmitIntakeReport(ctx context.Context, token, source string, in IntakeReportInput) (IntakeResult, error)
 	ProposeIntakeKey(ctx context.Context, token string, in IntakeKeyInput) error
 	ConfirmIntakeKey(ctx context.Context, token, recordID, version string) (IntakeKeySecretView, error)
-	AccessAdministration(context.Context, string, time.Time) (AccessAdministrationPage, error)
-	IncidentAccess(context.Context, string, string, time.Time) (AccessAdministrationPage, error)
+	AccessAdministration(context.Context, string) (AccessAdministrationPage, error)
+	IncidentAccess(context.Context, string, string) (AccessAdministrationPage, error)
 	ProposeSponsor(ctx context.Context, token, incidentID, humanID string, active bool) error
 	ProposeController(ctx context.Context, token, incidentID, humanID, compartment string, active bool) error
 	ProposeIncidentMembership(ctx context.Context, token, incidentID, humanID string, active bool, effectiveAt, expiresAt *time.Time, reason string) error

@@ -1,0 +1,6 @@
+{{define "unavailable"}}{{template "feedback" .}}
+{{if .Unsaved}}<section class="gas-panel gas-stack" aria-labelledby="unsaved">
+<h2 id="unsaved">Not saved</h2>
+<dl class="gas-kv">{{range .Unsaved}}<dt>{{.Name}}</dt><dd>{{.Value}}</dd>{{end}}</dl>
+</section>{{end}}
+<p><a class="gas-button" href="/">Try again</a></p>{{end}}

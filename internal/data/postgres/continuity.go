@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/jonathanselby/cyber-response-action-board/internal/adapters/clock"
 	"io"
 	"net/http"
 	"time"
@@ -353,7 +354,7 @@ func (r *ContinuityRuntime) PutFirstReportBlob(ctx context.Context, filename, me
 	}
 	digest := hex.EncodeToString(h.Sum(nil))
 	detected := http.DetectContentType(sample)
-	now := time.Now().UTC()
+	now := clock.NewHost().Read().Now // blob metadata: supporting state, not a ledger time
 	if _, err := tx.Exec(ctx, `INSERT INTO crab.blobs(blob_id,incident_id,mode,compartment,sha256,size_bytes,original_filename,declared_media_type,detected_media_type,created_at) VALUES($1,'','system','SYSTEM',$2,$3,$4,$5,$6,$7)`, blobID, digest, total, filename, mediaType, detected, now); err != nil {
 		return domain.BlobReceipt{}, err
 	}
