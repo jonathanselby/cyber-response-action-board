@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased — 0.0.29-dev
+
+Post-UAT remediation, chunk C8: browser and accessibility harness. There are no product changes.
+
+- `uat/` (test only): pinned Playwright and axe-core. It runs journeys on Chromium, Firefox and WebKit, with phone emulation, and runs axe on 16 screens in light and dark (T-245, T-246). It runs on every push (`uat-browser` workflow) and fails on any new defect.
+- Command-board stress fixture in the end-to-end harness (R-21).
+- Defects it found are recorded for C9: no visible sign-out (F-13), typed input lost after session expiry (F-14), Readiness does not reflow at 200% and 400% zoom (F-15), and low contrast for muted text in the light theme (F-16). It also confirmed that the phone status line is cut off (R-20) and that the stress Board is about 26,600 px tall (R-21).
+
 ## Unreleased — 0.0.28-dev
 
 Post-UAT remediation, chunk C7: indicators and the management summary (contract addendum A2 and A3).
