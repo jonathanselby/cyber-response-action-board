@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased — 0.0.28-dev
+
+Post-UAT remediation, chunk C7: indicators and the management summary (contract addendum A2 and A3).
+
+- Indicators on the Evidence screen: IP address, domain, URL, hostname, email address and file hash. Each is validated and stored in a standard form. A status change is recorded as a new version. Values are shown as text and never as links. A related incident is named only to people who can see it (T-231).
+- Management summary on the Command Summary: active incidents by severity, overdue critical actions, overdue obligations and the median decision-loop time. It covers only live incidents the viewer can see, and the definitions are shown with the figures (T-232). It takes a fixed four queries (T-199 amended).
+- Records made through the browser are now stamped with CRAB's governed clock rather than the server's clock (most of F-11).
+
 ## Unreleased — 0.0.27-dev
 
 Post-UAT remediation, chunk C6: machine first-report intake (contract addendum A4).
