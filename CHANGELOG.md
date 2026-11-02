@@ -1,5 +1,17 @@
 # Changelog
 
+## Unreleased — 0.0.24-dev
+
+Post-UAT remediation, chunk C3: external access, live revocation and access-abuse proof.
+
+- An external person's incident and compartment access ends with their account at the latest (T-222).
+- EXTERNAL is shown in words on the Board, Access, Approvals and the Incident Brief (T-222).
+- Custodians can change a person's role from People.
+- Access changes reach every live session on every surface at once (T-223); stale tokens are refused (T-226).
+- Repeated sign-in failures are limited (F-8).
+- Security fix: a first report can only be linked to an incident the triager may work in (F-10).
+- Access-abuse suite over every route, with a coverage check (T-224, T-225).
+
 ## Unreleased — 0.0.23-dev
 
 Post-UAT remediation, chunk C2: user administration in the browser.
