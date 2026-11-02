@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased — 0.0.25-dev
+
+Post-UAT remediation, chunk C4: the long night.
+
+- Bafflewick phase 10: a 72-hour incident with shifts, handovers, changing commanders, joiners and leavers, external forensics and legal, communications and expiring access, run through the browser on a controlled clock. Threshold 10/10 (T-227).
+- P0 checkpoint: all four P0 findings from the UAT brief pass.
+
 ## Unreleased — 0.0.24-dev
 
 Post-UAT remediation, chunk C3: external access, live revocation and access-abuse proof.

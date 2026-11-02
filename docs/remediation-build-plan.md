@@ -30,10 +30,10 @@ This block is refreshed at the end of every chunk. If it cannot be stated in the
 
 ```text
 Authoritative design   PRD V0.2 + EDD V0.4; addendum V0.2.1 DRAFT (needed before C5)
-Branch / implementation main @ C3 merge (0.0.24-dev)
-Last green gate        C3 — local and GitHub CI: gofmt, vet, race tests + PostgreSQL, ratchet, abuse suite, Bafflewick 9/9, visual preflight
-Known defects          register: R-01–R-03, R-16, F-8, F-10 pass; F-9 not built (EDD §9.6); R-05 blocked on notifier v0.2
-Next coherent chunk    C4 — the long night (Bafflewick phase 10), then the P0 checkpoint
+Branch / implementation main @ C4 merge (0.0.25-dev)
+Last green gate        C4 — local and GitHub CI: gofmt, vet, race tests + PostgreSQL, ratchet, abuse suite, Bafflewick 10/10, visual preflight
+Known defects          P0 checkpoint passed (R-01–R-04); F-11 host-clock reads → C10; R-05 blocked on notifier v0.2
+Next coherent chunk    C5 — closure and reopening (needs the addendum approved)
 UAT started            no (Phase 4 human UAT follows C13)
 Release frozen         no
 ```

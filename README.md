@@ -6,7 +6,7 @@ CRAB is a single Go application for running a cyber incident from first report t
 
 ## Build status
 
-**0.0.24-dev — post-UAT remediation in progress (`docs/remediation-build-plan.md`); chunks C1–C3 complete: identity, user administration, external access, live revocation and access-abuse proof.**
+**0.0.25-dev — post-UAT remediation in progress (`docs/remediation-build-plan.md`); chunks C1–C4 complete and all P0 findings pass.**
 
 The frozen product contract is PRD V0.2 and EDD V0.4. The implementation may simplify mechanisms; it may not silently weaken product outcomes, security boundaries or degraded-operation behaviour.
 
@@ -38,11 +38,11 @@ CI-proven now:
 - local Custodian recovery that is refused while normal Custodian quorum is demonstrably usable and never grants incident-content access;
 - non-loopback serving refused unless TLS certificate/key and an HTTPS public base URL are configured;
 - file-first optional model and notification deployment composition, with local model endpoints constrained to loopback and managed endpoints constrained to HTTPS;
-- explicit Bafflewick end-to-end regression acceptance with a 9/9 mandatory threshold;
+- explicit Bafflewick end-to-end regression acceptance with a 10/10 mandatory threshold;
 - generated codebase-to-EDD comparison against frozen EDD V0.4 with no material architecture drift found;
 - automated visual/accessibility preflight covering responsive/mobile contracts, keyboard focus, touch targets and local A4/Letter/monochrome print contracts.
 
-The current candidate passes normal module/gofmt/`go vet`/race-enabled PostgreSQL CI, Linux amd64 and arm64 builds, the explicit core acceptance gate, Bafflewick 9/9 and the visual/accessibility preflight. See `docs/final-acceptance-progress.md`.
+The current candidate passes normal module/gofmt/`go vet`/race-enabled PostgreSQL CI, Linux amd64 and arm64 builds, the explicit core acceptance gate, Bafflewick 10/10 and the visual/accessibility preflight. See `docs/final-acceptance-progress.md`.
 
 ### Remaining release evidence
 

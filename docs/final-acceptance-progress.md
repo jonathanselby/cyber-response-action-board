@@ -4,7 +4,7 @@
 
 The final acceptance work was deliberately split into bounded, independently gated components.
 
-1. **Bafflewick end-to-end regression gate — PASS.** Nine mandatory operational phases are executable in CI; threshold is 9/9 (phase 9, degraded authority, added in 0.0.20-dev).
+1. **Bafflewick end-to-end regression gate — PASS.** Ten mandatory operational phases are executable in CI; threshold is 10/10 (phase 10, the long night, added in 0.0.25-dev; phase 9, degraded authority, in 0.0.20-dev).
 2. **Codebase-to-EDD drift review — PASS.** The implementation remains materially aligned with frozen EDD V0.4; no architecture reopen is required. The stale `architecture.txt` checkpoint text was corrected.
 3. **Visual/accessibility automated preflight — PASS.** Responsive/mobile contracts, visible keyboard focus, practical touch targets, no remote core CSS assets, A4/Letter rendering, monochrome/exercise semantics and print authorisation/provenance checks are executable CI gates.
 4. **Physical acceptance runner — READY.** `scripts/final-acceptance.sh` now runs Bafflewick, visual preflight, source/build/test gates and records target-host resource evidence in one Markdown file.
