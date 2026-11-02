@@ -19,13 +19,19 @@ CREATE TABLE IF NOT EXISTS crab.notification_requests (
     resend_of jsonb NOT NULL DEFAULT '[]'::jsonb,
     maker text NOT NULL CHECK (btrim(maker) <> ''),
     requested_at timestamptz NOT NULL,
+    seq bigint NOT NULL DEFAULT 0,
     PRIMARY KEY (incident_id, record_id)
 );
 CREATE INDEX IF NOT EXISTS notification_requests_communication_idx ON crab.notification_requests(incident_id, communication_id, requested_at);
 COMMENT ON TABLE crab.notification_requests IS
     'CRAB authority=rebuildable; notification requests recorded before any attempt';
 
+-- seq is the ledger position, so attempts at the same second keep their order.
 ALTER TABLE crab.notification_outcomes ADD COLUMN IF NOT EXISTS request_id text NOT NULL DEFAULT '';
+ALTER TABLE crab.notification_outcomes ADD COLUMN IF NOT EXISTS seq bigint NOT NULL DEFAULT 0;
+UPDATE crab.notification_outcomes o SET seq = e.seq FROM crab.ledger_entries e
+    WHERE o.seq = 0 AND convert_from(e.entry_bytes, 'UTF8')::jsonb #>> '{record,record_id}' = o.record_id
+      AND convert_from(e.entry_bytes, 'UTF8')::jsonb #>> '{record,record_type}' = 'incident.notification_outcome';
 
 CREATE TABLE IF NOT EXISTS crab.notices (
     notice_id text PRIMARY KEY CHECK (btrim(notice_id) <> ''),

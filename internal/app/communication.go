@@ -248,7 +248,7 @@ func (s CommunicationService) ResendFailed(ctx context.Context, principal authz.
 // failed and those attempts' record IDs.
 func FailedChannels(outcomes []domain.NotificationOutcomeView) ([]string, []string) {
 	latest := map[string]domain.NotificationOutcomeView{}
-	for _, o := range outcomes { // ordered by attempt time
+	for _, o := range outcomes { // ordered by attempt time, then ledger position
 		latest[o.Outcome.Channel] = o
 	}
 	var channels, attempts []string

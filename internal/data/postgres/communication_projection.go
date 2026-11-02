@@ -35,7 +35,7 @@ func (CommunicationProjection) Apply(ctx context.Context, tx pgx.Tx, entry ledge
 		return errors.New("communication projection requires live/exercise incident scope")
 	}
 	if record.WriteSemantic == "record" {
-		return applyCommunicationRecord(ctx, tx, record)
+		return applyCommunicationRecord(ctx, tx, record, entry.Seq)
 	}
 	if record.WriteSemantic != "governed" {
 		return errors.New("invalid communication write semantic")
@@ -88,7 +88,7 @@ func (CommunicationProjection) Apply(ctx context.Context, tx pgx.Tx, entry ledge
 	return err
 }
 
-func applyCommunicationRecord(ctx context.Context, tx pgx.Tx, record ledger.Record) error {
+func applyCommunicationRecord(ctx context.Context, tx pgx.Tx, record ledger.Record, seq uint64) error {
 	switch record.RecordType {
 	case domain.TypeCommunicationDraft:
 		value, err := domain.DecodePayload[domain.CommunicationDraft](record)
@@ -121,7 +121,7 @@ func applyCommunicationRecord(ctx context.Context, tx pgx.Tx, record ledger.Reco
 		if err := domain.ValidateNotificationOutcome(value); err != nil {
 			return err
 		}
-		_, err = tx.Exec(ctx, `INSERT INTO crab.notification_outcomes(incident_id,record_id,compartment,communication_id,channel,destination_id,attempted_at,status,detail,acknowledgement,duration_ms,maker,recorded_at,request_id) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)`, record.IncidentID, record.RecordID, record.Compartment, value.CommunicationID, value.Channel, value.DestinationID, value.AttemptedAt, value.Status, value.Detail, value.Acknowledgement, value.DurationMS, record.Maker, record.Timestamp, value.RequestID)
+		_, err = tx.Exec(ctx, `INSERT INTO crab.notification_outcomes(incident_id,record_id,compartment,communication_id,channel,destination_id,attempted_at,status,detail,acknowledgement,duration_ms,maker,recorded_at,request_id,seq) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)`, record.IncidentID, record.RecordID, record.Compartment, value.CommunicationID, value.Channel, value.DestinationID, value.AttemptedAt, value.Status, value.Detail, value.Acknowledgement, value.DurationMS, record.Maker, record.Timestamp, value.RequestID, int64(seq))
 		return err
 	case domain.TypeNotificationRequest:
 		value, err := domain.DecodePayload[domain.NotificationRequest](record)
@@ -133,7 +133,7 @@ func applyCommunicationRecord(ctx context.Context, tx pgx.Tx, record ledger.Reco
 		}
 		channels, _ := json.Marshal(value.Channels)
 		resend, _ := json.Marshal(append([]string{}, value.ResendOf...))
-		_, err = tx.Exec(ctx, `INSERT INTO crab.notification_requests(incident_id,record_id,compartment,communication_id,channels,resend_of,maker,requested_at) VALUES($1,$2,$3,$4,$5,$6,$7,$8)`, record.IncidentID, record.RecordID, record.Compartment, value.CommunicationID, channels, resend, record.Maker, record.Timestamp)
+		_, err = tx.Exec(ctx, `INSERT INTO crab.notification_requests(incident_id,record_id,compartment,communication_id,channels,resend_of,maker,requested_at,seq) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9)`, record.IncidentID, record.RecordID, record.Compartment, value.CommunicationID, channels, resend, record.Maker, record.Timestamp, int64(seq))
 		return err
 	case domain.TypeIncomingEnquiry:
 		value, err := domain.DecodePayload[domain.IncomingEnquiry](record)

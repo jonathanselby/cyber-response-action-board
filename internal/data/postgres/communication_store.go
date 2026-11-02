@@ -90,7 +90,7 @@ func (s *CommunicationStore) CommunicationCadence(ctx context.Context, incidentI
 }
 
 func (s *CommunicationStore) NotificationOutcomes(ctx context.Context, incidentID, communicationID string) ([]domain.NotificationOutcomeView, error) {
-	rows, err := s.pool.Query(ctx, `SELECT record_id,incident_id,compartment,communication_id,channel,destination_id,attempted_at,status,detail,acknowledgement,duration_ms,maker,recorded_at,request_id FROM crab.notification_outcomes WHERE incident_id=$1 AND communication_id=$2 ORDER BY attempted_at,record_id`, incidentID, communicationID)
+	rows, err := s.pool.Query(ctx, `SELECT record_id,incident_id,compartment,communication_id,channel,destination_id,attempted_at,status,detail,acknowledgement,duration_ms,maker,recorded_at,request_id FROM crab.notification_outcomes WHERE incident_id=$1 AND communication_id=$2 ORDER BY attempted_at,seq,record_id`, incidentID, communicationID)
 	if err != nil {
 		return nil, err
 	}
@@ -108,7 +108,7 @@ func (s *CommunicationStore) NotificationOutcomes(ctx context.Context, incidentI
 
 // NotificationRequests lists a communication's notification requests in order.
 func (s *CommunicationStore) NotificationRequests(ctx context.Context, incidentID, communicationID string) ([]domain.NotificationRequestView, error) {
-	rows, err := s.pool.Query(ctx, `SELECT record_id,incident_id,compartment,communication_id,channels,resend_of,maker,requested_at FROM crab.notification_requests WHERE incident_id=$1 AND communication_id=$2 ORDER BY requested_at,record_id`, incidentID, communicationID)
+	rows, err := s.pool.Query(ctx, `SELECT record_id,incident_id,compartment,communication_id,channels,resend_of,maker,requested_at FROM crab.notification_requests WHERE incident_id=$1 AND communication_id=$2 ORDER BY requested_at,seq,record_id`, incidentID, communicationID)
 	if err != nil {
 		return nil, err
 	}
@@ -129,17 +129,6 @@ func (s *CommunicationStore) NotificationRequests(ctx context.Context, incidentI
 		result = append(result, view)
 	}
 	return result, rows.Err()
-}
-
-// FailedNotificationCount counts the incident's communications whose latest
-// attempt on some channel failed, in the compartments given.
-func (s *CommunicationStore) FailedNotificationCount(ctx context.Context, incidentID string, compartments []string) (int, error) {
-	var n int
-	err := s.pool.QueryRow(ctx, `SELECT count(DISTINCT communication_id) FROM (
-		SELECT DISTINCT ON (communication_id, channel) communication_id, status
-		FROM crab.notification_outcomes WHERE incident_id=$1 AND compartment = ANY($2)
-		ORDER BY communication_id, channel, attempted_at DESC, recorded_at DESC, record_id DESC) latest WHERE status='failed'`, incidentID, compartments).Scan(&n)
-	return n, err
 }
 
 func (s *CommunicationStore) IncomingEnquiries(ctx context.Context, incidentID, compartment string) ([]domain.IncomingEnquiryView, error) {
