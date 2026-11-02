@@ -14,8 +14,8 @@ jobs:
     timeout-minutes: 30
     env:
       CRAB_TEST_POSTGRES_ADMIN_URL: postgres://postgres:postgres@127.0.0.1:5432/crab_test?sslmode=disable
-      CRAB_PROOF_PG_STOP: sudo systemctl stop postgresql
-      CRAB_PROOF_PG_START: sudo systemctl start postgresql && until pg_isready -h 127.0.0.1 -q; do sleep 1; done
+      CRAB_PROOF_PG_STOP: sudo pg_ctlcluster --mode fast 16 main stop
+      CRAB_PROOF_PG_START: sudo pg_ctlcluster 16 main start && until pg_isready -h 127.0.0.1 -q; do sleep 1; done
       CRAB_PROOF_FULL_DIR: /mnt/pgfull
     steps:
       - uses: actions/checkout@v4

@@ -348,6 +348,7 @@ func TestProofDatabaseAndStorage(t *testing.T) {
 	e := newE2E(t)
 	alice, bob := e.bootstrap()
 	e.declare(alice, bob, "INC-DB", "Database outage", "Severity level 3")
+	ctx := context.Background()
 	bin := proofBinary(t)
 	srv := startCrab(t, bin, "")
 	defer srv.stop()
@@ -371,8 +372,13 @@ func TestProofDatabaseAndStorage(t *testing.T) {
 		t.Fatalf("service did not resume for %q (%s):\n%s", statement, detail, srv.log)
 	}
 
-	// PostgreSQL stopped.
+	// PostgreSQL stopped (checked, so a stop command that returns early
+	// cannot make the case vacuous).
 	shell(t, stop)
+	if err := e.admin.Ping(ctx); err == nil {
+		shell(t, start)
+		t.Fatal("the stop command did not stop PostgreSQL")
+	}
 	if code := c.postFact("INC-DB", "written while PostgreSQL was down"); code == http.StatusSeeOther {
 		shell(t, start)
 		t.Fatal("a mutation reported success while PostgreSQL was down")
@@ -391,7 +397,6 @@ func TestProofDatabaseAndStorage(t *testing.T) {
 	}
 
 	// PostgreSQL's disk full: the ledger and facts live on a small tablespace.
-	ctx := context.Background()
 	exec := func(sql string) {
 		t.Helper()
 		if _, err := e.admin.Exec(ctx, sql); err != nil {
