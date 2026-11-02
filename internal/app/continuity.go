@@ -79,7 +79,9 @@ func (s ContinuityService) TriageFirstReport(ctx context.Context, principal auth
 	if err := s.ready(); err != nil {
 		return ledger.Record{}, err
 	}
-	if !principal.Authenticated || principal.HumanID == "" || (principal.Role != authz.RoleMajor && principal.Role != authz.RoleMinor) {
+	// Triage decides whether a report becomes or joins an incident: Majors
+	// only (moved here from the composition tier, F-7).
+	if !principal.Authenticated || principal.HumanID == "" || principal.Role != authz.RoleMajor {
 		return ledger.Record{}, ErrAuthorisationDenied
 	}
 	if err := s.authoriseTriageTarget(ctx, principal, value); err != nil {

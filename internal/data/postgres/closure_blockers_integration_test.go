@@ -15,8 +15,8 @@ import (
 	"github.com/jonathanselby/cyber-response-action-board/internal/security/authz"
 )
 
-// T-228: pending proposals of any kind and obligation clocks still running
-// block closure, by name; waived and already-passed clocks do not.
+// T-228: pending proposals of any kind and obligation clocks that are still
+// running or overdue block closure, by name; waived clocks do not (F-12).
 func TestClosureBlockersIncludePendingProposalsAndRunningClocks(t *testing.T) {
 	db := setupTestDB(t)
 	ctx := context.Background()
@@ -75,12 +75,12 @@ func TestClosureBlockersIncludePendingProposalsAndRunningClocks(t *testing.T) {
 		t.Fatal(err)
 	}
 	joined := strings.Join(blockers, "\n")
-	for _, want := range []string{"stand-down not confirmed", "2 pending decision proposals", "1 pending incident membership proposal", "obligation clock Regulator notice running still running until 11 Nov 2026 01:00 UTC", "2 outstanding matters in compartments you cannot see"} {
+	for _, want := range []string{"stand-down not confirmed", "2 pending decision proposals", "1 pending incident membership proposal", "obligation clock Regulator notice running still running until 11 Nov 2026 01:00 UTC", "2 outstanding matters in compartments you cannot see", "obligation clock Regulator notice passed overdue since 9 Nov 2026 00:59 UTC"} {
 		if !strings.Contains(joined, want) {
 			t.Errorf("blockers missing %q:\n%s", want, joined)
 		}
 	}
-	for _, unwanted := range []string{"waived", "notice passed", "privileged", "3 pending decision"} {
+	for _, unwanted := range []string{"waived", "privileged", "3 pending decision"} {
 		if strings.Contains(joined, unwanted) {
 			t.Errorf("blockers wrongly include %q:\n%s", unwanted, joined)
 		}

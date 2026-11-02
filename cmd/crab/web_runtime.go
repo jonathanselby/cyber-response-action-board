@@ -5,13 +5,9 @@ package main
 // application tier; nothing here introduces a new mechanism or state store.
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
 	"errors"
-	"fmt"
 	"github.com/jonathanselby/cyber-response-action-board/internal/ledger"
-	"regexp"
 	"sort"
 	"strings"
 	"time"
@@ -35,7 +31,8 @@ func (r *operatorRuntime) Frame(ctx context.Context, token, incidentID string) (
 	if err != nil || !ok {
 		return web.FrameView{}, false, err
 	}
-	frame := web.FrameView{HumanID: principal.HumanID, Role: string(principal.Role), Custodian: principal.Custodian}
+	caps := app.CapabilitiesOf(principal)
+	frame := web.FrameView{HumanID: principal.HumanID, Role: caps.Role, HoldsCustodian: caps.IsCustodian}
 	frame.Status.BreakGlass = session.BreakGlass
 	frame.Status.TimeStatus = r.kernel.Clock().Read().Status
 	if open, err := r.organisation.OpenWindow(ctx, r.kernel.Clock().Read().Now); err == nil {
@@ -111,13 +108,12 @@ func (r *operatorRuntime) Board(ctx context.Context, token, incidentID, compartm
 	if !found {
 		return web.BoardView{}, app.ErrAuthorisationDenied
 	}
-	out := web.BoardView{Picture: picture, Compartment: compartment, Clocks: picture.Obligations, Phase: humanPhase(domain.PhaseActiveResponse)}
-	sort.SliceStable(out.Clocks, func(i, j int) bool { return out.Clocks[i].Deadline.Before(out.Clocks[j].Deadline) })
+	failedNotifications := 0
+	now := r.kernel.Clock().Read().Now
+	ordered, clocks := app.OrderBoard(picture, picture.Obligations, now)
+	out := web.BoardView{Picture: ordered, Compartment: compartment, Clocks: clocks, Phase: humanPhase(domain.PhaseActiveResponse), Limit: app.BoardSectionLimit}
 	sort.SliceStable(out.Picture.Timeline, func(i, j int) bool {
 		return out.Picture.Timeline[i].RecordedAt.After(out.Picture.Timeline[j].RecordedAt)
-	})
-	sort.SliceStable(out.Picture.Decisions, func(i, j int) bool {
-		return out.Picture.Decisions[i].ConfirmedAt.After(out.Picture.Decisions[j].ConfirmedAt)
 	})
 	if state, found, err := r.recovery.State(ctx, principal, incidentID, compartment); err == nil && found && state.Phase != "" {
 		out.Phase = humanPhase(state.Phase)
@@ -197,6 +193,13 @@ func (r *operatorRuntime) Board(ctx context.Context, token, incidentID, compartm
 			for _, v := range issued {
 				if v.IssuedAt.After(cutoff) {
 					out.IssuedRecently = append(out.IssuedRecently, v)
+					if outcomes, err := store.NotificationOutcomes(ctx, incidentID, v.RecordID); err == nil {
+						for _, o := range outcomes {
+							if o.Outcome.Status == domain.NotificationFailed {
+								failedNotifications++
+							}
+						}
+					}
 				}
 			}
 		}
@@ -222,6 +225,14 @@ func (r *operatorRuntime) Board(ctx context.Context, token, incidentID, compartm
 	}
 	if r.kernel.IntegrityFailed() {
 		out.Readiness = append(out.Readiness, web.ReadinessCheckView{Name: "Ledger integrity", Status: "fail", Message: "ledger verification failed; CRAB is read-only until recovered"})
+	}
+	focus := app.BoardFocusInput{Viewer: principal.HumanID, TimeStatus: r.kernel.Clock().Read().Status, IntegrityFailed: r.kernel.IntegrityFailed(), Picture: out.Picture, Clocks: out.Clocks, FailedNotifications: failedNotifications, Now: now}
+	if out.LatestHandover != nil {
+		at := out.LatestHandover.RecordedAt
+		focus.LastHandoverAt = &at
+	}
+	for _, item := range app.BoardNow(focus) {
+		out.Now = append(out.Now, web.NowItem{Text: item.Text, Link: item.Link, Tone: item.Tone})
 	}
 	return out, nil
 }
@@ -547,11 +558,6 @@ func (r *operatorRuntime) emergencyPack(_ context.Context, mode string) (domain.
 
 // ---- approvals ----------------------------------------------------------------
 
-type approvalSource struct {
-	kind, scopeID, recordType, recordID, compartment, version, maker string
-	proposedAt                                                       time.Time
-}
-
 func (r *operatorRuntime) Approvals(ctx context.Context, token, incidentID string) (web.ApprovalsView, error) {
 	principal, ok, err := r.principal(ctx, token)
 	if err != nil {
@@ -568,424 +574,42 @@ func (r *operatorRuntime) Approvals(ctx context.Context, token, incidentID strin
 	return view, nil
 }
 
-// approvals gathers pending governed changes only through the same scoped
-// listings each area already uses, then loads each proposal's payload.
+// approvals translates the application approvals queue for the browser.
 func (r *operatorRuntime) approvals(ctx context.Context, principal authz.Principal, filter string) (web.ApprovalsView, error) {
-	var sources []approvalSource
-	seen := map[string]bool{}
-	add := func(s approvalSource) {
-		key := s.kind + "|" + s.scopeID + "|" + s.recordType + "|" + s.recordID
-		if !seen[key] {
-			seen[key] = true
-			sources = append(sources, s)
-		}
-	}
-	titles := map[string]string{}
-	var incidents []web.IncidentLink
-
-	ids := make([]string, 0, len(principal.Incidents))
-	for id, member := range principal.Incidents {
-		if member {
-			ids = append(ids, id)
-		}
-	}
-	sort.Strings(ids)
-	obligations, obligationStore, obligationErr := r.obligationService()
-	_ = obligations
-	communicationStore, communicationErr := postgres.NewCommunicationStoreFromKernel(r.kernel)
-	continuity, continuityErr := r.continuityService()
-
-	for _, id := range ids {
-		picture, found, err := r.incident.CommonOperatingPicture(ctx, principal, id, "GENERAL")
-		if err != nil || !found {
-			continue
-		}
-		titles[id] = picture.Incident.Title
-		incidents = append(incidents, web.IncidentLink{IncidentID: id, Title: picture.Incident.Title, Mode: picture.Incident.Mode, Severity: picture.Incident.Severity})
-		if filter != "" && filter != id {
-			continue
-		}
-		for _, compartment := range readableCompartments(principal, id) {
-			scoped := picture
-			if compartment != "GENERAL" {
-				if p, ok, err := r.incident.CommonOperatingPicture(ctx, principal, id, compartment); err == nil && ok {
-					scoped = p
-				}
-			}
-			for _, p := range scoped.Pending {
-				kind := "incident"
-				if p.RecordType == domain.TypeIncidentDeclaration {
-					kind = "declaration"
-				}
-				add(approvalSource{kind, id, p.RecordType, p.RecordID, p.Compartment, p.Version, p.Maker, p.ProposedAt})
-			}
-			if continuityErr == nil {
-				if pending, err := continuity.PendingSeverityChanges(ctx, principal, id, compartment); err == nil {
-					for _, p := range pending {
-						version, _ := domain.ProposalVersion(p)
-						add(approvalSource{"severity", id, p.RecordType, p.RecordID, p.Compartment, version, p.Maker, p.Timestamp})
-					}
-				}
-			}
-			if obligationErr == nil {
-				if pending, err := obligationStore.PendingForScope(ctx, id, compartment); err == nil {
-					for _, p := range pending {
-						add(approvalSource{"obligation", p.ScopeID, p.RecordType, p.RecordID, p.Compartment, p.Version, p.Maker, p.ProposedAt})
-					}
-				}
-			}
-			if communicationErr == nil {
-				if pending, err := communicationStore.PendingForIncident(ctx, id, compartment); err == nil {
-					for _, p := range pending {
-						add(approvalSource{"communication", p.IncidentID, p.RecordType, p.RecordID, p.Compartment, p.Version, p.Maker, p.ProposedAt})
-					}
-				}
-			}
-			if pending, err := r.kernel.PendingRecoveryProposals(ctx, id, compartment); err == nil {
-				for _, p := range pending {
-					add(approvalSource{"recovery", p.IncidentID, p.RecordType, p.RecordID, p.Compartment, p.Version, p.Maker, p.ProposedAt})
-				}
-			}
-		}
-		if pending, err := r.relationStore.PendingRelationships(ctx, id); err == nil {
-			for _, p := range pending {
-				// Shown only to people who can already see both incidents.
-				if principal.Incidents[p.RelatedIncidentID] && principal.Compartments[p.RelatedIncidentID]["GENERAL"] {
-					add(approvalSource{"relationship", id, domain.TypeIncidentRelationship, p.RecordID, "GENERAL", p.Version, p.Maker, p.ProposedAt})
-				}
-			}
-		}
-		allowed := principal.Compartments[id]
-		if pending, err := r.access.PendingAccessForIncident(ctx, id); err == nil {
-			for _, p := range pending {
-				if p.Compartment != "" && p.Compartment != "GENERAL" && !allowed[p.Compartment] {
-					continue
-				}
-				add(approvalSource{"access", p.ScopeID, p.RecordType, p.RecordID, p.Compartment, p.Version, p.Maker, p.ProposedAt})
-			}
-		}
-	}
-
-	if filter == "" {
-		if principal.Role == authz.RoleMajor {
-			if declarations, err := r.incidents.PendingDeclarations(ctx); err == nil {
-				for _, d := range declarations {
-					titles[d.IncidentID] = d.Declaration.Title
-					add(approvalSource{"declaration", d.IncidentID, domain.TypeIncidentDeclaration, d.RecordID, "GENERAL", d.Version, d.Maker, time.Time{}})
-				}
-			}
-			if obligationErr == nil {
-				if pending, err := obligationStore.PendingForScope(ctx, "", "SYSTEM"); err == nil {
-					for _, p := range pending {
-						add(approvalSource{"obligation", p.ScopeID, p.RecordType, p.RecordID, p.Compartment, p.Version, p.Maker, p.ProposedAt})
-					}
-				}
-			}
-		}
-		if principal.Role == authz.RoleMajor {
-			if pending, err := r.organisation.Pending(ctx, principal); err == nil {
-				for _, p := range pending {
-					add(approvalSource{"organisation", "", p.RecordType, p.RecordID, "SYSTEM", p.Version, p.Maker, p.At})
-				}
-			}
-		}
-		if principal.Custodian {
-			if pending, err := r.access.PendingAccessAdministration(ctx); err == nil {
-				for _, p := range pending {
-					add(approvalSource{"access", p.ScopeID, p.RecordType, p.RecordID, p.Compartment, p.Version, p.Maker, p.ProposedAt})
-				}
-			}
-		}
-	}
-
-	out := web.ApprovalsView{Incidents: incidents, SelfApprovals: r.recentSelfApprovals(ctx, principal)}
-	now := r.kernel.Clock().Read().Now
-	external, err := r.accessService.ExternalPeople(ctx)
+	queue, err := app.ApprovalsService{Backend: approvalsBackend{r}}.Queue(ctx, principal, filter, r.kernel.Clock().Read().Now)
 	if err != nil {
 		return web.ApprovalsView{}, err
 	}
-	for _, s := range sources {
-		item := r.approvalView(ctx, s, titles)
-		item.MakerExternal = external[s.maker]
-		item.CanDecide = s.maker != principal.HumanID
-		if !item.CanDecide && principal.Role == authz.RoleMajor && s.kind != "organisation" && s.kind != "access" && s.kind != "relationship" && s.kind != "declaration" {
-			if ok, err := r.organisation.Permits(ctx, principal.HumanID, s.recordType, now); err == nil && ok {
-				item.CanSelfApprove = true
-			}
-		}
-		if item.CanDecide {
-			out.Waiting = append(out.Waiting, item)
-		} else {
-			out.AwaitingOther = append(out.AwaitingOther, item)
-		}
+	out := web.ApprovalsView{SelfApprovals: r.recentSelfApprovals(ctx, principal)}
+	for _, i := range queue.Incidents {
+		out.Incidents = append(out.Incidents, web.IncidentLink{IncidentID: i.IncidentID, Title: i.Title, Mode: i.Mode, Severity: i.Severity})
+	}
+	for _, i := range queue.Waiting {
+		out.Waiting = append(out.Waiting, approvalView(i))
+	}
+	for _, i := range queue.AwaitingOther {
+		out.AwaitingOther = append(out.AwaitingOther, approvalView(i))
 	}
 	return out, nil
 }
 
-func (r *operatorRuntime) approvalView(ctx context.Context, s approvalSource, titles map[string]string) web.ApprovalView {
-	item := web.ApprovalView{
-		Kind: s.kind, Label: approvalLabel(s.recordType), Compartment: s.compartment, Maker: s.maker,
-		ScopeID: s.scopeID, RecordType: s.recordType, RecordID: s.recordID, Version: s.version,
+func approvalView(i app.ApprovalItem) web.ApprovalView {
+	v := web.ApprovalView{Group: i.Group, Kind: i.Kind, Label: i.Label, IncidentID: i.IncidentID, IncidentTitle: i.IncidentTitle, Compartment: i.Compartment,
+		Summary: i.Summary, Effective: webFields(i.Effective), Proposed: webFields(i.Proposed), Maker: i.Maker, MakerName: i.MakerName, MakerRole: i.MakerRole,
+		MakerExternal: i.MakerExternal, Reason: i.Reason, Consequence: i.Consequence, RejectConsequence: i.RejectConsequence,
+		ScopeID: i.ScopeID, RecordType: i.RecordType, RecordID: i.RecordID, Version: i.Version, CanDecide: i.CanDecide, CanSelfApprove: i.CanSelfApprove}
+	if !i.ProposedAt.IsZero() {
+		v.ProposedAt = i.ProposedAt.UTC().Format(displayTime)
 	}
-	if s.kind != "obligation" || s.scopeID != "" {
-		item.IncidentID = s.scopeID
-		item.IncidentTitle = titles[s.scopeID]
-	}
-	if s.kind == "organisation" {
-		if s.compartment == "SYSTEM" {
-			item.Compartment = ""
-		}
-		if !s.proposedAt.IsZero() {
-			item.ProposedAt = s.proposedAt.UTC().Format(displayTime)
-		}
-		if payload, found, err := r.kernel.ProposalPayload(ctx, s.kind, s.scopeID, s.recordType, s.recordID); err == nil && found {
-			item.Summary, item.Consequence, item.Proposed = organisationSummary(s.recordType, payload)
-		}
-		return item
-	}
-	if !s.proposedAt.IsZero() {
-		item.ProposedAt = s.proposedAt.UTC().Format(displayTime)
-	}
-	payload, found, err := r.kernel.ProposalPayload(ctx, s.kind, s.scopeID, s.recordType, s.recordID)
-	values := map[string]any{}
-	if err == nil && found {
-		item.Proposed, values = payloadFields(payload)
-	}
-	item.Reason = firstString(values, "reason_evidence", "reason", "rationale", "applicability_reason")
-	if template := firstString(values, "checklist_template_id"); template != "" {
-		item.Group = "Checklist " + template + " · " + s.scopeID
-	}
-	if strings.HasPrefix(s.recordID, "PERSON-") {
-		item.Group = "New person · " + firstString(values, "human_id")
-	}
-	item.Summary, item.Consequence = approvalSummary(s, values, item.Label)
-	if s.kind == "severity" && item.IncidentID != "" {
-		if current := r.currentSeverity(ctx, item.IncidentID); current != "" {
-			item.Effective = []web.Field{{Name: "Severity", Value: current}}
-		}
-	}
-	return item
+	return v
 }
 
-func (r *operatorRuntime) currentSeverity(ctx context.Context, incidentID string) string {
-	if r.incidents == nil {
-		return ""
+func webFields(in []app.Field) []web.Field {
+	out := make([]web.Field, 0, len(in))
+	for _, f := range in {
+		out = append(out, web.Field{Name: f.Name, Value: f.Value})
 	}
-	picture, found, err := r.incidents.CommonOperatingPicture(ctx, incidentID)
-	if err != nil || !found {
-		return ""
-	}
-	return picture.Incident.Severity
-}
-
-func approvalLabel(recordType string) string {
-	labels := map[string]string{
-		domain.TypeIncidentDeclaration:       "Incident declaration",
-		domain.TypeDecision:                  "Decision",
-		domain.TypeAction:                    "Action",
-		domain.TypeOperationalRoleAssignment: "Operational role",
-		domain.TypeSeverityChange:            "Severity change",
-		domain.TypeCommunicationIssue:        "Communication issue",
-		domain.TypeCommunicationCadence:      "Report cadence",
-		domain.TypeObligationDefinition:      "Obligation definition",
-		domain.TypeObligationTrigger:         "Obligation clock",
-		domain.TypeObligationChange:          "Obligation change",
-		domain.TypeStandDown:                 "Stand-down",
-		domain.TypePIR:                       "Post-Incident Review",
-		domain.TypeRetention:                 "Retention and hold",
-		domain.TypeClosure:                   "Incident closure",
-		domain.TypeReopening:                 "Reopen incident",
-		"security.incident_membership":       "Incident access",
-		"security.compartment_membership":    "Compartment read-in",
-		"security.incident_sponsor":          "Incident sponsor",
-		"security.compartment_controller":    "Compartment controller",
-		"security.isolate_mode":              "Isolate mode",
-		"security.output_permission":         "Print or download permission",
-		domain.TypeSeverityScale:             "Severity scale",
-		domain.TypeIncidentRelationship:      "Related incident",
-		domain.TypeEmergencyConfiguration:    "Emergency information",
-		domain.TypeChecklistTemplate:         "Checklist template",
-		domain.TypeSinglePersonWindow:        "Single-person window",
-		"security.identity":                  "Person",
-		"security.role_eligibility":          "Role",
-		"security.credential_reset":          "Enrolment code",
-		"security.intake_key":                "Intake key",
-		"security.custodian_designation":     "Custodian",
-	}
-	if label, ok := labels[recordType]; ok {
-		return label
-	}
-	name := recordType
-	if i := strings.LastIndex(name, "."); i >= 0 {
-		name = name[i+1:]
-	}
-	name = strings.ReplaceAll(name, "_", " ")
-	if name == "" {
-		return "Change"
-	}
-	return strings.ToUpper(name[:1]) + name[1:]
-}
-
-func approvalSummary(s approvalSource, v map[string]any, label string) (string, string) {
-	if summary, consequence, ok := app.AccessApprovalSummary(s.recordType, v); ok {
-		return summary, consequence
-	}
-	if summary, consequence, ok := app.RecoveryApprovalSummary(s.recordType, v); ok {
-		return summary, consequence
-	}
-	str := func(keys ...string) string { return firstString(v, keys...) }
-	switch s.recordType {
-	case domain.TypeIncidentDeclaration:
-		return "Declare incident: " + str("title"), "The incident becomes active and its declared severity takes effect."
-	case domain.TypeSeverityChange:
-		return "Change severity to " + str("severity"), "Severity becomes " + str("severity") + " on the Board, brief and handover."
-	case domain.TypeDecision:
-		return str("decision"), "The decision is recorded as confirmed."
-	case domain.TypeAction:
-		status := str("status")
-		if status != "" && status != domain.ActionStatusNotStarted {
-			return "Action " + strings.ReplaceAll(status, "_", " ") + ": " + str("title"), ""
-		}
-		return "New action: " + str("title") + " (owner " + str("owner_human_id") + ")", ""
-	case domain.TypeOperationalRoleAssignment:
-		who := str("human_id")
-		if b, _ := v["deputy"].(bool); b {
-			return "Make " + who + " deputy " + str("role_name"), ""
-		}
-		return "Make " + who + " " + str("role_name"), "The previous holder's history is kept."
-	case domain.TypeCommunicationIssue:
-		return "Issue: " + str("subject"), "The approved wording may then be sent on its channels. Exercise notifications are suppressed."
-	case domain.TypeCommunicationCadence:
-		return "Report cadence: " + str("name"), ""
-	case domain.TypeObligationTrigger:
-		return "Start obligation clock " + str("definition_id"), "The provisional clock becomes firm."
-	case domain.TypeObligationChange:
-		return "Change obligation clock " + str("clock_id") + " (" + str("kind") + ")", "The original deadline and rule are preserved."
-	case domain.TypeObligationDefinition:
-		return "Obligation: " + str("name"), "Becomes available to start clocks in every incident."
-	case domain.TypeIncidentRelationship:
-		if b, _ := v["active"].(bool); !b {
-			return "Remove link between " + s.scopeID + " and " + str("related_incident_id"), "The link is withdrawn. History is kept."
-		}
-		return "Relate " + s.scopeID + " to " + str("related_incident_id"), "Each incident shows the link to people who can see both. Nobody gains access, and nothing is merged."
-	case domain.TypeStandDown:
-		return "Stand down the emergency response", "The emergency phase ends. The incident stays open for review."
-	case domain.TypePIR:
-		return "Confirm the Post-Incident Review", "Closure becomes possible once other prerequisites are met."
-	case domain.TypeRetention:
-		return "Retention: " + str("retention_class"), ""
-	case domain.TypeClosure:
-		return "Close the incident", "The incident becomes read-only. Privileged and shareable closure records are produced."
-	case "security.incident_membership", "security.compartment_membership":
-		verb := "Grant"
-		if b, ok := v["active"].(bool); ok && !b {
-			verb = "Revoke"
-		}
-		target := "incident access"
-		if s.recordType == "security.compartment_membership" {
-			target = str("compartment") + " read-in"
-		}
-		consequence := ""
-		if exp := str("expires_at"); exp != "" && verb == "Grant" {
-			consequence = "Access ends automatically at " + exp + "."
-		}
-		return verb + " " + target + " for " + str("human_id"), consequence
-	}
-	return label, ""
-}
-
-func firstString(v map[string]any, keys ...string) string {
-	for _, k := range keys {
-		if s, ok := v[k].(string); ok && strings.TrimSpace(s) != "" {
-			return strings.TrimSpace(s)
-		}
-	}
-	return ""
-}
-
-// payloadFields turns a proposal payload into labelled fields in stored order.
-func payloadFields(payload []byte) ([]web.Field, map[string]any) {
-	values := map[string]any{}
-	dec := json.NewDecoder(bytes.NewReader(payload))
-	dec.UseNumber()
-	var fields []web.Field
-	tok, err := dec.Token()
-	if err != nil || tok != json.Delim('{') {
-		return nil, values
-	}
-	for dec.More() {
-		keyTok, err := dec.Token()
-		if err != nil {
-			break
-		}
-		key, _ := keyTok.(string)
-		var raw any
-		if err := dec.Decode(&raw); err != nil {
-			break
-		}
-		values[key] = raw
-		if text := fieldText(raw); text != "" {
-			fields = append(fields, web.Field{Name: fieldName(key), Value: text})
-		}
-	}
-	return fields, values
-}
-
-func fieldName(key string) string {
-	names := map[string]string{
-		"owner_human_id": "Owner", "human_id": "Person", "role_name": "Role", "reason_evidence": "Reason and evidence",
-		"assigned_to_human_id": "Assigned to", "source_ref": "Source", "due_at": "Due", "interval_minutes": "Every (minutes)",
-		"first_due_at": "First due", "draft_sha256": "Approved wording (SHA-256)", "draft_record_id": "Draft",
-		"definition_id": "Obligation", "trigger_at": "Trigger time", "source_record_id": "Source record",
-		"new_deadline": "New deadline", "expires_at": "Expires", "effective_at": "Effective from",
-	}
-	if name, ok := names[key]; ok {
-		return name
-	}
-	key = strings.ReplaceAll(key, "_", " ")
-	if key == "" {
-		return ""
-	}
-	return strings.ToUpper(key[:1]) + key[1:]
-}
-
-// machineWord matches stored enum values such as not_started.
-var machineWord = regexp.MustCompile(`^[a-z]+(_[a-z]+)+$`)
-
-func fieldText(v any) string {
-	switch t := v.(type) {
-	case nil:
-		return ""
-	case string:
-		if parsed, err := time.Parse(time.RFC3339Nano, t); err == nil {
-			return parsed.UTC().Format(displayTime)
-		}
-		if machineWord.MatchString(t) {
-			return strings.ReplaceAll(t, "_", " ")
-		}
-		return t
-	case bool:
-		if t {
-			return "Yes"
-		}
-		return "No"
-	case json.Number:
-		return t.String()
-	case []any:
-		parts := make([]string, 0, len(t))
-		for _, item := range t {
-			if s := fieldText(item); s != "" {
-				parts = append(parts, s)
-			}
-		}
-		return strings.Join(parts, ", ")
-	default:
-		b, err := json.Marshal(t)
-		if err != nil {
-			return fmt.Sprint(t)
-		}
-		return string(b)
-	}
+	return out
 }
 
 // DecideProposal is the single browser decision path. The kind selects an
@@ -1127,4 +751,4 @@ func (r *operatorRuntime) recentSelfApprovals(ctx context.Context, principal aut
 	return out
 }
 
-func humanRecordLabel(recordType string) string { return approvalLabel(recordType) }
+func humanRecordLabel(recordType string) string { return app.ApprovalLabel(recordType) }

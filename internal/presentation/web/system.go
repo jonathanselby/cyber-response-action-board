@@ -55,6 +55,9 @@ func (s *Server) registerSystemRoutes() {
 	s.mux.HandleFunc("POST /setup", s.setup)
 	s.mux.HandleFunc("POST /login", s.login)
 	s.mux.HandleFunc("POST /logout", s.logout)
+	// Sign out is a page with one button, so the navigation can offer it as
+	// an ordinary link while the session still ends only by POST (F-13).
+	s.mux.HandleFunc("GET /signout", s.show(screen{nav: "signout", title: "Sign out", summary: "End your session on this device.", tmpl: "signout"}))
 	s.mux.HandleFunc("POST /incident", s.post(incidents, func(*http.Request) string { return "/" }, "proposed", func(r *http.Request, token string) error {
 		return s.runtime.DeclareIncident(r.Context(), token, formValue(r, "incident_id"), formValue(r, "mode"), formValue(r, "title"), formValue(r, "summary"), formValue(r, "severity"))
 	}))

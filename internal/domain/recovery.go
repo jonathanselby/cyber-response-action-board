@@ -128,7 +128,7 @@ type PendingMatter struct {
 	Count       int
 }
 
-// RunningClock is an active obligation clock whose deadline is still ahead.
+// RunningClock is an active obligation clock, running or overdue.
 type RunningClock struct {
 	Name        string
 	Compartment string

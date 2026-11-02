@@ -4,6 +4,11 @@
 <div class="gas-field"><label for="bd-comp">Compartment</label><select id="bd-comp" name="compartment">{{range $.Frame.Incident.Compartments}}<option value="{{.}}"{{if eq . $b.Compartment}} selected{{end}}>{{.}}</option>{{end}}</select></div>
 <button class="gas-button">Show</button></form>{{end}}
 
+<section class="gas-panel gas-stack" aria-labelledby="now">
+<h2 id="now">Now</h2>
+{{if $b.Now}}<ul class="gas-list">{{range $b.Now}}<li><a href="{{.Link}}"><span class="gas-badge gas-badge--{{.Tone}}">{{if eq .Tone "danger"}}ACT{{else if eq .Tone "warning"}}NEXT{{else}}NOTE{{end}}</span> {{.Text}}</a></li>{{end}}</ul>{{else}}<p class="gas-empty">Nothing urgent: no overdue clocks or critical actions, and nothing waiting for you.</p>{{end}}
+</section>
+
 <section class="gas-panel gas-stack" aria-labelledby="situation">
 <h2 id="situation">Situation now</h2>
 <p>{{$p.Incident.Summary}}</p>
@@ -47,7 +52,8 @@
 <h3>Facts</h3>
 {{if $p.Facts}}<ul class="gas-stack">{{range $p.Facts}}<li><span class="gas-badge gas-badge--info">FACT</span> {{.Fact.Statement}}<br><span class="gas-muted">{{if .Fact.Source}}{{.Fact.Source}} · {{end}}recorded {{when .RecordedAt}} by {{.Maker}}{{if .Fact.OccurredAt}} · occurred {{whenPtr .Fact.OccurredAt}}{{end}}{{if .Fact.FlaggedAt}} · flagged {{whenPtr .Fact.FlaggedAt}}{{end}}</span></li>{{end}}</ul>{{else}}<p class="gas-empty">No facts recorded.</p>{{end}}
 <h3>Unknowns</h3>
-{{if $p.Unknowns}}<ul class="gas-stack">{{range $p.Unknowns}}<li><span class="gas-badge gas-badge--warning">UNKNOWN</span> {{.Uncertainty.Statement}} <span class="gas-muted">· {{.Maker}}</span></li>{{end}}</ul>{{else}}<p class="gas-empty">No open questions recorded.</p>{{end}}
+{{if $p.Unknowns}}<ul class="gas-stack">{{range head $b.Limit $p.Unknowns}}{{template "unknown-item" .}}{{end}}</ul>
+{{if and $b.Limit (gt (len $p.Unknowns) $b.Limit)}}<details><summary>All {{len $p.Unknowns}} unknowns</summary><ul class="gas-stack">{{range tail $b.Limit $p.Unknowns}}{{template "unknown-item" .}}{{end}}</ul></details>{{end}}{{else}}<p class="gas-empty">No open questions recorded.</p>{{end}}
 <h3>Hypotheses</h3>
 {{if $p.Hypotheses}}<ul class="gas-stack">{{range $p.Hypotheses}}<li><span class="gas-badge gas-badge--warning">HYPOTHESIS</span> {{.Uncertainty.Statement}} <span class="gas-muted">· {{.Maker}} · not confirmed</span></li>{{end}}</ul>{{else}}<p class="gas-empty">No hypotheses recorded.</p>{{end}}
 <details id="record-fact"{{if eq $.Open "record-fact"}} open{{end}}><summary>Record fact</summary>
@@ -88,16 +94,8 @@
 <section class="gas-panel gas-stack" aria-labelledby="actions">
 <h2 id="actions">Critical actions</h2>
 {{if $p.Actions}}<div class="gas-table-wrap"><table><thead><tr><th scope="col">Action</th><th scope="col">Owner</th><th scope="col">Status</th><th scope="col">Due</th><th scope="col">Update</th></tr></thead>
-<tbody>{{range $p.Actions}}<tr>
-<th scope="row">{{.Action.Title}}<br><span class="gas-muted">{{.Action.Priority}}{{if .Action.SourceRef}} · {{.Action.SourceRef}}{{end}}{{if .Action.ChecklistTemplateID}} · checklist {{.Action.ChecklistTemplateID}}{{end}}</span></th>
-<td>{{.Action.OwnerHumanID}}{{if eq .Maker .Confirmer}}<br><span class="gas-badge gas-badge--warning">SELF-APPROVAL</span>{{end}}</td>
-<td><span class="gas-badge gas-badge--{{statusBadge .Action.Status}}">{{upper (actionStatus .Action.Status)}}</span>{{if .Overdue}} <span class="gas-badge gas-badge--danger">OVERDUE</span>{{end}}{{if .Action.SkipReason}}<br><span class="gas-muted">{{.Action.SkipReason}}</span>{{end}}</td>
-<td>{{whenPtr .Action.DueAt}}</td>
-<td>{{if and (ne .Action.Status "complete") (ne .Action.Status "skipped")}}<form class="gas-stack" method="post" action="{{incidentURL $id "/action/status"}}"><input type="hidden" name="_form" value="action-status"><input type="hidden" name="action_id" value="{{.RecordID}}">
-<label class="gas-help" for="as-{{.RecordID}}">New status</label><select id="as-{{.RecordID}}" name="status"><option value="in_progress">In progress</option><option value="complete">Complete</option><option value="skipped">Skip</option></select>
-<label class="gas-help" for="sr-{{.RecordID}}">Reason (needed to skip)</label><input id="sr-{{.RecordID}}" name="skip_reason">
-<button class="gas-button">Propose</button></form>{{else}}—{{end}}</td>
-</tr>{{end}}</tbody></table></div>
+<tbody>{{range head $b.Limit $p.Actions}}{{template "action-row" (pair $id .)}}{{end}}</tbody></table></div>
+{{if and $b.Limit (gt (len $p.Actions) $b.Limit)}}<details><summary>All {{len $p.Actions}} actions</summary><div class="gas-table-wrap"><table><thead><tr><th scope="col">Action</th><th scope="col">Owner</th><th scope="col">Status</th><th scope="col">Due</th><th scope="col">Update</th></tr></thead><tbody>{{range tail $b.Limit $p.Actions}}{{template "action-row" (pair $id .)}}{{end}}</tbody></table></div></details>{{end}}
 {{else}}<p class="gas-empty">No confirmed actions.</p>{{end}}
 <details{{if eq $.Open "action"}} open{{end}}><summary>Add action</summary>
 {{template "write-governed"}}
@@ -139,7 +137,8 @@
 <section class="gas-panel gas-stack" aria-labelledby="decisions">
 <h2 id="decisions">Pending decisions</h2>
 {{if $p.Pending}}<ul class="gas-stack">{{range $p.Pending}}<li><a href="/approvals?incident={{$id}}#{{.RecordID}}">{{humanType .RecordType}}</a> <span class="gas-muted">proposed by {{.Maker}}, {{when .ProposedAt}}</span></li>{{end}}</ul>{{else}}<p class="gas-empty">Nothing waiting.</p>{{end}}
-{{if $p.Decisions}}<h3>Recent confirmed decisions</h3><ul class="gas-stack">{{range $p.Decisions}}<li><strong>{{.Decision.Decision}}</strong>{{if .Decision.Rationale}} — {{.Decision.Rationale}}{{end}}<br>{{if eq .Maker .Confirmer}}<span class="gas-badge gas-badge--warning">SELF-APPROVAL</span> {{end}}<span class="gas-muted">{{.Maker}} proposed · {{.Confirmer}} confirmed · {{when .ConfirmedAt}}</span></li>{{end}}</ul>{{end}}
+{{if $p.Decisions}}<h3>Recent confirmed decisions</h3><ul class="gas-stack">{{range head $b.Limit $p.Decisions}}{{template "decision-item" .}}{{end}}</ul>
+{{if and $b.Limit (gt (len $p.Decisions) $b.Limit)}}<details><summary>All {{len $p.Decisions}} confirmed decisions</summary><ul class="gas-stack">{{range tail $b.Limit $p.Decisions}}{{template "decision-item" .}}{{end}}</ul></details>{{end}}{{end}}
 <details{{if eq $.Open "decision"}} open{{end}}><summary>Record decision</summary>
 {{template "write-governed"}}
 <form class="gas-form gas-stack" method="post" action="{{incidentURL $id "/decision"}}">
@@ -153,9 +152,8 @@
 <section class="gas-panel gas-stack" aria-labelledby="clocks">
 <h2 id="clocks">Active clocks</h2>
 {{if $b.Clocks}}<div class="gas-table-wrap"><table><thead><tr><th scope="col">Obligation</th><th scope="col">Deadline</th><th scope="col">Status</th><th scope="col">Recipient</th><th scope="col">Owner</th></tr></thead>
-<tbody>{{range $b.Clocks}}<tr><th scope="row">{{.Name}}<br><span class="gas-muted">{{.ClockID}}</span></th><td>{{when .Deadline}}{{if ne .TimeStatus "trusted"}} <span class="gas-badge gas-badge--warning">TIME UNVERIFIED</span>{{end}}{{if not (sameTime .Deadline .OriginalDeadline)}}<br><span class="gas-muted">originally {{when .OriginalDeadline}}</span>{{end}}</td>
-<td><span class="gas-badge gas-badge--{{statusBadge .Lifecycle}}">{{upper .Lifecycle}}</span> {{if .Overdue}}<span class="gas-badge gas-badge--danger">OVERDUE</span>{{else}}{{actionStatus .Status}}{{end}}{{if .Simulated}} <span class="gas-badge gas-badge--warning">EXERCISE</span>{{end}}</td>
-<td>{{.Recipient}}</td><td>{{.Owner}}</td></tr>{{end}}</tbody></table></div>
+<tbody>{{range head $b.Limit $b.Clocks}}{{template "clock-row" .}}{{end}}</tbody></table></div>
+{{if and $b.Limit (gt (len $b.Clocks) $b.Limit)}}<details><summary>All {{len $b.Clocks}} clocks</summary><div class="gas-table-wrap"><table><thead><tr><th scope="col">Obligation</th><th scope="col">Deadline</th><th scope="col">Status</th><th scope="col">Recipient</th><th scope="col">Owner</th></tr></thead><tbody>{{range tail $b.Limit $b.Clocks}}{{template "clock-row" .}}{{end}}</tbody></table></div></details>{{end}}
 {{else}}<p class="gas-empty">No obligation clocks running.</p>{{end}}
 <details{{if eq $.Open "trigger"}} open{{end}}><summary>Record trigger</summary>
 <p class="gas-help">Starts a provisional clock now; it becomes firm when another eligible person confirms.</p>
@@ -250,7 +248,26 @@
 <section class="gas-panel gas-stack" aria-labelledby="timeline">
 <h2 id="timeline">Timeline</h2>
 {{if $p.Timeline}}<div class="gas-table-wrap"><table><thead><tr><th scope="col">Recorded</th><th scope="col">Occurred</th><th scope="col">Flagged</th><th scope="col">What</th><th scope="col">Kind</th></tr></thead>
-<tbody>{{range $p.Timeline}}<tr><td>{{when .RecordedAt}}{{if ne .TimeStatus "trusted"}} <span class="gas-badge gas-badge--warning">TIME UNVERIFIED</span>{{end}}</td><td>{{whenPtr .OccurredAt}}</td><td>{{whenPtr .FlaggedAt}}</td><td>{{.Summary}}</td><td>{{humanType .RecordType}} {{if eq .Governance "self-approved"}}<span class="gas-badge gas-badge--warning">SELF-APPROVAL</span>{{else}}<span class="gas-muted">· {{.Governance}}</span>{{end}}</td></tr>{{end}}</tbody></table></div>
+<tbody>{{range head $b.Limit $p.Timeline}}{{template "timeline-row" .}}{{end}}</tbody></table></div>
+{{if and $b.Limit (gt (len $p.Timeline) $b.Limit)}}<details><summary>All {{len $p.Timeline}} timeline entries</summary><div class="gas-table-wrap"><table><thead><tr><th scope="col">Recorded</th><th scope="col">Occurred</th><th scope="col">Flagged</th><th scope="col">What</th><th scope="col">Kind</th></tr></thead>
+<tbody>{{range tail $b.Limit $p.Timeline}}{{template "timeline-row" .}}{{end}}</tbody></table></div></details>{{end}}
 {{else}}<p class="gas-empty">No timeline entries.</p>{{end}}
 </section>
 {{end}}{{end}}
+
+{{define "unknown-item"}}<li><span class="gas-badge gas-badge--warning">UNKNOWN</span> {{.Uncertainty.Statement}} <span class="gas-muted">· {{.Maker}}</span></li>{{end}}
+{{define "decision-item"}}<li><strong>{{.Decision.Decision}}</strong>{{if .Decision.Rationale}} — {{.Decision.Rationale}}{{end}}<br>{{if eq .Maker .Confirmer}}<span class="gas-badge gas-badge--warning">SELF-APPROVAL</span> {{end}}<span class="gas-muted">{{.Maker}} proposed · {{.Confirmer}} confirmed · {{when .ConfirmedAt}}</span></li>{{end}}
+{{define "clock-row"}}<tr><th scope="row">{{.Name}}<br><span class="gas-muted">{{.ClockID}}</span></th><td>{{when .Deadline}}{{if ne .TimeStatus "trusted"}} <span class="gas-badge gas-badge--warning">TIME UNVERIFIED</span>{{end}}{{if not (sameTime .Deadline .OriginalDeadline)}}<br><span class="gas-muted">originally {{when .OriginalDeadline}}</span>{{end}}</td>
+<td><span class="gas-badge gas-badge--{{statusBadge .Lifecycle}}">{{upper .Lifecycle}}</span> {{if .Overdue}}<span class="gas-badge gas-badge--danger">OVERDUE</span>{{else}}{{actionStatus .Status}}{{end}}{{if .Simulated}} <span class="gas-badge gas-badge--warning">EXERCISE</span>{{end}}</td>
+<td>{{.Recipient}}</td><td>{{.Owner}}</td></tr>{{end}}
+{{define "action-row"}}{{with .B}}<tr>
+<th scope="row">{{.Action.Title}}<br><span class="gas-muted">{{.Action.Priority}}{{if .Action.SourceRef}} · {{.Action.SourceRef}}{{end}}{{if .Action.ChecklistTemplateID}} · checklist {{.Action.ChecklistTemplateID}}{{end}}</span></th>
+<td>{{.Action.OwnerHumanID}}{{if eq .Maker .Confirmer}}<br><span class="gas-badge gas-badge--warning">SELF-APPROVAL</span>{{end}}</td>
+<td><span class="gas-badge gas-badge--{{statusBadge .Action.Status}}">{{upper (actionStatus .Action.Status)}}</span>{{if .Overdue}} <span class="gas-badge gas-badge--danger">OVERDUE</span>{{end}}{{if .Action.SkipReason}}<br><span class="gas-muted">{{.Action.SkipReason}}</span>{{end}}</td>
+<td>{{whenPtr .Action.DueAt}}</td>
+<td>{{if and (ne .Action.Status "complete") (ne .Action.Status "skipped")}}<form class="gas-stack" method="post" action="{{incidentURL $.A "/action/status"}}"><input type="hidden" name="_form" value="action-status"><input type="hidden" name="action_id" value="{{.RecordID}}">
+<label class="gas-help" for="as-{{.RecordID}}">New status</label><select id="as-{{.RecordID}}" name="status"><option value="in_progress">In progress</option><option value="complete">Complete</option><option value="skipped">Skip</option></select>
+<label class="gas-help" for="sr-{{.RecordID}}">Reason (needed to skip)</label><input id="sr-{{.RecordID}}" name="skip_reason">
+<button class="gas-button">Propose</button></form>{{else}}—{{end}}</td>
+</tr>{{end}}{{end}}
+{{define "timeline-row"}}<tr><td>{{when .RecordedAt}}{{if ne .TimeStatus "trusted"}} <span class="gas-badge gas-badge--warning">TIME UNVERIFIED</span>{{end}}</td><td>{{whenPtr .OccurredAt}}</td><td>{{whenPtr .FlaggedAt}}</td><td>{{.Summary}}</td><td>{{humanType .RecordType}} {{if eq .Governance "self-approved"}}<span class="gas-badge gas-badge--warning">SELF-APPROVAL</span>{{else}}<span class="gas-muted">· {{.Governance}}</span>{{end}}</td></tr>{{end}}

@@ -23,13 +23,9 @@ var policyReference = regexp.MustCompile(`authz\.Role(Major|Minor|Observer)|auth
 // lowered in the same change, so the improvement cannot silently regress.
 // Every file touched by the remediation is expected to reach zero.
 var policyBaseline = map[string]int{
-	"cmd/crab/drop2_access.go":          1,
-	"cmd/crab/drop2_obligations.go":     1,
-	"cmd/crab/operator_continuity.go":   2,
-	"cmd/crab/operator_runtime.go":      3,
-	"cmd/crab/organisation_runtime.go":  3,
-	"cmd/crab/web_runtime.go":           5,
-	"internal/presentation/web/page.go": 1, // navigation hint only; server enforces
+	// C9 (F-7) moved the last references into app.ApprovalsService and
+	// app.CapabilitiesOf. The presentation and composition tiers now hold none,
+	// and none may be added.
 }
 
 // T-253: no new business logic in presentation or composition adapters.

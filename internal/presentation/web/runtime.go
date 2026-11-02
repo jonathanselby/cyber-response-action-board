@@ -132,11 +132,11 @@ var RuntimeFactory func() (Runtime, error)
 // ---- Frame -----------------------------------------------------------------
 
 type FrameView struct {
-	HumanID   string
-	Role      string
-	Custodian bool
-	Status    StatusFlags
-	Incident  *IncidentContext
+	HumanID        string
+	Role           string
+	HoldsCustodian bool // decided by app.CapabilitiesOf
+	Status         StatusFlags
+	Incident       *IncidentContext
 }
 
 type StatusFlags struct {
@@ -266,7 +266,15 @@ type BoardView struct {
 	Related          []RelatedIncidentView
 	RelateCandidates []IncidentLink
 	Checklists       []ChecklistOption
+	// Now is the Board's "what needs attention now" block, and Limit how many
+	// items each long section shows before folding the rest (R-21). Both are
+	// decided by app.BoardNow and app.OrderBoard.
+	Now   []NowItem
+	Limit int
 }
+
+// NowItem is one line of the Now block.
+type NowItem struct{ Text, Link, Tone string }
 
 type RelatedIncidentView struct {
 	IncidentID, Title, Reason, Maker, Confirmer, ConfirmedAt string
@@ -305,15 +313,19 @@ type ApprovalView struct {
 	Effective     []Field
 	Proposed      []Field
 	Maker         string
+	MakerName     string
+	MakerRole     string
 	MakerExternal bool
 	ProposedAt    string
 	Reason        string
 	Consequence   string
-	ScopeID       string
-	RecordType    string
-	RecordID      string
-	Version       string
-	CanDecide     bool
+	// RejectConsequence says what happens if the proposal is rejected (R-22).
+	RejectConsequence string
+	ScopeID           string
+	RecordType        string
+	RecordID          string
+	Version           string
+	CanDecide         bool
 	// CanSelfApprove is true when a confirmed single-person window lets the
 	// maker decide this proposal now, with a reason.
 	CanSelfApprove bool

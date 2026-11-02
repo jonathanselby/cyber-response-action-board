@@ -1,4 +1,8 @@
 {{define "signin"}}{{template "feedback" .}}
+{{if .Unsaved}}<section class="gas-panel gas-stack" aria-labelledby="unsaved">
+<h2 id="unsaved">Not saved</h2>
+<dl class="gas-kv">{{range .Unsaved}}<dt>{{.Name}}</dt><dd>{{.Value}}</dd>{{end}}</dl>
+</section>{{end}}
 <section class="gas-panel gas-stack" aria-label="Sign in">
 {{template "brand"}}
 <p>Cyber incident response that keeps working when corporate systems do not.</p>

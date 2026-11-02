@@ -142,7 +142,7 @@ func TestDecidePassesExactVersionAndShowsRefusal(t *testing.T) {
 func TestApprovalShowsChangeInOperatorLanguage(t *testing.T) {
 	s := withRuntime(t, &fakeRuntime{bootstrapped: true})
 	body := get(t, s, "/approvals").Body.String()
-	for _, want := range []string{"Change severity to Critical", "Severity change", "<td>High</td>", "<strong>Critical</strong>", "Proposed by <strong>bob</strong>", "Spread to second share confirmed", "If confirmed:", "Confirm", "Reject", "Technical reference"} {
+	for _, want := range []string{"Change severity to Critical", "Severity change", "<td>High</td>", "<strong>Critical</strong>", "Proposed by <strong>bob</strong>", "Spread to second share confirmed", "If you confirm:", "Confirm", "Reject", "Technical reference"} {
 		if !strings.Contains(body, want) {
 			t.Fatalf("approval missing %q", want)
 		}

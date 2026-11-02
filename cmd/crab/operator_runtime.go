@@ -366,7 +366,8 @@ func (r *operatorRuntime) Home(ctx context.Context, token string) (web.HomeView,
 		ids = append(ids, id)
 	}
 	sort.Strings(ids)
-	home := web.HomeView{HumanID: principal.HumanID, Role: string(principal.Role), CanDeclare: principal.Role == authz.RoleMajor, SeverityValues: r.severityLabels(ctx), SelfApprovals: r.recentSelfApprovals(ctx, principal)}
+	caps := app.CapabilitiesOf(principal)
+	home := web.HomeView{HumanID: principal.HumanID, Role: caps.Role, CanDeclare: caps.CanDeclare, SeverityValues: r.severityLabels(ctx), SelfApprovals: r.recentSelfApprovals(ctx, principal)}
 	for _, id := range ids {
 		picture, found, err := r.incident.CommonOperatingPicture(ctx, principal, id, "GENERAL")
 		if err != nil {
@@ -394,7 +395,7 @@ func (r *operatorRuntime) Home(ctx context.Context, token string) (web.HomeView,
 			home.Incidents[i].Pending = pending[home.Incidents[i].IncidentID]
 		}
 	}
-	if principal.Role == authz.RoleMajor {
+	if caps.CanTriage {
 		home.CanTriage = true
 		if service, err := r.continuityService(); err == nil {
 			if reports, err := service.FirstReports(ctx, principal); err == nil {
@@ -409,7 +410,7 @@ func (r *operatorRuntime) Home(ctx context.Context, token string) (web.HomeView,
 	if summary, err := r.management.Summary(ctx, principal, r.kernel.Clock().Read().Now); err == nil {
 		home.Management = managementView(summary)
 	}
-	if principal.Role == authz.RoleMajor {
+	if caps.CanDeclare {
 		values, err := r.incidents.PendingDeclarations(ctx)
 		if err != nil {
 			return web.HomeView{}, false, err

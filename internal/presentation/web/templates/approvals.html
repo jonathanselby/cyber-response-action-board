@@ -27,8 +27,9 @@
 {{range $i, $f := .Proposed}}<tr><th scope="row">{{$f.Name}}</th><td>{{range $.Effective}}{{if eq .Name $f.Name}}{{.Value}}{{end}}{{end}}</td><td><strong>{{$f.Value}}</strong></td></tr>{{end}}
 </tbody></table></div>
 {{else if .Proposed}}<dl class="gas-kv">{{range .Proposed}}<dt>{{.Name}}</dt><dd>{{.Value}}</dd>{{end}}</dl>{{end}}
-<p>Proposed by <strong>{{.Maker}}</strong>{{if .MakerExternal}} <span class="gas-badge gas-badge--warning">EXTERNAL</span>{{end}}{{if .ProposedAt}} at {{.ProposedAt}}{{end}}{{if .Reason}}. Reason: {{.Reason}}{{end}}</p>
-{{if .Consequence}}<p class="gas-notice gas-notice--info"><strong>If confirmed:</strong> {{.Consequence}}</p>{{end}}
+<p>Proposed by <strong>{{if .MakerName}}{{.MakerName}}{{else}}{{.Maker}}{{end}}</strong>{{if .MakerExternal}} <span class="gas-badge gas-badge--warning">EXTERNAL</span>{{end}}{{if .MakerRole}} ({{.MakerRole}}){{end}}{{if .ProposedAt}} at {{.ProposedAt}}{{end}}{{if .Reason}}. Reason: {{.Reason}}{{end}}</p>
+{{if .Consequence}}<p class="gas-notice gas-notice--info"><strong>If you confirm:</strong> {{.Consequence}}</p>{{end}}
+{{if .RejectConsequence}}<p class="gas-notice"><strong>If you reject:</strong> {{.RejectConsequence}}</p>{{end}}
 {{if and .CanDecide (eq .RecordType "security.credential_reset")}}<form class="gas-cluster" method="post" action="/access/reset/confirm">
 <input type="hidden" name="record_id" value="{{.RecordID}}">
 <input type="hidden" name="version" value="{{.Version}}">

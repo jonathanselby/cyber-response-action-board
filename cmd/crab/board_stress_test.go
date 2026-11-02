@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"regexp"
+	"strings"
 	"testing"
 	"time"
 )
@@ -124,4 +126,59 @@ func TestBoardStressFixture(t *testing.T) {
 		t.Fatalf("stress Board code=%d", w.Code)
 	}
 	t.Logf("stress Board: %d bytes in %s", w.Body.Len(), time.Since(start))
+}
+
+// T-235 (R-21): with the stress fixture, the Now block lists the top items in
+// the stated order, and each long section shows its most urgent items first
+// with the rest behind "All N …".
+func TestBoardNowAndSections(t *testing.T) {
+	e := newE2E(t)
+	alice, bob := e.bootstrap()
+	e.seedBoardStress(alice, bob)
+	page := htmlUnescape(e.get("/incident/"+stressIncident, bob))
+	now := regexp.MustCompile(`(?s)<section class="gas-panel gas-stack" aria-labelledby="now">.*?</section>`).FindString(page)
+	if now == "" {
+		t.Fatal("no Now block on the Board")
+	}
+	items := regexp.MustCompile(`<li>`).FindAllStringIndex(now, -1)
+	if len(items) == 0 || len(items) > 7 {
+		t.Fatalf("Now block has %d items, want 1 to 7:\n%s", len(items), now)
+	}
+	// Order: time or integrity, overdue clocks, next deadline, overdue
+	// critical actions, approvals waiting for me.
+	order := []string{"Overdue: Stress clock C1", "Overdue: Stress clock C2", "Next deadline: Stress clock C3", "critical actions are overdue", "8 approvals are waiting for you"}
+	last := -1
+	for _, want := range order {
+		at := strings.Index(now, want)
+		if at < 0 {
+			t.Fatalf("Now block missing %q:\n%s", want, now)
+		}
+		if at < last {
+			t.Fatalf("Now block out of order at %q:\n%s", want, now)
+		}
+		last = at
+	}
+	if strings.Contains(now, "Time is") && strings.Index(now, "Time is") > strings.Index(now, "Overdue:") {
+		t.Fatal("time problems must come first")
+	}
+	// Sections: the first action shown is overdue and critical; the rest fold.
+	actions := regexp.MustCompile(`(?s)<section class="gas-panel gas-stack" aria-labelledby="actions">.*?</section>`).FindString(page)
+	firstRow := regexp.MustCompile(`(?s)<tbody><tr>.*?</tr>`).FindString(actions)
+	if !strings.Contains(firstRow, "OVERDUE") || !strings.Contains(firstRow, "P1") {
+		t.Fatalf("first action shown is not an overdue critical one:\n%s", firstRow)
+	}
+	if n := strings.Count(strings.SplitN(actions, "<details>", 2)[0], "<th scope=\"row\">"); n != 5 {
+		t.Fatalf("actions section shows %d before folding, want 5", n)
+	}
+	for _, want := range []string{"All 41 actions", "All 13 unknowns", "All 18 confirmed decisions", "All 7 clocks"} {
+		if !strings.Contains(page, want) {
+			t.Errorf("Board missing %q", want)
+		}
+	}
+	// Everything is still on the page, folded.
+	for i := 1; i <= 41; i++ {
+		if !strings.Contains(page, fmt.Sprintf("Stress action %02d:", i)) {
+			t.Fatalf("action %d is not reachable from the Board", i)
+		}
+	}
 }

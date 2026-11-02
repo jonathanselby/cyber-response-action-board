@@ -180,7 +180,7 @@ func TestExternalPeopleAreMarkedInWords(t *testing.T) {
 		t.Error("Board does not mark the external role holder")
 	}
 	e.post("/incident/INC-X/decision", exa, url.Values{"decision": {"Preserve privilege"}, "rationale": {"counsel advice"}})
-	if approvals := e.get("/approvals?incident=INC-X", alice); !strings.Contains(approvals, "Proposed by <strong>exa</strong> <span class=\"gas-badge gas-badge--warning\">EXTERNAL</span>") {
+	if approvals := e.get("/approvals?incident=INC-X", alice); !strings.Contains(approvals, "Proposed by <strong>Exa</strong> <span class=\"gas-badge gas-badge--warning\">EXTERNAL</span> (Major)") {
 		t.Error("Approvals does not mark the external maker")
 	}
 }

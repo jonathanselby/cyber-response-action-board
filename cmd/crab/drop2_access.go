@@ -213,5 +213,3 @@ func (r *operatorRuntime) Readiness(ctx context.Context, token string) (web.Read
 	}
 	return out, nil
 }
-
-var _ = authz.RoleMajor

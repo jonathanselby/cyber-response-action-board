@@ -135,7 +135,7 @@ func (f *fakeRuntime) Frame(_ context.Context, token, incidentID string) (FrameV
 	if token == "" || token == "expired" {
 		return FrameView{}, false, nil
 	}
-	frame := FrameView{HumanID: "alice", Role: "Major", Custodian: true, Status: f.status}
+	frame := FrameView{HumanID: "alice", Role: "Major", HoldsCustodian: true, Status: f.status}
 	if incidentID == testIncident {
 		comps := f.compartments
 		if len(comps) == 0 {

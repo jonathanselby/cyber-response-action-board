@@ -9,6 +9,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"reflect"
 	"sort"
 	"strconv"
 	"strings"
@@ -49,6 +50,10 @@ type pageData struct {
 	Notice      string
 	IncidentID  string
 	Compartment string
+	// Unsaved is what someone typed into a form that could not be saved
+	// because their session had ended (F-14). It is shown back once, in this
+	// response only, so they can copy it after signing in.
+	Unsaved []Field
 }
 
 var messages = map[string]string{
@@ -71,7 +76,7 @@ type navItem struct{ key, label, path string }
 
 var responseNav = []navItem{{"incidents", "Command Summary", "/"}, {"approvals", "Approvals", "/approvals"}, {"intake", "First reports", "/intake"}}
 var incidentNav = []navItem{{"board", "Board", ""}, {"evidence", "Evidence", "/evidence"}, {"communications", "Communications", "/communications"}, {"access", "Access", "/access"}, {"close", "Close-out", "/close"}}
-var systemNav = []navItem{{"readiness", "Readiness", "/readiness"}, {"organisation", "Organisation", "/organisation"}, {"obligations", "Obligation library", "/obligations"}, {"access-admin", "Access admin", "/access"}}
+var systemNav = []navItem{{"readiness", "Readiness", "/readiness"}, {"organisation", "Organisation", "/organisation"}, {"obligations", "Obligation library", "/obligations"}, {"access-admin", "Access admin", "/access"}, {"signout", "Sign out", "/signout"}}
 
 func (s *Server) navigation(frame FrameView, current string) []shell.NavGroup {
 	group := func(label string, items []navItem, prefix string) shell.NavGroup {
@@ -211,7 +216,7 @@ func (s *Server) compose(sc screen, data pageData, actions []Action) ([]byte, er
 	userLabel := ""
 	if data.Frame.HumanID != "" {
 		userLabel = data.Frame.HumanID + " · " + data.Frame.Role
-		if data.Frame.Custodian {
+		if data.Frame.HoldsCustodian {
 			userLabel += " · Custodian"
 		}
 	}
@@ -264,6 +269,15 @@ func (s *Server) render(w http.ResponseWriter, r *http.Request, token string, sc
 	frame, ok, err := s.runtime.Frame(r.Context(), token, incidentID)
 	if err != nil || !ok {
 		s.clearSession(w)
+		if r.Method == http.MethodPost {
+			// The session ended while a form was open: say plainly that
+			// nothing was saved and give back what was typed (F-14).
+			s.page(w, http.StatusUnauthorized, screen{title: "Sign in", tmpl: "signin"}, pageData{
+				Error:   "Your session ended before this was saved, so nothing was recorded. Sign in again and re-enter it. What you typed is below so you can copy it.",
+				Unsaved: unsavedFields(data.Form),
+			}, nil)
+			return
+		}
 		http.Redirect(w, r, "/", http.StatusSeeOther)
 		return
 	}
@@ -503,6 +517,22 @@ var templateFuncs = template.FuncMap{
 		return form != nil && form.Get(name) == value
 	},
 	"open": func(current, name string) bool { return current == name },
+	// head and tail split a list the application has already ordered: the
+	// first n items show, the rest fold behind "All …" (R-21).
+	// A limit of 0 means no folding.
+	"head": func(n int, list any) any {
+		if n <= 0 {
+			return list
+		}
+		return sliceOf(list, 0, n)
+	},
+	"tail": func(n int, list any) any {
+		if n <= 0 {
+			return sliceOf(list, 0, 0)
+		}
+		return sliceOf(list, n, -1)
+	},
+	"pair": func(a, b any) map[string]any { return map[string]any{"A": a, "B": b} },
 	"sortedKeys": func(m map[string][]domain.NotificationOutcomeView) []string {
 		keys := make([]string, 0, len(m))
 		for k := range m {
@@ -638,4 +668,52 @@ func writeAttachment(w http.ResponseWriter, filename, contentType string, body [
 	w.Header().Set("Cache-Control", "no-store")
 	w.Header().Set("Content-Length", strconv.Itoa(len(body)))
 	_, _ = io.Copy(w, bytes.NewReader(body))
+}
+
+// sliceOf returns list[from:to] (to < 0 means the end), clamped, for any
+// slice; anything else is returned unchanged.
+func sliceOf(list any, from, to int) any {
+	v := reflect.ValueOf(list)
+	if v.Kind() != reflect.Slice {
+		return list
+	}
+	n := v.Len()
+	if to < 0 || to > n {
+		to = n
+	}
+	if from > n {
+		from = n
+	}
+	if from > to {
+		from = to
+	}
+	return v.Slice(from, to).Interface()
+}
+
+// unsavedFields lists the visible text a person typed into a form, in name
+// order, leaving out hidden routing fields and anything secret.
+func unsavedFields(form url.Values) []Field {
+	skip := map[string]bool{"_form": true, "record_id": true, "version": true, "scope_id": true, "kind": true, "record_type": true, "back": true, "action_id": true, "compartment": true}
+	var out []Field
+	for _, name := range sortedFormKeys(form) {
+		lower := strings.ToLower(name)
+		if skip[name] || strings.Contains(lower, "password") || strings.Contains(lower, "code") || strings.Contains(lower, "totp") || strings.Contains(lower, "secret") {
+			continue
+		}
+		for _, v := range form[name] {
+			if strings.TrimSpace(v) != "" {
+				out = append(out, Field{Name: name, Value: v})
+			}
+		}
+	}
+	return out
+}
+
+func sortedFormKeys(form url.Values) []string {
+	keys := make([]string, 0, len(form))
+	for k := range form {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	return keys
 }

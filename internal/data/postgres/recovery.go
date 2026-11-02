@@ -464,7 +464,8 @@ func (r *RecoveryRuntime) CommonOperatingPicture(ctx context.Context, incidentID
 
 // ClosureOutstanding reports the governed matters still open on an incident:
 // pending proposals by record type (the closure proposal itself excluded) and
-// active obligation clocks whose deadline is still ahead at now.
+// active obligation clocks, running or overdue (F-12: an overdue clock that
+// has not been waived is still outstanding).
 func (r *RecoveryRuntime) ClosureOutstanding(ctx context.Context, incidentID string, now time.Time) (domain.ClosureOutstanding, error) {
 	out := domain.ClosureOutstanding{}
 	rows, err := r.Store.pool.Query(ctx, `
@@ -492,7 +493,7 @@ func (r *RecoveryRuntime) ClosureOutstanding(ctx context.Context, incidentID str
 	if err := rows.Err(); err != nil {
 		return out, err
 	}
-	clocks, err := r.Store.pool.Query(ctx, `SELECT name, compartment, deadline FROM crab.obligation_clocks WHERE incident_id=$1 AND status='active' AND deadline > $2 ORDER BY deadline, name`, incidentID, now)
+	clocks, err := r.Store.pool.Query(ctx, `SELECT name, compartment, deadline FROM crab.obligation_clocks WHERE incident_id=$1 AND status='active' AND $2::timestamptz IS NOT NULL ORDER BY deadline, name`, incidentID, now)
 	if err != nil {
 		return out, fmt.Errorf("read obligation clocks: %w", err)
 	}

@@ -282,7 +282,11 @@ func (s RecoveryService) blockers(ctx context.Context, principal authz.Principal
 			hidden++
 			continue
 		}
-		out = append(out, "obligation clock "+c.Name+" still running until "+c.Deadline.UTC().Format("2 Jan 2006 15:04 UTC"))
+		if now.After(c.Deadline) {
+			out = append(out, "obligation clock "+c.Name+" overdue since "+c.Deadline.UTC().Format("2 Jan 2006 15:04 UTC")+" (waive it if it no longer applies)")
+		} else {
+			out = append(out, "obligation clock "+c.Name+" still running until "+c.Deadline.UTC().Format("2 Jan 2006 15:04 UTC"))
+		}
 	}
 	if hidden == 1 {
 		out = append(out, "1 outstanding matter in a compartment you cannot see")

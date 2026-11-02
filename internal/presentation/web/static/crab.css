@@ -1,5 +1,5 @@
 /* CRAB Storm Blue theme for go-app-shell v0.1.0: tokens, native elements, print. */
-:root{--gas-accent:#334a5e;--gas-on-accent:#fff;--gas-focus:#334a5e;--gas-info:#334a5e;--gas-text:#17212b;--gas-text-muted:#687786;--gas-border:#e7eaec;--gas-surface:#fff;--gas-surface-raised:#f7f7f5;--gas-success:#2e7d5a;--gas-warning:#c6922d;--gas-danger:#b74b4b;--gas-radius:.375rem;--crab-page:#f7f7f5;--crab-line:#687786}
+:root{--gas-accent:#334a5e;--gas-on-accent:#fff;--gas-focus:#334a5e;--gas-info:#334a5e;--gas-text:#17212b;--gas-text-muted:#56636f;--gas-border:#e7eaec;--gas-surface:#fff;--gas-surface-raised:#f7f7f5;--gas-success:#2e7d5a;--gas-warning:#c6922d;--gas-danger:#b74b4b;--gas-radius:.375rem;--crab-page:#f7f7f5;--crab-line:#687786}
 @media (prefers-color-scheme:dark){:root{--gas-accent:#9fb4c7;--gas-on-accent:#17212b;--gas-focus:#b9cad9;--gas-info:#9fb4c7;--gas-text:#e7eaec;--gas-text-muted:#a3aeb9;--gas-border:#2c3a47;--gas-surface:#18212a;--gas-surface-raised:#1f2a35;--gas-success:#6fbf97;--gas-warning:#e0b35c;--gas-danger:#e58a8a;--crab-page:#10161d;--crab-line:#8796a5}}
 body{background:var(--crab-page)}
 .gas-app-name{font-weight:800;letter-spacing:.04em}
@@ -23,3 +23,4 @@ details{display:block}details>summary,form,.gas-page-actions{display:none!import
 }
 
 .crab-indicator{overflow-wrap:anywhere}
+.gas-status-text{white-space:normal;overflow:visible}

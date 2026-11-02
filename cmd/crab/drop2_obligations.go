@@ -8,7 +8,6 @@ import (
 	"github.com/jonathanselby/cyber-response-action-board/internal/data/postgres"
 	"github.com/jonathanselby/cyber-response-action-board/internal/domain"
 	"github.com/jonathanselby/cyber-response-action-board/internal/presentation/web"
-	"github.com/jonathanselby/cyber-response-action-board/internal/security/authz"
 )
 
 func (r *operatorRuntime) obligationService() (app.ObligationService, *postgres.ObligationStore, error) {
@@ -32,7 +31,7 @@ func (r *operatorRuntime) GlobalObligations(ctx context.Context, token string) (
 	if err != nil {
 		return web.GlobalObligationsPage{}, err
 	}
-	if !ok || principal.Role != authz.RoleMajor {
+	if !ok || !app.CapabilitiesOf(principal).CanManageObligationLibrary {
 		return web.GlobalObligationsPage{}, app.ErrAuthorisationDenied
 	}
 	_, store, err := r.obligationService()

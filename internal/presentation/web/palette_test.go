@@ -59,14 +59,22 @@ func TestStormBluePaletteAndContrast(t *testing.T) {
 	}
 	light, dark := cssTokens(css[:darkAt]), cssTokens(css[darkAt:strings.Index(css, "@media print")])
 
+	// --gas-text-muted was #687786 until C9: 4.28:1 on the page colour, below
+	// WCAG AA (F-16, axe color-contrast). #56636f keeps the Storm Blue hue.
 	locked := map[string]string{
-		"--gas-accent": "#334a5e", "--gas-text": "#17212b", "--gas-text-muted": "#687786",
+		"--gas-accent": "#334a5e", "--gas-text": "#17212b", "--gas-text-muted": "#56636f",
 		"--gas-border": "#e7eaec", "--crab-page": "#f7f7f5",
 		"--gas-success": "#2e7d5a", "--gas-warning": "#c6922d", "--gas-danger": "#b74b4b",
 	}
 	for token, want := range locked {
 		if light[token] != want {
 			t.Errorf("light %s=%s, locked value %s", token, light[token], want)
+		}
+	}
+	// Muted text meets WCAG AA (4.5:1) on every light background it sits on.
+	for _, bg := range []string{"--gas-surface", "--crab-page", "--gas-surface-raised", "--gas-border"} {
+		if r := contrastRatio(light["--gas-text-muted"], light[bg]); r < 4.5 {
+			t.Errorf("muted text on %s is %.2f:1, below 4.5:1", bg, r)
 		}
 	}
 	// Green, amber and red appear only as status tokens.
@@ -101,4 +109,34 @@ func TestStormBluePaletteAndContrast(t *testing.T) {
 			}
 		}
 	}
+}
+
+// contrastRatio is the WCAG 2 contrast ratio of two #rrggbb colours.
+func contrastRatio(a, b string) float64 {
+	lum := func(hex string) float64 {
+		hex = strings.TrimPrefix(hex, "#")
+		if len(hex) == 3 {
+			hex = string([]byte{hex[0], hex[0], hex[1], hex[1], hex[2], hex[2]})
+		}
+		if len(hex) != 6 {
+			return 0
+		}
+		var out float64
+		for i, w := range []float64{0.2126, 0.7152, 0.0722} {
+			v, _ := strconv.ParseUint(hex[i*2:i*2+2], 16, 8)
+			c := float64(v) / 255
+			if c <= 0.03928 {
+				c /= 12.92
+			} else {
+				c = math.Pow((c+0.055)/1.055, 2.4)
+			}
+			out += w * c
+		}
+		return out
+	}
+	la, lb := lum(a), lum(b)
+	if la < lb {
+		la, lb = lb, la
+	}
+	return (la + 0.05) / (lb + 0.05)
 }

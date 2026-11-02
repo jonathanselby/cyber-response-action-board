@@ -3,13 +3,11 @@ package main
 import (
 	"context"
 	"encoding/json"
-	"strconv"
 
 	"github.com/jonathanselby/cyber-response-action-board/internal/app"
 	"github.com/jonathanselby/cyber-response-action-board/internal/domain"
 	"github.com/jonathanselby/cyber-response-action-board/internal/ledger"
 	"github.com/jonathanselby/cyber-response-action-board/internal/presentation/web"
-	"github.com/jonathanselby/cyber-response-action-board/internal/security/authz"
 )
 
 func confirmedBy(v domain.OrganisationView) *web.ConfirmedBy {
@@ -24,7 +22,8 @@ func (r *operatorRuntime) Organisation(ctx context.Context, token string) (web.O
 	if !ok {
 		return web.OrganisationPage{}, app.ErrAuthorisationDenied
 	}
-	page := web.OrganisationPage{CanPropose: principal.Role == authz.RoleMajor, CanReadContacts: principal.Role == authz.RoleMajor || principal.Custodian}
+	caps := app.CapabilitiesOf(principal)
+	page := web.OrganisationPage{CanPropose: caps.CanProposeOrganisation, CanReadContacts: caps.CanReadContacts}
 	if scales, err := r.organisation.Backend.CurrentOrganisation(ctx, domain.TypeSeverityScale); err == nil && len(scales) > 0 {
 		var scale domain.SeverityScale
 		if json.Unmarshal(scales[0].Payload, &scale) == nil {
@@ -105,84 +104,6 @@ func (r *operatorRuntime) DecideOrganisation(ctx context.Context, token, recordI
 	return err
 }
 
-// organisationSummary describes an organisation proposal in operator words.
-func organisationSummary(recordType string, payload []byte) (string, string, []web.Field) {
-	switch recordType {
-	case domain.TypeSeverityScale:
-		var v domain.SeverityScale
-		_ = json.Unmarshal(payload, &v)
-		return "New severity scale", "Responders choose only from these levels. Existing incidents keep their severity until changed.", []web.Field{{Name: "Levels, least severe first", Value: joinLabels(v.Labels())}}
-	case domain.TypeEmergencyConfiguration:
-		var v domain.EmergencyConfiguration
-		_ = json.Unmarshal(payload, &v)
-		fields := []web.Field{
-			{Name: "Organisation", Value: v.Organisation},
-			{Name: "Emergency contacts", Value: countOf(len(v.Contacts))},
-			{Name: "Insurers, regulators and advisers", Value: countOf(len(v.Parties))},
-			{Name: "Escalation steps", Value: countOf(len(v.Escalation))},
-			{Name: "Role cards", Value: countOf(len(v.RoleCards))},
-			{Name: "Procedures", Value: countOf(len(v.Procedures))},
-		}
-		for _, c := range v.Contacts {
-			fields = append(fields, web.Field{Name: c.Role, Value: c.Name + " · " + c.Primary})
-		}
-		return "Emergency information for " + v.Organisation, "The next Emergency Response Pack and every Incident Brief print this information. The current pack becomes stale.", fields
-	}
-	if recordType == domain.TypeSinglePersonWindow {
-		var v domain.SinglePersonWindow
-		_ = json.Unmarshal(payload, &v)
-		if !v.Active {
-			return "Close single-person window " + v.WindowID, "Self-approval stops immediately.", []web.Field{{Name: "Reason", Value: v.Reason}}
-		}
-		kinds := make([]string, 0, len(v.Kinds))
-		for _, k := range v.Kinds {
-			kinds = append(kinds, domain.WindowCoverableKinds[k])
-		}
-		return "Open single-person window " + v.WindowID, "Between these times the named Majors may decide their own proposals of these kinds, with a reason. Each is flagged SELF-APPROVAL.", []web.Field{
-			{Name: "From (UTC)", Value: v.StartsAt.UTC().Format(displayTime)},
-			{Name: "To (UTC)", Value: v.EndsAt.UTC().Format(displayTime)},
-			{Name: "Who", Value: joinWith(v.Humans, ", ")},
-			{Name: "Covers", Value: joinWith(kinds, ", ")},
-			{Name: "Reason", Value: v.Reason},
-		}
-	}
-	if recordType == domain.TypeChecklistTemplate {
-		var v domain.GovernedChecklistTemplate
-		_ = json.Unmarshal(payload, &v)
-		if !v.Active {
-			return "Withdraw checklist: " + v.Name, "Responders can no longer activate it. Actions already created are unchanged.", nil
-		}
-		fields := []web.Field{{Name: "Source", Value: v.SourceRef}}
-		for i, step := range v.Steps {
-			detail := step.Priority
-			if step.DefaultRole != "" {
-				detail += " · " + step.DefaultRole
-			}
-			fields = append(fields, web.Field{Name: "Step " + strconv.Itoa(i+1), Value: step.Title + " (" + detail + ")"})
-		}
-		return "Checklist template: " + v.Name, "Responders can activate it on any incident; each step becomes an action that still needs a second person.", fields
-	}
-	return "Organisation change", "", nil
-}
-
-func joinLabels(labels []string) string {
-	out := ""
-	for i, l := range labels {
-		if i > 0 {
-			out += " → "
-		}
-		out += l
-	}
-	return out
-}
-
-func countOf(n int) string {
-	if n == 0 {
-		return "none"
-	}
-	return strconv.Itoa(n)
-}
-
 func (r *operatorRuntime) ProposeChecklistTemplate(ctx context.Context, token string, value domain.GovernedChecklistTemplate) error {
 	principal, ok, err := r.principal(ctx, token)
 	if err != nil {
@@ -233,17 +154,6 @@ func (r *operatorRuntime) windowViews(ctx context.Context) []web.WindowView {
 		view.Kinds = labels
 		view.SinglePersonWindow.Kinds = labels
 		out = append(out, view)
-	}
-	return out
-}
-
-func joinWith(values []string, sep string) string {
-	out := ""
-	for i, v := range values {
-		if i > 0 {
-			out += sep
-		}
-		out += v
 	}
 	return out
 }

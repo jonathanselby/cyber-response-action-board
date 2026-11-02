@@ -9,7 +9,6 @@ import (
 	"github.com/jonathanselby/cyber-response-action-board/internal/data/postgres"
 	"github.com/jonathanselby/cyber-response-action-board/internal/domain"
 	"github.com/jonathanselby/cyber-response-action-board/internal/presentation/web"
-	"github.com/jonathanselby/cyber-response-action-board/internal/security/authz"
 )
 
 func (r *operatorRuntime) Intake(ctx context.Context, token string) (web.IntakeView, bool, error) {
@@ -25,7 +24,8 @@ func (r *operatorRuntime) Intake(ctx context.Context, token string) (web.IntakeV
 	if err != nil {
 		return web.IntakeView{}, false, err
 	}
-	out := web.IntakeView{HumanID: principal.HumanID, Role: string(principal.Role), CanTriage: principal.Role == authz.RoleMajor}
+	caps := app.CapabilitiesOf(principal)
+	out := web.IntakeView{HumanID: principal.HumanID, Role: caps.Role, CanTriage: caps.CanTriage}
 	for _, value := range reports {
 		row := web.IntakeReportRow{
 			ReportID:        value.ReportID,
@@ -96,7 +96,7 @@ func (r *operatorRuntime) TriageFirstReport(ctx context.Context, token, reportID
 	if err != nil {
 		return err
 	}
-	if !ok || principal.Role != authz.RoleMajor {
+	if !ok {
 		return app.ErrAuthorisationDenied
 	}
 	service, err := r.continuityService()

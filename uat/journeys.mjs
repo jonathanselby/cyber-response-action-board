@@ -116,8 +116,12 @@ export const journeys = [
       const { context, page } = await newPage(env);
       try {
         await signIn(page, env.info);
-        const n = await page.locator('form[action="/logout"]').count();
-        if (!n) throw new Error('no sign-out control on the Command Summary');
+        const link = page.getByRole('link', { name: 'Sign out' });
+        if (!(await link.count())) throw new Error('no sign-out control on the Command Summary');
+        await Promise.all([page.waitForNavigation(), link.first().click()]);
+        await Promise.all([page.waitForNavigation(), page.locator('form[action="/logout"] button').click()]);
+        await page.goto(env.info.base + '/approvals');
+        if (!(await page.locator('form[action="/login"]').count())) throw new Error('signing out did not end the session');
       } finally {
         await context.close();
       }
@@ -236,8 +240,11 @@ export const journeys = [
           if (o) bad.push(`${p} ${o}`);
           const cut = await page.evaluate(() => [...document.querySelectorAll('header *')].filter((el) => {
             const s = getComputedStyle(el);
-            return s.textOverflow === 'ellipsis' && el.scrollWidth > el.clientWidth;
-          }).map((el) => el.textContent.trim().slice(0, 40)));
+            if (s.display === 'none' || !el.textContent.trim()) return false;
+            const clipsX = s.overflowX !== 'visible' && el.scrollWidth > el.clientWidth + 1;
+            const clipsY = s.overflowY !== 'visible' && el.scrollHeight > el.clientHeight + 1;
+            return clipsX || clipsY;
+          }).map((el) => el.className + ': ' + el.textContent.trim().slice(0, 40)));
           if (cut.length) bad.push(`${p} header text cut off: ${cut.join(', ')}`);
         }
         await page.goto(env.info.base + `/incident/${env.info.stress}`);

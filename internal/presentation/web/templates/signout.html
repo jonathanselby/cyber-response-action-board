@@ -1,0 +1,8 @@
+{{define "signout"}}{{template "feedback" .}}
+<section class="gas-panel gas-stack" aria-labelledby="signout-h">
+<h2 id="signout-h">Sign out of CRAB</h2>
+<p>You are signed in as <strong>{{.Frame.HumanID}}</strong>. Signing out ends this session on this device. Sessions on your other devices stay signed in.</p>
+<form class="gas-cluster" method="post" action="/logout">
+<button class="gas-button gas-button--primary">Sign out</button>
+</form>
+</section>{{end}}
