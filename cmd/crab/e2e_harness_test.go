@@ -107,6 +107,15 @@ func newE2E(t *testing.T) *e2e {
 	}
 	keyring := writePrivate("keyring.json", map[string]string{"server": base64.StdEncoding.EncodeToString(pub)})
 	signing := writePrivate("signing.json", signingKeyFile{KeyID: "server", PrivateKey: base64.StdEncoding.EncodeToString(priv)})
+	wrapKey := make([]byte, 32)
+	if _, err := rand.Read(wrapKey); err != nil {
+		t.Fatal(err)
+	}
+	wrapPath := filepath.Join(dir, "wrap.key")
+	if err := os.WriteFile(wrapPath, []byte(base64.StdEncoding.EncodeToString(wrapKey)), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("CRAB_CREDENTIAL_WRAP_KEY_FILE", wrapPath)
 	export := filepath.Join(dir, "export")
 	if err := os.MkdirAll(export, 0o700); err != nil {
 		t.Fatal(err)

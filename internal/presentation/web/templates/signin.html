@@ -4,8 +4,10 @@
 <p>Cyber incident response that keeps working when corporate systems do not.</p>
 <form class="gas-form gas-stack" method="post" action="/login">
 <div class="gas-field"><label for="human_id">Your CRAB ID</label><input id="human_id" name="human_id" autocomplete="username" required value="{{.Form.Get "human_id"}}"{{if .Error}} aria-invalid="true"{{end}}></div>
-<div class="gas-field"><label for="password">Password</label><input id="password" type="password" name="password" autocomplete="current-password" required></div>
+<div class="gas-field"><label for="password">Password or enrolment code</label><input id="password" type="password" name="password" autocomplete="current-password" required></div>
+<div class="gas-field"><label for="totp">Authenticator code <span class="gas-muted">(external accounts)</span></label><input id="totp" name="totp" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6"></div>
 <div class="gas-cluster"><button class="gas-button gas-button--primary">Sign in</button></div>
 </form>
+<p class="gas-help">First time? <a href="/enrol">Set up your account with your enrolment code</a>.</p>
 <p class="gas-help">CRAB uses its own accounts so it keeps working when corporate sign-in is unavailable.</p>
 </section>{{end}}

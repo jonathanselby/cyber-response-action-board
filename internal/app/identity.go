@@ -93,8 +93,16 @@ func (s AccessService) ProposeRoleEligibility(ctx context.Context, principal aut
 	}
 	humanID = strings.TrimSpace(humanID)
 	if active {
+		// The identity may be proposed in the same step (a new person); it must
+		// be confirmed before this eligibility can be confirmed.
 		if err := s.requireIdentityForGrant(ctx, humanID, now); err != nil {
-			return ledger.Record{}, err
+			pending, perr := s.Backend.HasPendingIdentity(ctx, humanID)
+			if perr != nil {
+				return ledger.Record{}, perr
+			}
+			if !pending {
+				return ledger.Record{}, err
+			}
 		}
 	}
 	payload := map[string]any{"human_id": humanID, "role": role, "active": active}
@@ -124,33 +132,40 @@ func (s AccessService) ProposeCredentialReset(ctx context.Context, principal aut
 // are removed and a fresh enrolment code is stored. The code is returned once,
 // to the confirmer only. If the process stops after the decision commits, the
 // reset is visible in history and a new reset can be proposed.
-func (s AccessService) ConfirmCredentialReset(ctx context.Context, principal authz.Principal, credentials CredentialBackend, recordID, expectedVersion string, now time.Time) (string, time.Time, error) {
+// IssuedCode is a one-time enrolment code and who it is for.
+type IssuedCode struct {
+	HumanID   string
+	Code      string
+	ExpiresAt time.Time
+}
+
+func (s AccessService) ConfirmCredentialReset(ctx context.Context, principal authz.Principal, credentials CredentialBackend, recordID, expectedVersion string, now time.Time) (IssuedCode, error) {
 	if credentials == nil {
-		return "", time.Time{}, errors.New("credential backend is required")
+		return IssuedCode{}, errors.New("credential backend is required")
 	}
 	_, change, err := s.decide(ctx, principal, "", access.RecordCredentialReset, recordID, expectedVersion, "confirmed", now, true)
 	if err != nil {
-		return "", time.Time{}, err
+		return IssuedCode{}, err
 	}
 	code, err := newEnrolmentCode()
 	if err != nil {
-		return "", time.Time{}, err
+		return IssuedCode{}, err
 	}
 	record, err := authn.NewPasswordRecord(change.HumanID, normaliseCode(code), authn.MinPBKDF2Iterations)
 	if err != nil {
-		return "", time.Time{}, err
+		return IssuedCode{}, err
 	}
 	expires := now.UTC().Add(EnrolmentCodeLifetime)
 	if err := credentials.DeleteTOTP(ctx, change.HumanID); err != nil {
-		return "", time.Time{}, err
+		return IssuedCode{}, err
 	}
 	if err := credentials.DeleteSessionsFor(ctx, change.HumanID); err != nil {
-		return "", time.Time{}, err
+		return IssuedCode{}, err
 	}
 	if err := credentials.PutEnrolmentCode(ctx, record, expires); err != nil {
-		return "", time.Time{}, err
+		return IssuedCode{}, err
 	}
-	return code, expires, nil
+	return IssuedCode{HumanID: change.HumanID, Code: code, ExpiresAt: expires}, nil
 }
 
 func (s AccessService) requireIdentityForGrant(ctx context.Context, humanID string, now time.Time) error {

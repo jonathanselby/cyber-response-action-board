@@ -571,3 +571,51 @@ func nullableTimes(effective, expires sql.NullTime) (*time.Time, *time.Time) {
 func MarshalAccessData(v any) (json.RawMessage, error) {
 	return json.Marshal(v)
 }
+
+// People lists everyone known to access administration: identity records,
+// role eligibility and Custodian designations, with their currently active
+// incident memberships at now.
+func (s *AccessStore) People(ctx context.Context, now time.Time) ([]access.PersonRecord, error) {
+	rows, err := s.pool.Query(ctx, `
+		WITH ids AS (
+			SELECT human_id FROM crab.identities
+			UNION SELECT human_id FROM crab.role_eligibility
+			UNION SELECT human_id FROM crab.custodian_designations)
+		SELECT ids.human_id,
+			i.human_id IS NOT NULL, COALESCE(i.display_name,''), COALESCE(i.organisation,''), COALESCE(i.external,false), COALESCE(i.status,''), i.account_expires_at,
+			COALESCE(r.role,''), c.human_id IS NOT NULL,
+			COALESCE((SELECT array_agg(m.incident_id ORDER BY m.incident_id) FROM crab.incident_memberships m
+				WHERE m.human_id=ids.human_id AND (m.effective_at IS NULL OR m.effective_at <= $1) AND (m.expires_at IS NULL OR m.expires_at > $1)), '{}')
+		FROM ids
+		LEFT JOIN crab.identities i ON i.human_id=ids.human_id
+		LEFT JOIN crab.role_eligibility r ON r.human_id=ids.human_id
+		LEFT JOIN crab.custodian_designations c ON c.human_id=ids.human_id
+		ORDER BY ids.human_id`, now)
+	if err != nil {
+		return nil, fmt.Errorf("list people: %w", err)
+	}
+	defer rows.Close()
+	var out []access.PersonRecord
+	for rows.Next() {
+		var p access.PersonRecord
+		var expires sql.NullTime
+		if err := rows.Scan(&p.HumanID, &p.Identity.Found, &p.Identity.DisplayName, &p.Identity.Organisation, &p.Identity.External, &p.Identity.Status, &expires, &p.Role, &p.Custodian, &p.Incidents); err != nil {
+			return nil, err
+		}
+		if expires.Valid {
+			v := expires.Time.UTC()
+			p.Identity.AccountExpiresAt = &v
+		}
+		p.Legacy = !p.Identity.Found && (p.Role != "" || p.Custodian)
+		out = append(out, p)
+	}
+	return out, rows.Err()
+}
+
+// HasPendingIdentity reports whether an identity proposal for this person is
+// waiting for confirmation.
+func (s *AccessStore) HasPendingIdentity(ctx context.Context, humanID string) (bool, error) {
+	var pending bool
+	err := s.pool.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM crab.access_proposals WHERE scope_id='' AND record_type=$1 AND convert_from(payload,'UTF8')::jsonb->>'human_id' = $2)`, access.RecordIdentity, humanID).Scan(&pending)
+	return pending, err
+}

@@ -314,8 +314,12 @@ func (r *operatorRuntime) Bootstrap(ctx context.Context, input web.BootstrapInpu
 	return err
 }
 
-func (r *operatorRuntime) Authenticate(ctx context.Context, humanID, password string) (string, error) {
-	return r.auth.Authenticate(ctx, humanID, password, "", r.kernel.Clock().Read().Now)
+func (r *operatorRuntime) Authenticate(ctx context.Context, humanID, secret, totp string) (string, bool, error) {
+	token, err := r.auth.Authenticate(ctx, humanID, secret, totp, r.kernel.Clock().Read().Now)
+	if errors.Is(err, app.ErrEnrolmentRequired) {
+		return "", true, nil
+	}
+	return token, false, err
 }
 
 func (r *operatorRuntime) Logout(ctx context.Context, token string) error {

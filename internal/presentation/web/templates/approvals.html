@@ -29,7 +29,20 @@
 {{else if .Proposed}}<dl class="gas-kv">{{range .Proposed}}<dt>{{.Name}}</dt><dd>{{.Value}}</dd>{{end}}</dl>{{end}}
 <p>Proposed by <strong>{{.Maker}}</strong>{{if .ProposedAt}} at {{.ProposedAt}}{{end}}{{if .Reason}}. Reason: {{.Reason}}{{end}}</p>
 {{if .Consequence}}<p class="gas-notice gas-notice--info"><strong>If confirmed:</strong> {{.Consequence}}</p>{{end}}
-{{if .CanDecide}}<form class="gas-cluster" method="post" action="/decide">
+{{if and .CanDecide (eq .RecordType "security.credential_reset")}}<form class="gas-cluster" method="post" action="/access/reset/confirm">
+<input type="hidden" name="record_id" value="{{.RecordID}}">
+<input type="hidden" name="version" value="{{.Version}}">
+<button class="gas-button gas-button--primary">Confirm and show the code</button>
+</form>
+<form class="gas-cluster" method="post" action="/decide">
+<input type="hidden" name="_form" value="decide">
+<input type="hidden" name="kind" value="{{.Kind}}">
+<input type="hidden" name="scope_id" value="{{.ScopeID}}">
+<input type="hidden" name="record_type" value="{{.RecordType}}">
+<input type="hidden" name="record_id" value="{{.RecordID}}">
+<input type="hidden" name="version" value="{{.Version}}">
+<button class="gas-button" name="outcome" value="rejected">Reject</button>
+</form>{{else if .CanDecide}}<form class="gas-cluster" method="post" action="/decide">
 <input type="hidden" name="_form" value="decide">
 <input type="hidden" name="kind" value="{{.Kind}}">
 <input type="hidden" name="scope_id" value="{{.ScopeID}}">

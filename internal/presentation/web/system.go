@@ -77,6 +77,7 @@ func (s *Server) registerSystemRoutes() {
 	s.mux.HandleFunc("GET /obligations", s.show(library))
 	s.mux.HandleFunc("POST /obligations/definition", s.post(library, func(*http.Request) string { return "/obligations" }, "proposed", s.proposeObligationDefinition))
 	s.mux.HandleFunc("GET /access", s.show(admin))
+	s.registerPeopleRoutes(admin, approvals)
 	s.mux.HandleFunc("POST /access/output", s.post(admin, func(*http.Request) string { return "/access" }, "proposed", func(r *http.Request, token string) error {
 		return s.runtime.ProposeOutputPermission(r.Context(), token, formValue(r, "human_id"), formValue(r, "action"), formValue(r, "active") != "false")
 	}))
@@ -154,13 +155,22 @@ func (s *Server) login(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	token, err := s.runtime.Authenticate(r.Context(), formValue(r, "human_id"), r.FormValue("password"))
-	if err != nil {
-		s.page(w, http.StatusUnauthorized, screen{title: "Sign in", tmpl: "signin"}, pageData{Error: "Sign-in failed. Check your ID and password.", Form: url.Values{"human_id": {formValue(r, "human_id")}}}, nil)
+	humanID := formValue(r, "human_id")
+	token, enrol, err := s.runtime.Authenticate(r.Context(), humanID, r.FormValue("password"), formValue(r, "totp"))
+	if enrol {
+		http.Redirect(w, r, "/enrol?human_id="+url.QueryEscape(humanID), http.StatusSeeOther)
 		return
 	}
-	http.SetCookie(w, &http.Cookie{Name: sessionCookie, Value: token, Path: "/", HttpOnly: true, Secure: r.TLS != nil, SameSite: http.SameSiteStrictMode})
+	if err != nil {
+		s.page(w, http.StatusUnauthorized, screen{title: "Sign in", tmpl: "signin"}, pageData{Error: "Sign-in failed. Check your ID, password and, for external accounts, your authenticator code.", Form: url.Values{"human_id": {humanID}}}, nil)
+		return
+	}
+	s.setSession(w, r, token)
 	http.Redirect(w, r, "/", http.StatusSeeOther)
+}
+
+func (s *Server) setSession(w http.ResponseWriter, r *http.Request, token string) {
+	http.SetCookie(w, &http.Cookie{Name: sessionCookie, Value: token, Path: "/", HttpOnly: true, Secure: r.TLS != nil, SameSite: http.SameSiteStrictMode})
 }
 
 func (s *Server) logout(w http.ResponseWriter, r *http.Request) {

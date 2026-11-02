@@ -1,0 +1,8 @@
+{{define "reset-code"}}{{template "feedback" .}}
+{{with .Data}}<section class="gas-panel gas-stack" aria-labelledby="code-h">
+<h2 id="code-h">Enrolment code for {{.HumanID}}</h2>
+<p class="gas-notice gas-notice--warning"><strong>Shown once.</strong> Read it to {{.HumanID}} directly, by phone or in person. Do not email it or paste it into chat. CRAB does not show it again.</p>
+<p><code>{{.Code}}</code></p>
+<p>It works once and expires at <strong>{{.ExpiresAt}}</strong>. They go to the sign-in page, choose <em>Set up your account</em>, and enter their CRAB ID and this code.</p>
+<div class="gas-cluster"><a class="gas-button" href="/approvals">Back to Approvals</a></div>
+</section>{{end}}{{end}}

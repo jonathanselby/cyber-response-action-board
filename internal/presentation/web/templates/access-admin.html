@@ -1,5 +1,53 @@
 {{define "access-admin"}}{{template "feedback" .}}
 {{with .Data}}
+<section class="gas-panel gas-stack" aria-labelledby="people">
+<h2 id="people">People</h2>
+<p class="gas-help">Everyone who can sign in to CRAB. Adding, suspending or disabling a person, and issuing an enrolment code, all need a second Custodian.</p>
+{{if .People}}<div class="gas-table-wrap"><table><thead><tr><th scope="col">Person</th><th scope="col">Status</th><th scope="col">Role</th><th scope="col">Account ends</th><th scope="col">Incidents</th></tr></thead>
+<tbody>{{range .People}}<tr><th scope="row">{{.DisplayName}}{{if .External}} <span class="gas-badge gas-badge--warning">EXTERNAL</span>{{end}}<br><span class="gas-muted">{{.HumanID}}{{if .Organisation}} · {{.Organisation}}{{end}}</span></th>
+<td><span class="gas-badge gas-badge--{{if .Usable}}success{{else}}danger{{end}}">{{upper .Status}}</span>{{if and .Status (not .Usable) (eq .Status "active")}} <span class="gas-muted">account ended</span>{{end}}</td>
+<td>{{if .Role}}{{.Role}}{{else}}No role{{end}}{{if .Custodian}} · Custodian{{end}}</td>
+<td>{{if .AccountExpiresAt}}{{.AccountExpiresAt}}{{else}}No end date{{end}}</td>
+<td>{{range $i, $id := .VisibleIncidents}}{{if $i}}, {{end}}{{$id}}{{end}}{{if .OtherIncidents}}{{if .VisibleIncidents}}; {{end}}{{.OtherIncidents}} other incident{{if gt .OtherIncidents 1}}s{{end}}{{end}}{{if and (not .VisibleIncidents) (not .OtherIncidents)}}—{{end}}</td></tr>{{end}}</tbody></table></div>
+{{else}}<p class="gas-empty">No people yet.</p>{{end}}
+<details id="person" class="gas-panel"{{if eq $.Open "person"}} open{{end}}>
+<summary><h2>Add a person</h2></summary>
+{{template "write-governed"}}
+<form class="gas-form gas-stack" method="post" action="/access/person">
+<input type="hidden" name="_form" value="person">
+<div class="gas-field"><label for="p-id">CRAB ID</label><input id="p-id" name="human_id" required autocomplete="off" value="{{$.Form.Get "human_id"}}"><p class="gas-help">The name they will sign in with, for example jane.doe. It can never be reused.</p></div>
+<div class="gas-field"><label for="p-name">Full name</label><input id="p-name" name="display_name" required value="{{$.Form.Get "display_name"}}"></div>
+<div class="gas-field"><label for="p-org">Organisation</label><input id="p-org" name="organisation" value="{{$.Form.Get "organisation"}}"></div>
+<div class="gas-field"><label for="p-role">Role</label><select id="p-role" name="role"><option value="Minor">Minor — responder</option><option value="Major">Major — decides and confirms</option><option value="Observer">Observer — reads only</option></select><p class="gas-help">A role grants no incident access. An incident sponsor adds them to an incident afterwards.</p></div>
+<fieldset class="gas-field"><legend>Internal or external</legend>
+<label><input type="radio" name="external" value="false"{{if ne ($.Form.Get "external") "true"}} checked{{end}}> Internal</label>
+<label><input type="radio" name="external" value="true"{{if eq ($.Form.Get "external") "true"}} checked{{end}}> External (forensics, legal, cloud, communications…)</label>
+</fieldset>
+<div class="gas-field"><label for="p-exp">Account ends (UTC)</label><input id="p-exp" type="datetime-local" name="account_expires_at" value="{{$.Form.Get "account_expires_at"}}"><p class="gas-help">Required for external people, at most 30 days ahead. They must also use an authenticator app.</p></div>
+<div class="gas-cluster"><button class="gas-button gas-button--primary">Propose</button></div>
+</form>
+</details>
+{{range .People}}{{if or .CanSuspend .CanReactivate .CanDisable .CanReset}}<details class="gas-panel" id="manage-{{.HumanID}}">
+<summary><h3>Manage {{.DisplayName}} <span class="gas-muted">{{.HumanID}}</span></h3></summary>
+{{if .CanReset}}<form class="gas-form gas-stack" method="post" action="/access/person/reset">
+<input type="hidden" name="_form" value="reset"><input type="hidden" name="human_id" value="{{.HumanID}}">
+<div class="gas-field"><label for="r-{{.HumanID}}">Issue an enrolment code — reason</label><input id="r-{{.HumanID}}" name="reason" required placeholder="New responder, or forgotten password"></div>
+<p class="gas-help">The Custodian who confirms sees the code once and passes it on. Their current sessions, password and authenticator are reset.</p>
+<div class="gas-cluster"><button class="gas-button">Propose enrolment code</button></div></form>{{end}}
+{{if .CanSuspend}}<form class="gas-form gas-stack" method="post" action="/access/person/status">
+<input type="hidden" name="_form" value="status"><input type="hidden" name="human_id" value="{{.HumanID}}"><input type="hidden" name="status" value="suspended">
+<div class="gas-field"><label for="s-{{.HumanID}}">Suspend — reason</label><input id="s-{{.HumanID}}" name="reason" required></div>
+<div class="gas-cluster"><button class="gas-button">Propose suspension</button></div></form>{{end}}
+{{if .CanReactivate}}<form class="gas-cluster" method="post" action="/access/person/status">
+<input type="hidden" name="_form" value="status"><input type="hidden" name="human_id" value="{{.HumanID}}"><input type="hidden" name="status" value="active">
+<button class="gas-button">Propose reactivation</button></form>{{end}}
+{{if .CanDisable}}<form class="gas-form gas-stack" method="post" action="/access/person/status">
+<input type="hidden" name="_form" value="status"><input type="hidden" name="human_id" value="{{.HumanID}}"><input type="hidden" name="status" value="disabled">
+<div class="gas-field"><label for="d-{{.HumanID}}">Disable permanently — reason</label><input id="d-{{.HumanID}}" name="reason" required></div>
+<p class="gas-help">Disabling cannot be undone. The ID is never reused. History is kept.</p>
+<div class="gas-cluster"><button class="gas-button">Propose disabling</button></div></form>{{end}}
+</details>{{end}}{{end}}
+</section>
 <section class="gas-panel gas-stack" aria-labelledby="outputs">
 <h2 id="outputs">Print and download permissions</h2>
 <p class="gas-help">Reading an incident never allows printing or downloading. These are separate permissions, granted by one Custodian and confirmed by another.</p>

@@ -170,11 +170,14 @@ func (f *identityFixture) reset(maker, confirmer, humanID string) string {
 	f.t.Helper()
 	proposal := f.propose(f.service.ProposeCredentialReset(f.ctx, f.principal(maker), f.id("RESET"), humanID, "new responder", f.now))
 	version, _ := domain.ProposalVersion(proposal)
-	code, _, err := f.service.ConfirmCredentialReset(f.ctx, f.principal(confirmer), f.creds, proposal.RecordID, version, f.now)
+	issued, err := f.service.ConfirmCredentialReset(f.ctx, f.principal(confirmer), f.creds, proposal.RecordID, version, f.now)
 	if err != nil {
 		f.t.Fatalf("confirm reset: %v", err)
 	}
-	return code
+	if issued.HumanID != humanID {
+		f.t.Fatalf("issued code for %q, want %q", issued.HumanID, humanID)
+	}
+	return issued.Code
 }
 
 func (f *identityFixture) signIn(humanID, secret, totp string) string {
@@ -299,13 +302,14 @@ func TestEnrolmentCodeLifecycle(t *testing.T) {
 	if err := f.decideErr("bob", proposal, "confirmed"); !errors.Is(err, app.ErrUseCredentialResetPath) {
 		t.Fatalf("generic confirm of a reset err=%v", err)
 	}
-	if _, _, err := f.service.ConfirmCredentialReset(f.ctx, f.principal("alice"), f.creds, proposal.RecordID, version, f.now); err == nil {
+	if _, err := f.service.ConfirmCredentialReset(f.ctx, f.principal("alice"), f.creds, proposal.RecordID, version, f.now); err == nil {
 		t.Fatal("maker confirmed own credential reset")
 	}
-	code, expires, err := f.service.ConfirmCredentialReset(f.ctx, f.principal("bob"), f.creds, proposal.RecordID, version, f.now)
+	issued, err := f.service.ConfirmCredentialReset(f.ctx, f.principal("bob"), f.creds, proposal.RecordID, version, f.now)
 	if err != nil {
 		t.Fatal(err)
 	}
+	code, expires := issued.Code, issued.ExpiresAt
 	if !expires.Equal(f.now.Add(app.EnrolmentCodeLifetime)) || len(strings.ReplaceAll(code, "-", "")) != 20 {
 		t.Fatalf("code=%q expires=%s", code, expires)
 	}

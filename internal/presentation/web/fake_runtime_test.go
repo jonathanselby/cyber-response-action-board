@@ -18,6 +18,8 @@ import (
 // knows exactly one authorised incident, INC-1. Any other incident ID is
 // treated as not authorised, mirroring the application tier.
 type fakeRuntime struct {
+	lastPerson   PersonInput
+	people       []PersonRow
 	bootstrapped bool
 	mode         string // incident mode; "exercise" by default
 	status       StatusFlags
@@ -69,11 +71,39 @@ func (f *fakeRuntime) Bootstrap(context.Context, BootstrapInput) error {
 	f.bootstrapped = true
 	return nil
 }
-func (f *fakeRuntime) Authenticate(_ context.Context, id, _ string) (string, error) {
-	if id == "wrong" {
-		return "", errors.New("authentication failed")
+func (f *fakeRuntime) Authenticate(_ context.Context, id, _, _ string) (string, bool, error) {
+	switch id {
+	case "wrong":
+		return "", false, errors.New("authentication failed")
+	case "newcomer":
+		return "", true, nil
+	}
+	return "token", false, nil
+}
+func (f *fakeRuntime) BeginEnrolment(_ context.Context, id, code string) (EnrolmentView, error) {
+	if code != "GOOD-CODE" {
+		return EnrolmentView{}, errors.New("authentication failed")
+	}
+	return EnrolmentView{HumanID: id, Code: code, NeedsTOTP: id == "external", TOTPSecret: "JBSWY3DPEHPK3PXPJBSWY3DPEHPK3PXP", TOTPURI: "otpauth://totp/CRAB:external?secret=JBSWY3DPEHPK3PXPJBSWY3DPEHPK3PXP"}, nil
+}
+func (f *fakeRuntime) CompleteEnrolment(_ context.Context, id, code, password, _ string) (string, error) {
+	if code != "GOOD-CODE" || len(password) < 12 {
+		return "", errors.New("password must be at least 12 characters")
 	}
 	return "token", nil
+}
+func (f *fakeRuntime) ProposePerson(_ context.Context, _ string, in PersonInput) error {
+	f.lastPerson = in
+	return nil
+}
+func (f *fakeRuntime) ProposePersonStatus(context.Context, string, string, string, string) error {
+	return nil
+}
+func (f *fakeRuntime) ProposeCredentialReset(context.Context, string, string, string) error {
+	return nil
+}
+func (f *fakeRuntime) ConfirmCredentialReset(_ context.Context, _, recordID, _ string) (ResetCodeView, error) {
+	return ResetCodeView{HumanID: "jane", Code: "ABCDE-FGHIJ-KLMNO-PQRST", ExpiresAt: "3 Nov 2026 02:17 UTC"}, nil
 }
 func (f *fakeRuntime) Logout(context.Context, string) error { return nil }
 
@@ -249,7 +279,7 @@ func (f *fakeRuntime) NotifyCommunication(context.Context, string, string, strin
 }
 
 func (f *fakeRuntime) AccessAdministration(context.Context, string, time.Time) (AccessAdministrationPage, error) {
-	return AccessAdministrationPage{}, nil
+	return AccessAdministrationPage{People: f.people}, nil
 }
 func (f *fakeRuntime) IncidentAccess(context.Context, string, string, time.Time) (AccessAdministrationPage, error) {
 	return AccessAdministrationPage{IncidentMemberships: []AccessMembershipView{{HumanID: "dave", IncidentID: testIncident, Status: "active", ExpiresAt: "2026-11-02T00:00:00Z"}}}, nil

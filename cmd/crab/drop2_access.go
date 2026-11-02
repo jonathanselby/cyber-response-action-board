@@ -51,7 +51,11 @@ func (r *operatorRuntime) AccessAdministration(ctx context.Context, token string
 	if err != nil {
 		return web.AccessAdministrationPage{}, err
 	}
-	out := web.AccessAdministrationPage{Sponsors: accessDesignationViews(view.Sponsors), Controllers: accessDesignationViews(view.Controllers), IncidentMemberships: accessMembershipViews(view.IncidentMemberships), CompartmentMemberships: accessMembershipViews(view.CompartmentMemberships)}
+	people, err := r.peopleRows(ctx, principal)
+	if err != nil {
+		return web.AccessAdministrationPage{}, err
+	}
+	out := web.AccessAdministrationPage{People: people, Sponsors: accessDesignationViews(view.Sponsors), Controllers: accessDesignationViews(view.Controllers), IncidentMemberships: accessMembershipViews(view.IncidentMemberships), CompartmentMemberships: accessMembershipViews(view.CompartmentMemberships)}
 	for _, value := range pending {
 		out.Pending = append(out.Pending, web.AccessPendingView{ScopeID: value.ScopeID, RecordID: value.RecordID, RecordType: value.RecordType, Compartment: value.Compartment, Version: value.Version, Maker: value.Maker, Mode: value.Mode, ProposedAt: value.ProposedAt.UTC().Format(displayTime)})
 	}
@@ -165,7 +169,7 @@ func (r *operatorRuntime) DecideAccess(ctx context.Context, token, scopeID, reco
 	if !ok {
 		return app.ErrAuthorisationDenied
 	}
-	_, err = r.accessService.Decide(ctx, principal, scopeID, recordType, recordID, version, outcome, time.Now().UTC())
+	_, err = r.accessService.Decide(ctx, principal, scopeID, recordType, recordID, version, outcome, r.kernel.Clock().Read().Now)
 	return err
 }
 
@@ -187,6 +191,9 @@ func (r *operatorRuntime) Readiness(ctx context.Context, token string) (web.Read
 	}
 	setReadinessCheck(&value, check)
 	enrichReadiness(cfg, &value, r.kernel.Clock(), r.emergencyChangedAt(ctx))
+	if custodians, err := r.accessService.CustodianReadiness(ctx, r.kernel.Clock().Read().Now); err == nil {
+		setReadinessCheck(&value, custodians)
+	}
 	value = app.FinaliseReadiness(value)
 	out := web.ReadinessPage{Ready: value.Ready}
 	for _, item := range value.Checks {

@@ -42,3 +42,15 @@ func WindowStatus(effectiveAt, expiresAt *time.Time, now time.Time) string {
 	}
 	return "active"
 }
+
+// PersonRecord is the stored state of one person for administration: their
+// identity (if recorded), eligibility, Custodian designation and the incidents
+// they are currently a member of. It reports state; policy is applied above.
+type PersonRecord struct {
+	HumanID   string
+	Identity  IdentityState
+	Legacy    bool
+	Role      string
+	Custodian bool
+	Incidents []string
+}

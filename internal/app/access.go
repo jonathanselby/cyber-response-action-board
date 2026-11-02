@@ -27,6 +27,8 @@ type AccessBackend interface {
 	HasIncidentMembershipAt(context.Context, string, string, time.Time) (bool, error)
 	AdministrationView(context.Context, time.Time) (access.AdministrationView, error)
 	IdentityState(context.Context, string) (access.IdentityState, bool, error)
+	People(context.Context, time.Time) ([]access.PersonRecord, error)
+	HasPendingIdentity(context.Context, string) (bool, error)
 }
 
 type AccessService struct{ Backend AccessBackend }

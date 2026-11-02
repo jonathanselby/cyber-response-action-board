@@ -16,7 +16,11 @@ type Runtime interface {
 	// Session and frame.
 	Bootstrapped(context.Context) (bool, error)
 	Bootstrap(context.Context, BootstrapInput) error
-	Authenticate(context.Context, string, string) (string, error)
+	// Authenticate signs a person in. enrol=true means the secret was a valid
+	// enrolment code and the person must finish setting up their account.
+	Authenticate(ctx context.Context, humanID, secret, totp string) (token string, enrol bool, err error)
+	BeginEnrolment(ctx context.Context, humanID, code string) (EnrolmentView, error)
+	CompleteEnrolment(ctx context.Context, humanID, code, password, totp string) (string, error)
 	Logout(context.Context, string) error
 	Frame(ctx context.Context, token, incidentID string) (FrameView, bool, error)
 	Home(context.Context, string) (HomeView, bool, error)
@@ -70,6 +74,10 @@ type Runtime interface {
 	NotifyCommunication(ctx context.Context, token, incidentID, communicationID string, channels []string) error
 
 	// Access and readiness.
+	ProposePerson(ctx context.Context, token string, in PersonInput) error
+	ProposePersonStatus(ctx context.Context, token, humanID, status, reason string) error
+	ProposeCredentialReset(ctx context.Context, token, humanID, reason string) error
+	ConfirmCredentialReset(ctx context.Context, token, recordID, version string) (ResetCodeView, error)
 	AccessAdministration(context.Context, string, time.Time) (AccessAdministrationPage, error)
 	IncidentAccess(context.Context, string, string, time.Time) (AccessAdministrationPage, error)
 	ProposeSponsor(ctx context.Context, token, incidentID, humanID string, active bool) error
@@ -456,6 +464,7 @@ type AccessPendingView struct {
 }
 
 type AccessAdministrationPage struct {
+	People                 []PersonRow
 	OutputPermissions      []AccessOutputView
 	Sponsors               []AccessDesignationView
 	Controllers            []AccessDesignationView
@@ -465,6 +474,35 @@ type AccessAdministrationPage struct {
 }
 
 type AccessOutputView struct{ HumanID, Action string }
+
+// PersonRow is one person in access administration, already decided by the
+// application tier; the template only renders it.
+type PersonRow struct {
+	HumanID, DisplayName, Organisation, Status, Role, AccountExpiresAt string
+	External, Custodian, Usable, Legacy                                bool
+	VisibleIncidents                                                   []string
+	OtherIncidents                                                     int
+	CanSuspend, CanReactivate, CanDisable, CanReset, CanRecordIdentity bool
+}
+
+// PersonInput is the add-person form.
+type PersonInput struct {
+	HumanID, DisplayName, Organisation, Role string
+	External                                 bool
+	AccountExpiresAt                         *time.Time
+}
+
+// EnrolmentView is what a person sees while finishing account setup.
+type EnrolmentView struct {
+	HumanID, Code       string
+	NeedsTOTP           bool
+	TOTPSecret, TOTPURI string
+}
+
+// ResetCodeView is shown once, to the Custodian who confirmed the reset.
+type ResetCodeView struct {
+	HumanID, Code, ExpiresAt string
+}
 
 type ReadinessCheckView struct {
 	Name    string

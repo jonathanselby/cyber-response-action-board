@@ -724,6 +724,9 @@ func (r *operatorRuntime) approvalView(ctx context.Context, s approvalSource, ti
 	if template := firstString(values, "checklist_template_id"); template != "" {
 		item.Group = "Checklist " + template + " · " + s.scopeID
 	}
+	if strings.HasPrefix(s.recordID, "PERSON-") {
+		item.Group = "New person · " + firstString(values, "human_id")
+	}
 	item.Summary, item.Consequence = approvalSummary(s, values, item.Label)
 	if s.kind == "severity" && item.IncidentID != "" {
 		if current := r.currentSeverity(ctx, item.IncidentID); current != "" {
@@ -771,6 +774,10 @@ func approvalLabel(recordType string) string {
 		domain.TypeEmergencyConfiguration:    "Emergency information",
 		domain.TypeChecklistTemplate:         "Checklist template",
 		domain.TypeSinglePersonWindow:        "Single-person window",
+		"security.identity":                  "Person",
+		"security.role_eligibility":          "Role",
+		"security.credential_reset":          "Enrolment code",
+		"security.custodian_designation":     "Custodian",
 	}
 	if label, ok := labels[recordType]; ok {
 		return label
@@ -787,6 +794,9 @@ func approvalLabel(recordType string) string {
 }
 
 func approvalSummary(s approvalSource, v map[string]any, label string) (string, string) {
+	if summary, consequence, ok := app.AccessApprovalSummary(s.recordType, v); ok {
+		return summary, consequence
+	}
 	str := func(keys ...string) string { return firstString(v, keys...) }
 	switch s.recordType {
 	case domain.TypeIncidentDeclaration:

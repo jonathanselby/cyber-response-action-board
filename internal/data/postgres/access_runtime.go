@@ -94,3 +94,11 @@ func (r *AccessRuntime) AdministrationView(ctx context.Context, now time.Time) (
 func (r *AccessRuntime) IdentityState(ctx context.Context, humanID string) (access.IdentityState, bool, error) {
 	return r.Store.IdentityState(ctx, humanID)
 }
+
+func (r *AccessRuntime) People(ctx context.Context, now time.Time) ([]access.PersonRecord, error) {
+	return r.Store.People(ctx, now)
+}
+
+func (r *AccessRuntime) HasPendingIdentity(ctx context.Context, humanID string) (bool, error) {
+	return r.Store.HasPendingIdentity(ctx, humanID)
+}

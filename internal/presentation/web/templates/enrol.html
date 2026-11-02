@@ -1,0 +1,28 @@
+{{define "enrol"}}{{template "feedback" .}}
+<section class="gas-panel gas-stack" aria-label="Set up your account">
+{{template "brand"}}
+{{with .Data}}
+<form class="gas-form gas-stack" method="post" action="/enrol/complete">
+<input type="hidden" name="human_id" value="{{.HumanID}}">
+<input type="hidden" name="code" value="{{.Code}}">
+<p>Setting up <strong>{{.HumanID}}</strong>.</p>
+{{if .NeedsTOTP}}<div class="gas-stack">
+<h2>1. Add CRAB to your authenticator app</h2>
+<p>External accounts need an authenticator app (for example on your phone). Add an account and enter this key by hand:</p>
+<p><code>{{.TOTPSecret}}</code></p>
+<details><summary>Setup link for apps that accept one</summary><p><code>{{.TOTPURI}}</code></p></details>
+<div class="gas-field"><label for="e-totp">The 6-digit code your app now shows</label><input id="e-totp" name="totp" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6" required></div>
+<h2>2. Choose your password</h2>
+</div>{{end}}
+<div class="gas-field"><label for="e-password">New password</label><input id="e-password" type="password" name="password" autocomplete="new-password" required minlength="12"><p class="gas-help">At least 12 characters, with an upper-case letter, a lower-case letter and a symbol.</p></div>
+<div class="gas-cluster"><button class="gas-button gas-button--primary">Finish and sign in</button></div>
+</form>
+{{else}}
+<form class="gas-form gas-stack" method="post" action="/enrol/begin">
+<div class="gas-field"><label for="e-id">Your CRAB ID</label><input id="e-id" name="human_id" autocomplete="username" required value="{{.Form.Get "human_id"}}"></div>
+<div class="gas-field"><label for="e-code">Enrolment code</label><input id="e-code" name="code" autocomplete="one-time-code" required placeholder="XXXXX-XXXXX-XXXXX-XXXXX"><p class="gas-help">A Custodian gave you this code directly. It works once and expires after 24 hours.</p></div>
+<div class="gas-cluster"><button class="gas-button gas-button--primary">Continue</button></div>
+</form>
+<p class="gas-help"><a href="/">Back to sign in</a></p>
+{{end}}
+</section>{{end}}
