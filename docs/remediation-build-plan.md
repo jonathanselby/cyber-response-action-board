@@ -30,10 +30,10 @@ This block is refreshed at the end of every chunk. If it cannot be stated in the
 
 ```text
 Authoritative design   PRD V0.2 + EDD V0.4; addendum V0.2.1 APPROVED (2 Nov 2026)
-Branch / implementation main @ C8 merge (0.0.29-dev)
-Last green gate        C8 — local and GitHub CI: gofmt, vet, race tests + PostgreSQL, ratchet, abuse suite, Bafflewick 10/10, visual preflight
-Known defects          P0 passed; R-09 (C5), R-06 (C6), R-07 and R-08 (C7) pass; F-11 partly fixed; C8 browser runs recorded F-13–F-16 and confirmed R-20, R-21 for C9; F-11 host-clock reads → C10; R-05 blocked on notifier v0.2
-Next coherent chunk    C9 — board, approvals and mechanical UX (F-12–F-16, R-20–R-22)
+Branch / implementation main @ C9 merge (0.0.30-dev)
+Last green gate        C9 — local and GitHub CI: gofmt, vet, race tests + PostgreSQL, ratchet, abuse suite, Bafflewick 10/10, visual preflight
+Known defects          P0 passed; R-09 (C5), R-06 (C6), R-07 and R-08 (C7) pass; F-11 partly fixed; C9 fixed F-7 and F-12–F-16 and passed R-17, R-18 and R-20–R-22 (logo and signed-out navigation are a shell limit, U-14); F-11 host-clock reads → C10; R-05 blocked on notifier v0.2
+Next coherent chunk    C10 — failure and recovery proofs, time behaviour, F-11
 UAT started            no (Phase 4 human UAT follows C13)
 Release frozen         no
 ```

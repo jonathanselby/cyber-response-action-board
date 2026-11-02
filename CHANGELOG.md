@@ -1,5 +1,16 @@
 # Changelog
 
+## Unreleased — 0.0.30-dev
+
+Post-UAT remediation, chunk C9: Board, approvals and mechanical UX.
+
+- Board: a **Now** block at the top, with at most seven linked items covering time and integrity problems, overdue and next deadlines, overdue critical actions, approvals waiting for you, failed notifications and new unknowns. Long sections show their five most urgent items, with the rest under *All N …* (T-235).
+- Approvals: each card shows who proposed it, with EXTERNAL and their role, and says what happens if you confirm and if you reject. Access approvals read as *Give Jane Doe (EXTERNAL, Forensic Co, Minor) access to INC-004 until …* (T-236).
+- An overdue obligation clock blocks closure until it is waived (F-12).
+- Sign out is in the navigation (F-13). If your session has expired, the form says nothing was recorded and shows back what you typed (F-14). Readiness and Approvals fit a 320 px screen (F-15). Muted text in the light theme meets WCAG AA (F-16). The phone status line wraps instead of being cut off (R-20).
+- Internal: approvals and capability rules moved into the application tier (F-7). The presentation and composition tiers now hold no role or authorisation checks.
+- The browser and accessibility harness passes on all three engines with no recorded defects.
+
 ## Unreleased — 0.0.29-dev
 
 Post-UAT remediation, chunk C8: browser and accessibility harness. There are no product changes.
