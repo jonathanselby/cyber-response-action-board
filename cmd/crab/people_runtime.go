@@ -41,14 +41,8 @@ func (r *operatorRuntime) ProposePerson(ctx context.Context, token string, in we
 	if !ok {
 		return app.ErrAuthorisationDenied
 	}
-	now := r.kernel.Clock().Read().Now
-	prefix := newOperatorID("PERSON")
-	change := access.IdentityChange{HumanID: in.HumanID, DisplayName: in.DisplayName, Organisation: in.Organisation, External: in.External, Status: access.IdentityActive, AccountExpiresAt: in.AccountExpiresAt}
-	if _, err := r.accessService.ProposeIdentity(ctx, principal, prefix+"-IDENTITY", change, now); err != nil {
-		return err
-	}
-	_, err = r.accessService.ProposeRoleEligibility(ctx, principal, prefix+"-ROLE", in.HumanID, authz.Role(strings.TrimSpace(in.Role)), true, now)
-	return err
+	change := access.IdentityChange{HumanID: in.HumanID, DisplayName: in.DisplayName, Organisation: in.Organisation, External: in.External, AccountExpiresAt: in.AccountExpiresAt}
+	return r.accessService.ProposeNewPerson(ctx, principal, newOperatorID("PERSON"), change, authz.Role(strings.TrimSpace(in.Role)), r.kernel.Clock().Read().Now)
 }
 
 func (r *operatorRuntime) ProposePersonStatus(ctx context.Context, token, humanID, status, reason string) error {

@@ -64,6 +64,9 @@ func TestEnrolmentFlowRendersTOTPOnlyForExternalPeople(t *testing.T) {
 	if ext.Code != http.StatusOK || !strings.Contains(ext.Body.String(), "JBSWY3DPEHPK3PXPJBSWY3DPEHPK3PXP") || !strings.Contains(ext.Body.String(), `name="totp"`) {
 		t.Fatalf("external enrolment step: code=%d", ext.Code)
 	}
+	if cc := ext.Header().Get("Cache-Control"); !strings.Contains(cc, "no-store") {
+		t.Fatalf("enrolment step carrying the code is cacheable: %q", cc)
+	}
 	internal := anonPost(t, f, "/enrol/begin", url.Values{"human_id": {"jane"}, "code": {"GOOD-CODE"}})
 	if strings.Contains(internal.Body.String(), `name="totp"`) {
 		t.Fatal("internal enrolment asked for an authenticator")

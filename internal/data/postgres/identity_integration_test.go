@@ -522,3 +522,21 @@ func TestLegacyAccountsRemainUsableButCannotGrow(t *testing.T) {
 		t.Fatalf("eligibility without identity err=%v", err)
 	}
 }
+
+// A refused new-person proposal leaves nothing pending (C2 review).
+func TestNewPersonIsAllOrNothing(t *testing.T) {
+	f := newIdentityFixture(t)
+	change := access.IdentityChange{HumanID: "jane", DisplayName: "Jane Doe"}
+	if err := f.service.ProposeNewPerson(f.ctx, f.principal("alice"), "PERSON-X", change, authz.Role("Boss"), f.now); err == nil {
+		t.Fatal("invalid role accepted")
+	}
+	if pending, _ := f.store.HasPendingIdentity(f.ctx, "jane"); pending {
+		t.Fatal("a refused new person left an identity proposal pending")
+	}
+	if err := f.service.ProposeNewPerson(f.ctx, f.principal("alice"), "PERSON-Y", change, authz.RoleMinor, f.now); err != nil {
+		t.Fatal(err)
+	}
+	if err := f.service.ProposeNewPerson(f.ctx, f.principal("bob"), "PERSON-Z", access.IdentityChange{HumanID: "alice", DisplayName: "Impostor"}, authz.RoleMajor, f.now); err == nil {
+		t.Fatal("new person reused an existing ID")
+	}
+}

@@ -70,6 +70,35 @@ func (s AccessService) People(ctx context.Context, principal authz.Principal, no
 	return out, nil
 }
 
+// ProposeNewPerson proposes a new person's identity and role eligibility as
+// one step. Both are validated before either is written, so a refusal never
+// leaves half a person pending. The record IDs share the given prefix so
+// Approvals can group them; the identity must be confirmed first.
+func (s AccessService) ProposeNewPerson(ctx context.Context, principal authz.Principal, prefix string, change access.IdentityChange, role authz.Role, now time.Time) error {
+	if err := s.requireUsableCustodian(ctx, principal, now); err != nil {
+		return err
+	}
+	if !authz.ValidRole(role) {
+		return fmt.Errorf("choose a role: Major, Minor or Observer")
+	}
+	change.Status = access.IdentityActive
+	current, _, err := s.Backend.IdentityState(ctx, strings.TrimSpace(change.HumanID))
+	if err != nil {
+		return err
+	}
+	if current.Found {
+		return fmt.Errorf("a person with the ID %q already exists", strings.TrimSpace(change.HumanID))
+	}
+	if err := access.ValidateIdentityTransition(change, current, now); err != nil {
+		return err
+	}
+	if _, err := s.ProposeIdentity(ctx, principal, prefix+"-IDENTITY", change, now); err != nil {
+		return err
+	}
+	_, err = s.ProposeRoleEligibility(ctx, principal, prefix+"-ROLE", change.HumanID, role, true, now)
+	return err
+}
+
 // ProposeIdentityStatus proposes suspending, reactivating or disabling a
 // person, keeping the rest of their identity as recorded.
 func (s AccessService) ProposeIdentityStatus(ctx context.Context, principal authz.Principal, recordID, humanID, status, reason string, now time.Time) (ledger.Record, error) {
