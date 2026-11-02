@@ -809,6 +809,7 @@ func approvalLabel(recordType string) string {
 		"security.identity":                  "Person",
 		"security.role_eligibility":          "Role",
 		"security.credential_reset":          "Enrolment code",
+		"security.intake_key":                "Intake key",
 		"security.custodian_designation":     "Custodian",
 	}
 	if label, ok := labels[recordType]; ok {

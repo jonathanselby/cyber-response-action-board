@@ -21,7 +21,7 @@ func (r *operatorRuntime) peopleRows(ctx context.Context, principal authz.Princi
 	rows := make([]web.PersonRow, 0, len(people))
 	for _, p := range people {
 		row := web.PersonRow{HumanID: p.HumanID, DisplayName: p.DisplayName, Organisation: p.Organisation, Status: p.Status, Role: p.Role,
-			External: p.External, Custodian: p.HoldsCustodian, Usable: p.Usable, Legacy: p.Legacy, VisibleIncidents: p.VisibleIncidents, OtherIncidents: p.OtherIncidents,
+			External: p.External, Custodian: p.HoldsCustodian, Usable: p.Usable, Legacy: p.Legacy, Incidents: p.Incidents,
 			CanSuspend: p.CanSuspend, CanReactivate: p.CanReactivate, CanDisable: p.CanDisable, CanReset: p.CanReset, CanRecordIdentity: p.CanRecordIdentity, CanChangeRole: p.CanChangeRole}
 		if p.AccountExpiresAt != nil {
 			row.AccountExpiresAt = p.AccountExpiresAt.UTC().Format(displayTime)

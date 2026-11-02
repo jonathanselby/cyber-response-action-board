@@ -294,9 +294,10 @@ func (e *e2e) approveAll(cookie string) int {
 			form.Set(m[1], htmlUnescape(m[2]))
 		}
 		key := form.Get("record_id") + form.Get("version")
-		// Enrolment codes are confirmed only through their own action
-		// (confirmReset); their Approvals card offers /decide for rejection only.
-		if form.Get("record_id") == "" || seen[key] || form.Get("record_type") == "security.credential_reset" {
+		// Enrolment codes and intake keys are confirmed only through their own
+		// actions, which show a secret once; their cards offer /decide for
+		// rejection only.
+		if form.Get("record_id") == "" || seen[key] || form.Get("record_type") == "security.credential_reset" || form.Get("record_type") == "security.intake_key" {
 			continue
 		}
 		seen[key] = true

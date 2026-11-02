@@ -81,6 +81,10 @@ type Runtime interface {
 	ProposePersonRole(ctx context.Context, token, humanID, role string, remove bool) error
 	ProposeCredentialReset(ctx context.Context, token, humanID, reason string) error
 	ConfirmCredentialReset(ctx context.Context, token, recordID, version string) (ResetCodeView, error)
+	// Machine intake (addendum A4).
+	SubmitIntakeReport(ctx context.Context, token, source string, in IntakeReportInput) (IntakeResult, error)
+	ProposeIntakeKey(ctx context.Context, token string, in IntakeKeyInput) error
+	ConfirmIntakeKey(ctx context.Context, token, recordID, version string) (IntakeKeySecretView, error)
 	AccessAdministration(context.Context, string, time.Time) (AccessAdministrationPage, error)
 	IncidentAccess(context.Context, string, string, time.Time) (AccessAdministrationPage, error)
 	ProposeSponsor(ctx context.Context, token, incidentID, humanID string, active bool) error
@@ -471,6 +475,7 @@ type AccessPendingView struct {
 
 type AccessAdministrationPage struct {
 	People                 []PersonRow
+	IntakeKeys             []IntakeKeyRow
 	OutputPermissions      []AccessOutputView
 	Sponsors               []AccessDesignationView
 	Controllers            []AccessDesignationView
@@ -486,8 +491,7 @@ type AccessOutputView struct{ HumanID, Action string }
 type PersonRow struct {
 	HumanID, DisplayName, Organisation, Status, Role, AccountExpiresAt string
 	External, Custodian, Usable, Legacy                                bool
-	VisibleIncidents                                                   []string
-	OtherIncidents                                                     int
+	Incidents                                                          []string
 	CanSuspend, CanReactivate, CanDisable, CanReset, CanRecordIdentity bool
 	CanChangeRole                                                      bool
 }

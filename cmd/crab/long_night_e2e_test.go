@@ -225,7 +225,7 @@ func TestTheLongNight(t *testing.T) {
 var supportingTables = map[string]bool{
 	"ledger_entries": true, "schema_migrations": true, "sessions": true, "local_credentials": true,
 	"totp_credentials": true, "passkey_credentials": true, "break_glass_credentials": true,
-	"blobs": true, "blob_chunks": true,
+	"blobs": true, "blob_chunks": true, "intake_key_secrets": true,
 }
 
 // projectionSnapshot fingerprints every rebuildable projection table.

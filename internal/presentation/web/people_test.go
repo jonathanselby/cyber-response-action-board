@@ -13,11 +13,11 @@ import (
 
 func TestPeopleSectionRendersWhatTheRuntimeDecided(t *testing.T) {
 	f := &fakeRuntime{bootstrapped: true, people: []PersonRow{
-		{HumanID: "jane", DisplayName: "Jane Doe", Organisation: "Forensic Co", Status: "active", Role: "Minor", External: true, Usable: true, AccountExpiresAt: "2 Nov 2026 08:17 UTC", VisibleIncidents: []string{"INC-004"}, OtherIncidents: 2, CanSuspend: true, CanDisable: true, CanReset: true},
+		{HumanID: "jane", DisplayName: "Jane Doe", Organisation: "Forensic Co", Status: "active", Role: "Minor", External: true, Usable: true, AccountExpiresAt: "2 Nov 2026 08:17 UTC", Incidents: []string{"INC-004", "INC-007"}, CanSuspend: true, CanDisable: true, CanReset: true},
 		{HumanID: "old", DisplayName: "old", Status: "suspended", Role: "Major", CanReactivate: true},
 	}}
 	body := get(t, withRuntime(t, f), "/access").Body.String()
-	for _, want := range []string{"Jane Doe", "EXTERNAL", "Forensic Co", "2 Nov 2026 08:17 UTC", "INC-004; 2 other incidents", "Propose enrolment code", "Propose suspension", "Propose disabling", "Propose reactivation", `action="/access/person"`} {
+	for _, want := range []string{"Jane Doe", "EXTERNAL", "Forensic Co", "2 Nov 2026 08:17 UTC", "INC-004, INC-007", "Propose enrolment code", "Propose suspension", "Propose disabling", "Propose reactivation", `action="/access/person"`} {
 		if !strings.Contains(body, want) {
 			t.Errorf("people section missing %q", want)
 		}

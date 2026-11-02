@@ -30,6 +30,8 @@ type AccessBackend interface {
 	People(context.Context, time.Time) ([]access.PersonRecord, error)
 	HasPendingIdentity(context.Context, string) (bool, error)
 	ExternalPeople(context.Context) (map[string]bool, error)
+	IntakeKeyState(context.Context, string) (access.IntakeKeyState, error)
+	IntakeKeys(context.Context, time.Time) ([]access.IntakeKeyState, map[string]time.Time, error)
 }
 
 type AccessService struct{ Backend AccessBackend }
@@ -199,6 +201,9 @@ func (s AccessService) decide(ctx context.Context, principal authz.Principal, sc
 		if change.RecordType == access.RecordCredentialReset && !credentialPath {
 			return ledger.Record{}, access.Change{}, ErrUseCredentialResetPath
 		}
+		if change.RecordType == access.RecordIntakeKey && change.IntakeKey.Action != access.IntakeKeyRevoke && !credentialPath {
+			return ledger.Record{}, access.Change{}, ErrUseIntakeKeyPath
+		}
 		makerUsable, err := s.usable(ctx, proposal.Maker, now)
 		if err != nil {
 			return ledger.Record{}, access.Change{}, err
@@ -235,6 +240,8 @@ func (s AccessService) validateAtConfirmation(ctx context.Context, change access
 		if change.Active {
 			return s.requireIdentityForGrant(ctx, change.HumanID, now)
 		}
+	case access.RecordIntakeKey:
+		return s.validateIntakeKey(ctx, *change.IntakeKey, now)
 	case access.RecordCredentialReset:
 		ok, err := s.usable(ctx, change.HumanID, now)
 		if err != nil {
@@ -394,7 +401,7 @@ func (s AccessService) authoriseMakerAtDecision(ctx context.Context, maker strin
 		if !allowed {
 			return ErrAuthorisationDenied
 		}
-	case access.RecordOutputPermission, access.RecordIdentity, access.RecordRoleEligibility, access.RecordCustodianDesignation, access.RecordCredentialReset:
+	case access.RecordOutputPermission, access.RecordIdentity, access.RecordRoleEligibility, access.RecordCustodianDesignation, access.RecordCredentialReset, access.RecordIntakeKey:
 		allowed, err := s.Backend.IsCustodian(ctx, maker)
 		if err != nil {
 			return err

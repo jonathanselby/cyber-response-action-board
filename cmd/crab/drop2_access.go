@@ -55,11 +55,15 @@ func (r *operatorRuntime) AccessAdministration(ctx context.Context, token string
 	if err != nil {
 		return web.AccessAdministrationPage{}, err
 	}
+	intakeKeys, err := r.intakeKeyRows(ctx, principal)
+	if err != nil {
+		return web.AccessAdministrationPage{}, err
+	}
 	external, err := r.accessService.ExternalPeople(ctx)
 	if err != nil {
 		return web.AccessAdministrationPage{}, err
 	}
-	out := web.AccessAdministrationPage{People: people, Sponsors: accessDesignationViews(view.Sponsors), Controllers: accessDesignationViews(view.Controllers), IncidentMemberships: accessMembershipViews(view.IncidentMemberships, external), CompartmentMemberships: accessMembershipViews(view.CompartmentMemberships, external)}
+	out := web.AccessAdministrationPage{People: people, IntakeKeys: intakeKeys, Sponsors: accessDesignationViews(view.Sponsors), Controllers: accessDesignationViews(view.Controllers), IncidentMemberships: accessMembershipViews(view.IncidentMemberships, external), CompartmentMemberships: accessMembershipViews(view.CompartmentMemberships, external)}
 	for _, value := range pending {
 		out.Pending = append(out.Pending, web.AccessPendingView{ScopeID: value.ScopeID, RecordID: value.RecordID, RecordType: value.RecordType, Compartment: value.Compartment, Version: value.Version, Maker: value.Maker, Mode: value.Mode, ProposedAt: value.ProposedAt.UTC().Format(displayTime)})
 	}

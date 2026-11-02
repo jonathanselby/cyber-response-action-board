@@ -16,8 +16,7 @@ import (
 const MinimumUsableCustodians = 3
 
 // PersonView is one person as a Custodian sees them in access administration.
-// Incident names appear only where the Custodian may see that incident; the
-// rest are counted (U-17).
+// Every incident the person belongs to is named (U-17 resolved: names only).
 type PersonView struct {
 	HumanID          string
 	DisplayName      string
@@ -29,8 +28,7 @@ type PersonView struct {
 	HoldsCustodian   bool
 	Usable           bool
 	Legacy           bool
-	VisibleIncidents []string
-	OtherIncidents   int
+	Incidents        []string
 	// What the viewing Custodian may propose for this person now.
 	CanSuspend, CanReactivate, CanDisable, CanReset, CanRecordIdentity, CanChangeRole bool
 }
@@ -53,13 +51,9 @@ func (s AccessService) People(ctx context.Context, principal authz.Principal, no
 		} else {
 			v.DisplayName, v.Status = r.HumanID, "legacy"
 		}
-		for _, id := range r.Incidents {
-			if principal.Incidents[id] {
-				v.VisibleIncidents = append(v.VisibleIncidents, id)
-			} else {
-				v.OtherIncidents++
-			}
-		}
+		// Custodians administer access metadata across incidents (EDD §9.6),
+		// so People names every incident, as the Incident members table does.
+		v.Incidents = append([]string(nil), r.Incidents...)
 		v.CanSuspend = r.Identity.Found && r.Identity.Status == access.IdentityActive
 		v.CanReactivate = r.Identity.Found && r.Identity.Status == access.IdentitySuspended
 		v.CanDisable = r.Identity.Found && r.Identity.Status != access.IdentityDisabled
@@ -188,8 +182,33 @@ func AccessApprovalSummary(recordType string, payload map[string]any) (summary, 
 			return "Remove " + who + "'s CRAB role", "They keep their identity but can no longer act in any incident.", true
 		}
 		return "Make " + who + " eligible as " + role, role + " lets them work in incidents they are later given access to. It grants no incident access by itself.", true
+	case access.RecordIntakeKey:
+		name, reason := str("key_name"), str("reason")
+		switch str("action") {
+		case access.IntakeKeyIssue:
+			expiry := str("expires_at")
+			if t, err := time.Parse(time.RFC3339, expiry); err == nil {
+				expiry = t.UTC().Format("2 Jan 2006 15:04 UTC")
+			}
+			return "Issue intake key " + name + ", accountable: " + str("accountable_human"), "A system holding this key can submit first reports, and nothing else, until " + expiry + ". The secret is shown once to you, the confirmer. Reason: " + reason, true
+		case access.IntakeKeyRotate:
+			overlap, _ := payload["overlap_minutes"].(float64)
+			return "Rotate intake key " + name, fmt.Sprintf("A new secret is shown once to you, the confirmer. The current secret stops working %s. Reason: %s", overlapText(int(overlap)), reason), true
+		case access.IntakeKeyRevoke:
+			return "Revoke intake key " + name, "It stops working at once and can never be used again. Reports it already submitted are kept. Reason: " + reason, true
+		}
 	case access.RecordCredentialReset:
 		return "Issue an enrolment code to " + who, "Their sessions, password and authenticator are reset. The code is shown once to you, the confirmer, to pass to them directly. Reason: " + str("reason"), true
 	}
 	return "", "", false
+}
+
+func overlapText(minutes int) string {
+	if minutes <= 0 {
+		return "at once"
+	}
+	if minutes%60 == 0 {
+		return fmt.Sprintf("%d hour(s) after confirmation", minutes/60)
+	}
+	return fmt.Sprintf("%d minutes after confirmation", minutes)
 }

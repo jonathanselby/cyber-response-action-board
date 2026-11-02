@@ -53,6 +53,7 @@ type operatorRuntime struct {
 	credentials     postgres.CredentialStore
 	principals      app.Principals
 	auth            app.Authentication
+	intake          app.IntakeService
 }
 
 type signingKeyFile struct {
@@ -175,6 +176,12 @@ func newOperatorRuntime() (web.Runtime, error) {
 		return found, err
 	}}
 	r.evidence = app.EvidenceService{Backend: evidenceBackend}
+	intakeReports, err := postgres.NewContinuityRuntimeFromKernel(kernel, signer, blobStore)
+	if err != nil {
+		return fail(err)
+	}
+	intakeRate, intakeRefusals := app.NewIntakeLimiters()
+	r.intake = app.IntakeService{Keys: accessStore, Secrets: accessStore, Reports: intakeReports, Rate: intakeRate, Refusals: intakeRefusals}
 	r.communication = app.CommunicationService{Backend: communicationBackend, Incident: r.incident, Notifier: notifier.Sender{}, Channels: channels, Window: r.organisation}
 	r.recovery = app.RecoveryService{Backend: recoveryBackend, Window: r.organisation}
 	if corpusStore, err := postgres.NewCorpusStore(pool); err == nil {

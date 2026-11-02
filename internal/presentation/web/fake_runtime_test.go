@@ -112,6 +112,23 @@ func (f *fakeRuntime) ConfirmCredentialReset(_ context.Context, _, recordID, _ s
 	return ResetCodeView{HumanID: "jane", Code: "ABCDE-FGHIJ-KLMNO-PQRST", ExpiresAt: "3 Nov 2026 02:17 UTC"}, nil
 }
 func (f *fakeRuntime) Logout(context.Context, string) error { return nil }
+func (f *fakeRuntime) SubmitIntakeReport(_ context.Context, token, _ string, in IntakeReportInput) (IntakeResult, error) {
+	switch {
+	case token != "siem.secret":
+		return IntakeResult{Outcome: IntakeRefused}, nil
+	case in.Description == "":
+		return IntakeResult{Outcome: IntakeInvalid, Message: "invalid first report: description is required"}, nil
+	case in.ExternalRef == "dup":
+		return IntakeResult{Outcome: IntakeExisting, ReportID: "REPORT-1"}, nil
+	case in.ExternalRef == "flood":
+		return IntakeResult{Outcome: IntakeRateLimited}, nil
+	}
+	return IntakeResult{Outcome: IntakeCreated, ReportID: "REPORT-2"}, nil
+}
+func (f *fakeRuntime) ProposeIntakeKey(context.Context, string, IntakeKeyInput) error { return nil }
+func (f *fakeRuntime) ConfirmIntakeKey(context.Context, string, string, string) (IntakeKeySecretView, error) {
+	return IntakeKeySecretView{KeyName: "siem", AccountableHuman: "alice", Action: "issue", Secret: "siem.abcdef", ExpiresAt: "1 Dec 2026 00:00 UTC"}, nil
+}
 
 func (f *fakeRuntime) Frame(_ context.Context, token, incidentID string) (FrameView, bool, error) {
 	f.read("Frame")

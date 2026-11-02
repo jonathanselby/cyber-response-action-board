@@ -78,6 +78,7 @@ func (s *Server) registerSystemRoutes() {
 	s.mux.HandleFunc("POST /obligations/definition", s.post(library, func(*http.Request) string { return "/obligations" }, "proposed", s.proposeObligationDefinition))
 	s.mux.HandleFunc("GET /access", s.show(admin))
 	s.registerPeopleRoutes(admin, approvals)
+	s.registerIntakeRoutes(admin, approvals)
 	s.mux.HandleFunc("POST /access/output", s.post(admin, func(*http.Request) string { return "/access" }, "proposed", func(r *http.Request, token string) error {
 		return s.runtime.ProposeOutputPermission(r.Context(), token, formValue(r, "human_id"), formValue(r, "action"), formValue(r, "active") != "false")
 	}))

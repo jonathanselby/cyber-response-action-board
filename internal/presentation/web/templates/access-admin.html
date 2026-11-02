@@ -8,7 +8,7 @@
 <td><span class="gas-badge gas-badge--{{if .Usable}}success{{else}}danger{{end}}">{{upper .Status}}</span>{{if and .Status (not .Usable) (eq .Status "active")}} <span class="gas-muted">account ended</span>{{end}}</td>
 <td>{{if .Role}}{{.Role}}{{else}}No role{{end}}{{if .Custodian}} · Custodian{{end}}</td>
 <td>{{if .AccountExpiresAt}}{{.AccountExpiresAt}}{{else}}No end date{{end}}</td>
-<td>{{range $i, $id := .VisibleIncidents}}{{if $i}}, {{end}}{{$id}}{{end}}{{if .OtherIncidents}}{{if .VisibleIncidents}}; {{end}}{{.OtherIncidents}} other incident{{if gt .OtherIncidents 1}}s{{end}}{{end}}{{if and (not .VisibleIncidents) (not .OtherIncidents)}}—{{end}}</td></tr>{{end}}</tbody></table></div>
+<td>{{range $i, $id := .Incidents}}{{if $i}}, {{end}}{{$id}}{{end}}{{if not .Incidents}}—{{end}}</td></tr>{{end}}</tbody></table></div>
 {{else}}<p class="gas-empty">No people yet.</p>{{end}}
 <details id="person" class="gas-panel"{{if eq $.Open "person"}} open{{end}}>
 <summary><h2>Add a person</h2></summary>
@@ -52,6 +52,40 @@
 <div class="gas-field"><label for="d-{{.HumanID}}">Disable permanently — reason</label><input id="d-{{.HumanID}}" name="reason" required></div>
 <p class="gas-help">Disabling cannot be undone. The ID is never reused. History is kept.</p>
 <div class="gas-cluster"><button class="gas-button">Propose disabling</button></div></form>{{end}}
+</details>{{end}}{{end}}
+</section>
+<section class="gas-panel gas-stack" aria-labelledby="intake-keys-h" id="intake-keys">
+<h2 id="intake-keys-h">Intake keys</h2>
+<p class="gas-help">An intake key lets a security tool or script submit first reports through <code>POST /api/v1/first-reports</code>, and nothing else. Each key is accountable to one named person. Issuing, rotating and revoking a key all need a second Custodian. Reports are never turned into incidents without human triage.</p>
+{{if .IntakeKeys}}<div class="gas-table-wrap"><table><thead><tr><th scope="col">Key</th><th scope="col">Accountable person</th><th scope="col">Status</th><th scope="col">Expires</th><th scope="col">Last rotated</th></tr></thead>
+<tbody>{{range .IntakeKeys}}<tr><th scope="row">{{.KeyName}}</th><td>{{.AccountableHuman}}</td>
+<td><span class="gas-badge gas-badge--{{if eq .Status "active"}}success{{else}}danger{{end}}">{{upper .Status}}</span></td>
+<td>{{.ExpiresAt}}</td><td>{{if .RotatedAt}}{{.RotatedAt}}{{else}}Never{{end}}{{if .PreviousUntil}}<br><span class="gas-muted">previous secret works until {{.PreviousUntil}}</span>{{end}}</td></tr>{{end}}</tbody></table></div>
+{{else}}<p class="gas-empty">No intake keys.</p>{{end}}
+<details class="gas-panel" id="intake-issue"{{if eq $.Open "intake-key"}} open{{end}}>
+<summary><h3>Issue an intake key</h3></summary>
+<form class="gas-form gas-stack" method="post" action="/access/intake-key">
+<input type="hidden" name="_form" value="intake-key"><input type="hidden" name="action" value="issue">
+<div class="gas-field"><label for="ik-name">Key name</label><input id="ik-name" name="key_name" required autocomplete="off" value="{{$.Form.Get "key_name"}}"><p class="gas-help">3 to 40 lower-case letters, digits or hyphens, for example siem-prod. Names are never reused.</p></div>
+<div class="gas-field"><label for="ik-who">Accountable person (CRAB ID)</label><input id="ik-who" name="accountable_human" required autocomplete="off" value="{{$.Form.Get "accountable_human"}}"><p class="gas-help">The person who answers for what this system submits. Their account must be active; if it stops being usable, the key stops working.</p></div>
+<div class="gas-field"><label for="ik-exp">Expires (UTC)</label><input id="ik-exp" type="datetime-local" name="expires_at" required value="{{$.Form.Get "expires_at"}}"><p class="gas-help">At most 365 days ahead.</p></div>
+<div class="gas-field"><label for="ik-why">Reason</label><input id="ik-why" name="reason" required value="{{$.Form.Get "reason"}}"></div>
+<div class="gas-cluster"><button class="gas-button gas-button--primary">Propose</button></div>
+</form>
+</details>
+{{range .IntakeKeys}}{{if or .CanRotate .CanRevoke}}<details class="gas-panel" id="intake-{{.KeyName}}">
+<summary><h3>Manage intake key {{.KeyName}}</h3></summary>
+{{if .CanRotate}}<form class="gas-form gas-stack" method="post" action="/access/intake-key">
+<input type="hidden" name="_form" value="intake-key"><input type="hidden" name="action" value="rotate"><input type="hidden" name="key_name" value="{{.KeyName}}">
+<div class="gas-field"><label for="ro-ov-{{.KeyName}}">Rotate — hours the current secret keeps working</label><input id="ro-ov-{{.KeyName}}" type="number" min="0" max="24" name="overlap_hours" value="0"><p class="gas-help">0 to 24. Gives the sending system time to switch to the new secret.</p></div>
+<div class="gas-field"><label for="ro-exp-{{.KeyName}}">New expiry (UTC, optional)</label><input id="ro-exp-{{.KeyName}}" type="datetime-local" name="expires_at"></div>
+<div class="gas-field"><label for="ro-why-{{.KeyName}}">Reason</label><input id="ro-why-{{.KeyName}}" name="reason" required></div>
+<div class="gas-cluster"><button class="gas-button">Propose rotation</button></div></form>{{end}}
+{{if .CanRevoke}}<form class="gas-form gas-stack" method="post" action="/access/intake-key">
+<input type="hidden" name="_form" value="intake-key"><input type="hidden" name="action" value="revoke"><input type="hidden" name="key_name" value="{{.KeyName}}">
+<div class="gas-field"><label for="rv-why-{{.KeyName}}">Revoke — reason</label><input id="rv-why-{{.KeyName}}" name="reason" required></div>
+<p class="gas-help">Revocation is immediate once confirmed and cannot be undone.</p>
+<div class="gas-cluster"><button class="gas-button">Propose revocation</button></div></form>{{end}}
 </details>{{end}}{{end}}
 </section>
 <section class="gas-panel gas-stack" aria-labelledby="outputs">

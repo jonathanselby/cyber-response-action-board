@@ -13,6 +13,7 @@ import (
 	"sort"
 	"strings"
 	"testing"
+	"time"
 )
 
 // Marker strings exist only inside the target incident INC-SECRET. No response
@@ -39,8 +40,8 @@ type abuseCase struct {
 
 // abuseFixture holds the target objects and the attacking principals.
 type abuseFixture struct {
-	evidence, forensic, report, decisionID, decisionVersion, resetID, resetVersion string
-	principals                                                                     map[string]string // name → session token
+	evidence, forensic, report, decisionID, decisionVersion, resetID, resetVersion, intakeID, intakeVersion string
+	principals                                                                                              map[string]string // name → session token
 }
 
 func multipartBody(t *testing.T, fields url.Values, fileField, filename, content string) (*bytes.Buffer, string) {
@@ -156,6 +157,20 @@ func (e *e2e) buildAbuseFixture() abuseFixture {
 	if f.resetID == "" {
 		e.t.Fatal("pending reset not found")
 	}
+	e.post("/access/intake-key", alice, url.Values{"action": {"issue"}, "key_name": {"pending-key"}, "accountable_human": {"alice"}, "expires_at": {e.now().Add(48 * time.Hour).Format("2006-01-02T15:04")}, "reason": {"pending for abuse test"}})
+	for _, form := range regexp.MustCompile(`(?s)<form[^>]*action="/access/intake-key/confirm".*?</form>`).FindAllString(e.get("/approvals", bob), -1) {
+		for _, h := range hiddenField.FindAllStringSubmatch(form, -1) {
+			switch h[1] {
+			case "record_id":
+				f.intakeID = h[2]
+			case "version":
+				f.intakeVersion = htmlUnescape(h[2])
+			}
+		}
+	}
+	if f.intakeID == "" {
+		e.t.Fatal("pending intake key not found")
+	}
 	return f
 }
 
@@ -251,6 +266,9 @@ func abuseCases(f abuseFixture) []abuseCase {
 		{pattern: "POST /access/person/status", method: "POST", path: "/access/person/status", form: url.Values{"human_id": {"alice"}, "status": {"suspended"}, "reason": {"coup"}}},
 		{pattern: "POST /access/person/role", method: "POST", path: "/access/person/role", form: url.Values{"human_id": {"mallory"}, "role": {"Major"}, "remove": {"false"}}},
 		{pattern: "POST /access/person/reset", method: "POST", path: "/access/person/reset", form: url.Values{"human_id": {"alice"}, "reason": {"takeover"}}},
+		{pattern: "POST /access/intake-key", method: "POST", path: "/access/intake-key", form: url.Values{"action": {"issue"}, "key_name": {"attacker-key"}, "accountable_human": {"mallory"}, "expires_at": {"2027-01-01T00:00"}, "reason": {"exfiltration"}}},
+		{pattern: "POST /access/intake-key/confirm", method: "POST", path: "/access/intake-key/confirm", ghost: "/access/intake-key/confirm", form: url.Values{"record_id": {f.intakeID}, "version": {f.intakeVersion}}, ghostForm: url.Values{"record_id": {"INTAKEKEY-NOPE"}, "version": {f.intakeVersion}}},
+		{pattern: "POST /api/v1/first-reports", method: "POST", path: "/api/v1/first-reports", api: true, form: url.Values{"json": {`{"description":"session token posing as an intake key"}`}}},
 		{pattern: "POST /access/reset/confirm", method: "POST", path: "/access/reset/confirm", ghost: "/access/reset/confirm", form: url.Values{"record_id": {f.resetID}, "version": {f.resetVersion}}},
 		{pattern: "POST /obligations/definition", method: "POST", path: "/obligations/definition", form: url.Values{"name": {"x"}}, mayWrite: majorProposes},
 		{pattern: "POST /organisation/severity", method: "POST", path: "/organisation/severity", form: url.Values{"levels": {"a\nb"}}, mayWrite: majorProposes},

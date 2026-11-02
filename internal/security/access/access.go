@@ -67,11 +67,13 @@ type Change struct {
 	Reason      string
 	// Identity carries the decoded payload of a security.identity change.
 	Identity *IdentityChange
+	// IntakeKey carries the decoded payload of a security.intake_key change.
+	IntakeKey *IntakeKeyChange
 }
 
 func IsRecordType(recordType string) bool {
 	switch recordType {
-	case RecordRoleEligibility, RecordCustodianDesignation, RecordIncidentSponsor, RecordCompartmentController, RecordIncidentMembership, RecordCompartmentMembership, RecordOutputPermission, RecordIsolateMode, RecordIdentity, RecordCredentialReset:
+	case RecordRoleEligibility, RecordCustodianDesignation, RecordIncidentSponsor, RecordCompartmentController, RecordIncidentMembership, RecordCompartmentMembership, RecordOutputPermission, RecordIsolateMode, RecordIdentity, RecordCredentialReset, RecordIntakeKey:
 		return true
 	default:
 		return false
@@ -194,6 +196,20 @@ func Decode(recordType string, raw []byte) (Change, bool, error) {
 			return Change{}, true, errors.New("a credential reset needs a person and a reason")
 		}
 		change.HumanID, change.Active, change.Reason = payload.HumanID, true, payload.Reason
+	case RecordIntakeKey:
+		var payload IntakeKeyChange
+		if err := decodeStrict(raw, &payload); err != nil {
+			return Change{}, true, err
+		}
+		if err := validateIntakeKeyPayload(payload); err != nil {
+			return Change{}, true, err
+		}
+		if payload.ExpiresAt != nil {
+			expiry := payload.ExpiresAt.UTC()
+			payload.ExpiresAt = &expiry
+		}
+		change.HumanID, change.Active, change.Reason = payload.AccountableHuman, payload.Action != IntakeKeyRevoke, payload.Reason
+		change.IntakeKey = &payload
 	default:
 		return Change{}, false, nil
 	}

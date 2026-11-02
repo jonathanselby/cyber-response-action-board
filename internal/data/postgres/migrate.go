@@ -12,7 +12,7 @@ import (
 )
 
 const (
-	currentMigrationVersion = 19
+	currentMigrationVersion = 20
 	migrationLockKey        = int64(0x435241424d494752)
 )
 
@@ -73,6 +73,9 @@ var migration018 string
 //go:embed migrations/019_reopening.sql
 var migration019 string
 
+//go:embed migrations/020_intake_keys.sql
+var migration020 string
+
 func Migrate(ctx context.Context, owner *pgxpool.Pool, runtimeRole string) error {
 	runtimeRole = strings.TrimSpace(runtimeRole)
 	if runtimeRole == "" {
@@ -93,7 +96,7 @@ func Migrate(ctx context.Context, owner *pgxpool.Pool, runtimeRole string) error
 	if _, err := tx.Exec(ctx, `SELECT pg_advisory_xact_lock($1)`, migrationLockKey); err != nil {
 		return fmt.Errorf("lock migration: %w", err)
 	}
-	migrations := []string{migration001, migration002, migration003, migration004, migration005, migration006, migration007, migration008, migration009, migration010, migration011, migration012, migration013, migration014, migration015, migration016, migration017, migration018, migration019}
+	migrations := []string{migration001, migration002, migration003, migration004, migration005, migration006, migration007, migration008, migration009, migration010, migration011, migration012, migration013, migration014, migration015, migration016, migration017, migration018, migration019, migration020}
 	for version, migration := range migrations {
 		if _, err := tx.Exec(ctx, migration); err != nil {
 			return fmt.Errorf("migration %03d: %w", version+1, err)
@@ -158,6 +161,8 @@ func Migrate(ctx context.Context, owner *pgxpool.Pool, runtimeRole string) error
 		`GRANT SELECT, INSERT, UPDATE, DELETE, TRUNCATE ON crab.incident_relationship_proposals TO ` + role,
 		`GRANT SELECT, INSERT, UPDATE, DELETE, TRUNCATE ON crab.incident_relationships TO ` + role,
 		`GRANT SELECT, INSERT, UPDATE, DELETE, TRUNCATE ON crab.identities TO ` + role,
+		`GRANT SELECT, INSERT, UPDATE, DELETE, TRUNCATE ON crab.intake_keys TO ` + role,
+		`GRANT SELECT, INSERT, UPDATE, DELETE ON crab.intake_key_secrets TO ` + role,
 		`GRANT DELETE ON crab.local_credentials TO ` + role,
 	}
 	for _, statement := range grants {

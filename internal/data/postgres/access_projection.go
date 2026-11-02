@@ -20,7 +20,7 @@ import (
 type AccessProjection struct{}
 
 func (AccessProjection) Reset(ctx context.Context, tx pgx.Tx) error {
-	_, err := tx.Exec(ctx, `TRUNCATE crab.access_proposals, crab.identities, crab.security_state, crab.output_permissions, crab.compartment_memberships, crab.incident_memberships, crab.compartment_controllers, crab.incident_sponsors, crab.custodian_designations, crab.role_eligibility`)
+	_, err := tx.Exec(ctx, `TRUNCATE crab.access_proposals, crab.identities, crab.intake_keys, crab.security_state, crab.output_permissions, crab.compartment_memberships, crab.incident_memberships, crab.compartment_controllers, crab.incident_sponsors, crab.custodian_designations, crab.role_eligibility`)
 	return err
 }
 
@@ -190,6 +190,8 @@ func applyConfirmedAccess(ctx context.Context, tx pgx.Tx, record ledger.Record, 
 		_, err = tx.Exec(ctx, `INSERT INTO crab.security_state(state_key, bool_value) VALUES ('isolate_mode',$1) ON CONFLICT (state_key) DO UPDATE SET bool_value=EXCLUDED.bool_value`, change.Active)
 	case access.RecordIdentity:
 		err = applyIdentity(ctx, tx, record, change)
+	case access.RecordIntakeKey:
+		err = applyIntakeKey(ctx, tx, record, change)
 	case access.RecordCredentialReset:
 		// Audit only. Credential side effects happen in the application after
 		// the decision commits, so replay never touches current credentials.
@@ -246,9 +248,51 @@ func applyIdentity(ctx context.Context, tx pgx.Tx, record ledger.Record, change 
 	return nil
 }
 
+// applyIntakeKey projects a confirmed intake key change. Secrets are written
+// by the application after the decision commits, so replay never creates or
+// re-dates a secret. A revocation deletes every secret for the key; that is
+// idempotent on replay and leaves nothing that could authenticate.
+func applyIntakeKey(ctx context.Context, tx pgx.Tx, record ledger.Record, change access.Change) error {
+	k := change.IntakeKey
+	if k == nil {
+		return errors.New("intake key change payload missing")
+	}
+	switch k.Action {
+	case access.IntakeKeyIssue:
+		tag, err := tx.Exec(ctx, `INSERT INTO crab.intake_keys(key_name,accountable_human,status,expires_at,issued_at,updated_at) VALUES($1,$2,'active',$3,$4,$4) ON CONFLICT (key_name) DO NOTHING`, k.KeyName, k.AccountableHuman, k.ExpiresAt.UTC(), record.Timestamp)
+		if err != nil {
+			return err
+		}
+		if tag.RowsAffected() != 1 {
+			return access.ErrIntakeKeyExists
+		}
+		return nil
+	case access.IntakeKeyRotate:
+		var expires any
+		if k.ExpiresAt != nil {
+			expires = k.ExpiresAt.UTC()
+		}
+		tag, err := tx.Exec(ctx, `UPDATE crab.intake_keys SET rotated_at=$2, expires_at=COALESCE($3, expires_at), updated_at=$2 WHERE key_name=$1 AND status='active'`, k.KeyName, record.Timestamp, expires)
+		if err != nil {
+			return err
+		}
+		if tag.RowsAffected() != 1 {
+			return access.ErrIntakeKeyNotActive
+		}
+		return nil
+	case access.IntakeKeyRevoke:
+		if _, err := tx.Exec(ctx, `UPDATE crab.intake_keys SET status='revoked', updated_at=$2 WHERE key_name=$1`, k.KeyName, record.Timestamp); err != nil {
+			return err
+		}
+		_, err := tx.Exec(ctx, `DELETE FROM crab.intake_key_secrets WHERE key_name=$1`, k.KeyName)
+		return err
+	}
+	return errors.New("unsupported intake key action")
+}
+
 func validateAccessEnvelope(record ledger.Record, change access.Change) error {
 	switch change.RecordType {
-	case access.RecordRoleEligibility, access.RecordCustodianDesignation, access.RecordOutputPermission, access.RecordIsolateMode, access.RecordIdentity, access.RecordCredentialReset:
+	case access.RecordRoleEligibility, access.RecordCustodianDesignation, access.RecordOutputPermission, access.RecordIsolateMode, access.RecordIdentity, access.RecordCredentialReset, access.RecordIntakeKey:
 		if record.IncidentMode != "system" || record.IncidentID != "" {
 			return errors.New("system access metadata requires system ledger scope")
 		}

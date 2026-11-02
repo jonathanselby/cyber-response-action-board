@@ -1,0 +1,11 @@
+{{define "intake-key"}}{{template "feedback" .}}
+{{with .Data}}<section class="gas-panel gas-stack" aria-labelledby="ik-h">
+{{if .Secret}}<h2 id="ik-h">Secret for intake key {{.KeyName}}</h2>
+<p class="gas-notice gas-notice--warning"><strong>Shown once.</strong> Put it straight into the sending system's secret store. Do not email it or paste it into chat. CRAB keeps only a hash and cannot show it again.</p>
+<p><code>{{.Secret}}</code></p>
+<p>The sending system presents it as <code>Authorization: Bearer &lt;secret&gt;</code> to <code>POST /api/v1/first-reports</code>. It can submit first reports and nothing else. It works until <strong>{{.ExpiresAt}}</strong>. Reports it submits are attributed to the key and to <strong>{{.AccountableHuman}}</strong>.</p>
+{{if .PreviousUntil}}<p class="gas-notice gas-notice--info">The previous secret keeps working until <strong>{{.PreviousUntil}}</strong>, then stops.</p>{{end}}
+{{else}}<h2 id="ik-h">Intake key {{.KeyName}} revoked</h2>
+<p>It stopped working at once. Reports it already submitted are kept.</p>{{end}}
+<div class="gas-cluster"><a class="gas-button" href="/approvals">Back to Approvals</a> <a class="gas-button" href="/access#intake-keys">Intake keys</a></div>
+</section>{{end}}{{end}}

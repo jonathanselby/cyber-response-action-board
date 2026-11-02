@@ -29,6 +29,10 @@ type FirstReport struct {
 	SourceChannel   string        `json:"source_channel"`
 	TriageStatus    string        `json:"triage_status"`
 	Attachments     []BlobReceipt `json:"attachments,omitempty"`
+	// IntakeKey and ExternalRef are set only on a report submitted through
+	// the machine intake API (addendum A4). ExternalRef is unique per key.
+	IntakeKey   string `json:"intake_key,omitempty"`
+	ExternalRef string `json:"external_ref,omitempty"`
 }
 
 type FirstReportDisposition struct {
