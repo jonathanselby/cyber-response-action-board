@@ -12,7 +12,7 @@ import (
 )
 
 const (
-	currentMigrationVersion = 18
+	currentMigrationVersion = 19
 	migrationLockKey        = int64(0x435241424d494752)
 )
 
@@ -70,6 +70,9 @@ var migration017 string
 //go:embed migrations/018_identities.sql
 var migration018 string
 
+//go:embed migrations/019_reopening.sql
+var migration019 string
+
 func Migrate(ctx context.Context, owner *pgxpool.Pool, runtimeRole string) error {
 	runtimeRole = strings.TrimSpace(runtimeRole)
 	if runtimeRole == "" {
@@ -90,7 +93,7 @@ func Migrate(ctx context.Context, owner *pgxpool.Pool, runtimeRole string) error
 	if _, err := tx.Exec(ctx, `SELECT pg_advisory_xact_lock($1)`, migrationLockKey); err != nil {
 		return fmt.Errorf("lock migration: %w", err)
 	}
-	migrations := []string{migration001, migration002, migration003, migration004, migration005, migration006, migration007, migration008, migration009, migration010, migration011, migration012, migration013, migration014, migration015, migration016, migration017, migration018}
+	migrations := []string{migration001, migration002, migration003, migration004, migration005, migration006, migration007, migration008, migration009, migration010, migration011, migration012, migration013, migration014, migration015, migration016, migration017, migration018, migration019}
 	for version, migration := range migrations {
 		if _, err := tx.Exec(ctx, migration); err != nil {
 			return fmt.Errorf("migration %03d: %w", version+1, err)

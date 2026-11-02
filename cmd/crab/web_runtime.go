@@ -355,7 +355,33 @@ func (r *operatorRuntime) CloseOut(ctx context.Context, token, incidentID string
 	if pending, err := r.kernel.PendingRecoveryProposals(ctx, incidentID, "GENERAL"); err == nil {
 		out.Pending = len(pending)
 	}
+	blockers, err := r.recovery.ClosureBlockers(ctx, principal, incidentID, r.kernel.Clock().Read().Now)
+	if err != nil {
+		return web.CloseOutView{}, err
+	}
+	out.Blockers = blockers
+	out.CanReopen = r.recovery.CanReopen(ctx, principal, incidentID)
 	return out, nil
+}
+
+func (r *operatorRuntime) ProposeReopening(ctx context.Context, token, incidentID, reason string) error {
+	principal, ok, err := r.principal(ctx, token)
+	if err != nil {
+		return err
+	}
+	if !ok {
+		return app.ErrAuthorisationDenied
+	}
+	picture, found, err := r.incident.CommonOperatingPicture(ctx, principal, incidentID, "GENERAL")
+	if err != nil {
+		return err
+	}
+	if !found {
+		return app.ErrAuthorisationDenied
+	}
+	scope := domain.Scope{IncidentID: incidentID, Mode: picture.Incident.Mode, Compartment: "GENERAL"}
+	_, err = r.recovery.ProposeReopening(ctx, principal, scope, newOperatorID("REOPEN"), domain.Reopening{Reason: strings.TrimSpace(reason)}, r.kernel.Clock().Read().Now)
+	return err
 }
 
 func (r *operatorRuntime) RecordRecoveryUpdate(ctx context.Context, token, incidentID string, input web.RecoveryUpdateInput) error {
@@ -768,6 +794,7 @@ func approvalLabel(recordType string) string {
 		domain.TypePIR:                       "Post-Incident Review",
 		domain.TypeRetention:                 "Retention and hold",
 		domain.TypeClosure:                   "Incident closure",
+		domain.TypeReopening:                 "Reopen incident",
 		"security.incident_membership":       "Incident access",
 		"security.compartment_membership":    "Compartment read-in",
 		"security.incident_sponsor":          "Incident sponsor",
@@ -800,6 +827,9 @@ func approvalLabel(recordType string) string {
 
 func approvalSummary(s approvalSource, v map[string]any, label string) (string, string) {
 	if summary, consequence, ok := app.AccessApprovalSummary(s.recordType, v); ok {
+		return summary, consequence
+	}
+	if summary, consequence, ok := app.RecoveryApprovalSummary(s.recordType, v); ok {
 		return summary, consequence
 	}
 	str := func(keys ...string) string { return firstString(v, keys...) }
@@ -1005,7 +1035,7 @@ func (r *operatorRuntime) DecideProposal(ctx context.Context, token string, in w
 		if !ok {
 			return app.ErrAuthorisationDenied
 		}
-		_, err = r.recovery.Decide(ctx, principal, in.ScopeID, in.RecordType, in.RecordID, in.Version, in.Outcome, time.Now().UTC())
+		_, err = r.recovery.Decide(ctx, principal, in.ScopeID, in.RecordType, in.RecordID, in.Version, in.Outcome, r.kernel.Clock().Read().Now)
 		return err
 	}
 	return errors.New("unknown approval kind")

@@ -104,6 +104,7 @@ type Runtime interface {
 	ProposePIR(ctx context.Context, token, incidentID, summary string, lessons, longTermWork []string) error
 	ProposeRetention(ctx context.Context, token, incidentID string, input RetentionInput) error
 	ProposeClosure(ctx context.Context, token, incidentID string, input ClosureInput) error
+	ProposeReopening(ctx context.Context, token, incidentID, reason string) error
 	TranscribePaper(ctx context.Context, token, incidentID string, input PaperInput) error
 	IncidentBriefPDF(ctx context.Context, token, incidentID, pageSize, printMode string) ([]byte, error)
 	EmergencyPackPDF(ctx context.Context, token, incidentID, pageSize, printMode string) ([]byte, error)
@@ -601,6 +602,9 @@ type CloseOutView struct {
 	State      domain.RecoveryState
 	PIRDraft   *domain.PIRDraft
 	Pending    int
+	// Blockers names, from the application tier, everything that stops closure.
+	Blockers  []string
+	CanReopen bool
 }
 
 type RecoveryUpdateInput struct {

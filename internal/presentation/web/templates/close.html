@@ -8,9 +8,10 @@
 <dt>Post-Incident Review</dt><dd>{{if $st.PIR}}<span class="gas-badge gas-badge--success">CONFIRMED</span> {{whenPtr $st.PIRAt}}{{else}}<span class="gas-badge gas-badge--info">NOT YET</span>{{end}}</dd>
 <dt>Retention and hold</dt><dd>{{if $st.Retention}}<span class="gas-badge gas-badge--success">SET</span> {{$st.Retention.RetentionClass}}{{if $st.Retention.Hold}} · <span class="gas-badge gas-badge--warning">LEGAL HOLD</span>{{end}}{{else}}<span class="gas-badge gas-badge--info">NOT SET</span>{{end}}</dd>
 <dt>Unresolved recovery items</dt><dd>{{$st.UnresolvedCount}}</dd>
-<dt>Closure prerequisites</dt><dd>{{if $st.ClosureReady}}<span class="gas-badge gas-badge--success">MET</span>{{else}}<span class="gas-badge gas-badge--warning">NOT MET</span>{{end}}</dd>
 <dt>Closed</dt><dd>{{if $st.ClosedAt}}<span class="gas-badge gas-badge--info">CLOSED</span> {{whenPtr $st.ClosedAt}} — this incident is now read-only{{else}}No{{end}}</dd>
+{{if $st.ReopenedAt}}<dt>Reopened</dt><dd><span class="gas-badge gas-badge--warning">REOPENED</span> {{whenPtr $st.ReopenedAt}} — {{if $st.Reopening}}{{$st.Reopening.Reason}}{{end}}{{if $st.SupersededClosedAt}}. The closure of {{whenPtr $st.SupersededClosedAt}} is superseded and kept in history.{{end}}</dd>{{end}}
 </dl>
+{{if not $st.ClosedAt}}{{if .Blockers}}<div class="gas-stack"><p><strong>What stops closure now:</strong></p><ul>{{range .Blockers}}<li>{{.}}</li>{{end}}</ul></div>{{else}}<p class="gas-notice gas-notice--success">Nothing outstanding: closure can be proposed.</p>{{end}}{{end}}
 {{if .Pending}}<p class="gas-notice gas-notice--info">{{.Pending}} close-out change{{if gt .Pending 1}}s are{{else}} is{{end}} waiting for confirmation. <a href="/approvals?incident={{.IncidentID}}">Review in Approvals</a></p>{{end}}
 <p class="gas-help">Stand-down ends the emergency phase but does not close the incident. Closure needs a confirmed PIR and makes the incident read-only.</p>
 </section>
@@ -81,7 +82,7 @@
 </details>
 {{end}}
 
-{{if $st.ClosureReady}}
+{{if and (not $st.ClosedAt) (not .Blockers)}}
 <details id="closure" class="gas-panel"{{if eq $.Open "closure"}} open{{end}}>
 <summary><h2>Propose closure</h2></summary>
 <p class="gas-help">Takes effect when another eligible person confirms. Confirmed closure makes the incident read-only and produces separate privileged and shareable records.</p>
@@ -92,6 +93,18 @@
 <div class="gas-field"><label for="cl-pcomp">Privileged compartment (if any)</label><input id="cl-pcomp" name="privileged_compartment" value="{{$.Form.Get "privileged_compartment"}}"></div>
 <div class="gas-field"><label for="cl-psum">Privileged summary</label><textarea id="cl-psum" name="privileged_summary" rows="4">{{$.Form.Get "privileged_summary"}}</textarea></div>
 <button class="gas-button gas-button--primary">Propose closure</button>
+</form>
+</details>
+{{end}}
+
+{{if .CanReopen}}
+<details id="reopen" class="gas-panel"{{if eq $.Open "reopen"}} open{{end}}>
+<summary><h2>Reopen this incident</h2></summary>
+<p class="gas-help">Another Major on the incident must confirm. The closure and stand-down are superseded and kept in history; the incident becomes writable again and must meet every closure condition before it can close again.</p>
+<form class="gas-form gas-stack" method="post" action="{{incidentURL .IncidentID "/close/reopen"}}">
+<input type="hidden" name="_form" value="reopen">
+<div class="gas-field"><label for="ro-reason">Why it must be reopened</label><textarea id="ro-reason" name="reason" rows="3" required>{{$.Form.Get "reason"}}</textarea></div>
+<button class="gas-button gas-button--primary">Propose reopening</button>
 </form>
 </details>
 {{end}}

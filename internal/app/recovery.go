@@ -3,6 +3,9 @@ package app
 import (
 	"context"
 	"errors"
+	"fmt"
+	"sort"
+	"strings"
 	"time"
 
 	"github.com/jonathanselby/cyber-response-action-board/internal/domain"
@@ -15,6 +18,7 @@ type RecoveryBackend interface {
 	PendingRecovery(context.Context, string, string, string) (ledger.Record, bool, error)
 	RecoveryState(context.Context, string) (domain.RecoveryState, bool, error)
 	CommonOperatingPicture(context.Context, string) (domain.OperatingPicture, bool, error)
+	ClosureOutstanding(context.Context, string, time.Time) (domain.ClosureOutstanding, error)
 }
 
 type RecoveryService struct {
@@ -65,7 +69,7 @@ func (s RecoveryService) ProposeClosure(ctx context.Context, principal authz.Pri
 	if !found {
 		return ledger.Record{}, errors.New("incident not found")
 	}
-	if err := domain.ClosurePrerequisites(state); err != nil {
+	if err := s.closureAllowed(ctx, state, now); err != nil {
 		return ledger.Record{}, err
 	}
 	record, err := domain.ProposeClosure(scope, recordID, principal.HumanID, now, value)
@@ -93,7 +97,11 @@ func (s RecoveryService) Decide(ctx context.Context, principal authz.Principal, 
 		return ledger.Record{}, ErrProposalNotFound
 	}
 	scope := domain.Scope{IncidentID: proposal.IncidentID, Mode: proposal.IncidentMode, Compartment: proposal.Compartment}
-	if err := s.authorise(ctx, principal, authz.ActionConfirm, scope); err != nil {
+	if recordType == domain.TypeReopening {
+		if err := s.authoriseReopening(ctx, principal, authz.ActionConfirm, scope); err != nil {
+			return ledger.Record{}, err
+		}
+	} else if err := s.authorise(ctx, principal, authz.ActionConfirm, scope); err != nil {
 		return ledger.Record{}, err
 	}
 	if recordType == domain.TypeClosure && outcome == "confirmed" {
@@ -104,7 +112,7 @@ func (s RecoveryService) Decide(ctx context.Context, principal authz.Principal, 
 		if !found {
 			return ledger.Record{}, errors.New("incident not found")
 		}
-		if err := domain.ClosurePrerequisites(state); err != nil {
+		if err := s.closureAllowed(ctx, state, now); err != nil {
 			return ledger.Record{}, err
 		}
 	}
@@ -185,6 +193,114 @@ func (s RecoveryService) propose(ctx context.Context, principal authz.Principal,
 		return ledger.Record{}, err
 	}
 	return record, nil
+}
+
+// ProposeReopening proposes reopening a closed incident (addendum A1). It is
+// the one proposal a closed incident accepts. A different Major on the
+// incident confirms it; no single-person window can cover it.
+func (s RecoveryService) ProposeReopening(ctx context.Context, principal authz.Principal, scope domain.Scope, recordID string, value domain.Reopening, now time.Time) (ledger.Record, error) {
+	if err := s.authoriseReopening(ctx, principal, authz.ActionPropose, scope); err != nil {
+		return ledger.Record{}, err
+	}
+	record, err := domain.ProposeReopening(scope, recordID, principal.HumanID, now, value)
+	if err != nil {
+		return ledger.Record{}, err
+	}
+	if err := s.Backend.AppendRecovery(ctx, record); err != nil {
+		return ledger.Record{}, err
+	}
+	return record, nil
+}
+
+// CanReopen reports whether this person may propose reopening the incident
+// now: it is closed and they may propose in it.
+func (s RecoveryService) CanReopen(ctx context.Context, principal authz.Principal, incidentID string) bool {
+	return s.authoriseReopening(ctx, principal, authz.ActionPropose, domain.Scope{IncidentID: incidentID, Compartment: "GENERAL"}) == nil
+}
+
+// RecoveryApprovalSummary words a reopening proposal for Approvals.
+func RecoveryApprovalSummary(recordType string, payload map[string]any) (summary, consequence string, ok bool) {
+	if recordType != domain.TypeReopening {
+		return "", "", false
+	}
+	reason, _ := payload["reason"].(string)
+	return "Reopen the incident: " + reason, "The incident becomes writable again. Its closure and stand-down are superseded and kept in history; closing again needs a new stand-down and closure.", true
+}
+
+// ClosureBlockers names everything that stops the incident closing now: the
+// recovery milestones, pending proposals and running obligation clocks.
+func (s RecoveryService) ClosureBlockers(ctx context.Context, principal authz.Principal, incidentID string, now time.Time) ([]string, error) {
+	if d := authz.Authorise(principal, authz.ActionRead, authz.ObjectScope{IncidentID: incidentID, Compartment: "GENERAL"}); !d.Allowed {
+		return nil, ErrAuthorisationDenied
+	}
+	state, found, err := s.Backend.RecoveryState(ctx, incidentID)
+	if err != nil {
+		return nil, err
+	}
+	if !found || state.ClosedAt != nil {
+		return nil, nil
+	}
+	return s.blockers(ctx, state, now)
+}
+
+func (s RecoveryService) blockers(ctx context.Context, state domain.RecoveryState, now time.Time) ([]string, error) {
+	out := domain.ClosureBlockers(state)
+	outstanding, err := s.Backend.ClosureOutstanding(ctx, state.IncidentID, now)
+	if err != nil {
+		return nil, err
+	}
+	types := make([]string, 0, len(outstanding.PendingByType))
+	for t := range outstanding.PendingByType {
+		types = append(types, t)
+	}
+	sort.Strings(types)
+	for _, t := range types {
+		n := outstanding.PendingByType[t]
+		label := strings.ReplaceAll(strings.TrimPrefix(strings.TrimPrefix(t, "incident."), "security."), "_", " ")
+		if n == 1 {
+			out = append(out, "1 pending "+label+" proposal")
+		} else {
+			out = append(out, fmt.Sprintf("%d pending %s proposals", n, label))
+		}
+	}
+	for _, c := range outstanding.RunningClocks {
+		out = append(out, "obligation clock "+c.Name+" still running until "+c.Deadline.UTC().Format("2 Jan 2006 15:04 UTC"))
+	}
+	return out, nil
+}
+
+// closureAllowed refuses closure while anything is outstanding, naming it.
+func (s RecoveryService) closureAllowed(ctx context.Context, state domain.RecoveryState, now time.Time) error {
+	if state.ClosedAt != nil {
+		return domain.ErrIncidentClosed
+	}
+	blockers, err := s.blockers(ctx, state, now)
+	if err != nil {
+		return err
+	}
+	if len(blockers) > 0 {
+		return domain.ClosureBlocked{Blockers: blockers}
+	}
+	return nil
+}
+
+// authoriseReopening is the closed-incident counterpart of authorise: the
+// incident must be closed.
+func (s RecoveryService) authoriseReopening(ctx context.Context, principal authz.Principal, action authz.Action, scope domain.Scope) error {
+	if s.Backend == nil {
+		return errors.New("recovery backend is required")
+	}
+	if d := authz.Authorise(principal, action, authz.ObjectScope{IncidentID: scope.IncidentID, Compartment: "GENERAL"}); !d.Allowed {
+		return ErrAuthorisationDenied
+	}
+	state, found, err := s.Backend.RecoveryState(ctx, scope.IncidentID)
+	if err != nil {
+		return err
+	}
+	if !found || state.ClosedAt == nil {
+		return errors.New("only a closed incident can be reopened")
+	}
+	return nil
 }
 
 func (s RecoveryService) authorise(ctx context.Context, principal authz.Principal, action authz.Action, scope domain.Scope) error {

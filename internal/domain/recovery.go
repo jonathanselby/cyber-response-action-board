@@ -15,6 +15,9 @@ const (
 	TypePIR            = "incident.pir"
 	TypeRetention      = "incident.retention"
 	TypeClosure        = "incident.closure"
+	// TypeReopening reopens a closed incident (contract addendum A1). It is
+	// the one record a closed incident accepts.
+	TypeReopening = "incident.reopening"
 
 	PhaseActiveResponse = "ACTIVE RESPONSE"
 	PhaseRecovery       = "RECOVERY"
@@ -103,6 +106,72 @@ type RecoveryState struct {
 	ClosedAt        *time.Time
 	ClosureReady    bool
 	UnresolvedCount int
+	// Set when the incident has been reopened: the closure it superseded and
+	// why. History is never removed; these say what the current state rests on.
+	ReopenedAt         *time.Time
+	Reopening          *Reopening
+	SupersededClosure  *Closure
+	SupersededClosedAt *time.Time
+}
+
+// ClosureOutstanding is what is still open on an incident beyond the
+// recovery milestones: pending proposals and running obligation clocks.
+type ClosureOutstanding struct {
+	PendingByType map[string]int
+	RunningClocks []RunningClock
+}
+
+// RunningClock is an active obligation clock whose deadline is still ahead.
+type RunningClock struct {
+	Name     string
+	Deadline time.Time
+}
+
+// Reopening is the payload of a governed reopening.
+type Reopening struct {
+	Reason string `json:"reason"`
+}
+
+// ProposeReopening proposes reopening a closed incident with a reason.
+func ProposeReopening(scope Scope, recordID, maker string, now time.Time, value Reopening) (ledger.Record, error) {
+	if err := validateMilestoneScope(scope); err != nil {
+		return ledger.Record{}, err
+	}
+	if strings.TrimSpace(value.Reason) == "" {
+		return ledger.Record{}, errors.New("a reason is required to reopen an incident")
+	}
+	return proposedRecord(scope, TypeReopening, recordID, maker, now, value)
+}
+
+// ClosureBlocked lists, by name, everything that stops an incident closing.
+// It satisfies errors.Is(err, ErrClosurePrerequisites).
+type ClosureBlocked struct{ Blockers []string }
+
+func (e ClosureBlocked) Error() string {
+	return "the incident cannot close yet: " + strings.Join(e.Blockers, "; ")
+}
+
+func (e ClosureBlocked) Is(target error) bool { return target == ErrClosurePrerequisites }
+
+// ClosureBlockers names the recovery prerequisites still missing. Pending
+// proposals and running obligation clocks are added by the application tier.
+func ClosureBlockers(state RecoveryState) []string {
+	var out []string
+	if state.StandDownAt == nil {
+		out = append(out, "stand-down not confirmed")
+	}
+	if state.PIRAt == nil {
+		out = append(out, "Post-Incident Review not confirmed")
+	}
+	if state.RetentionAt == nil {
+		out = append(out, "retention and hold not confirmed")
+	}
+	for _, update := range state.Updates {
+		if !update.Update.Verified && strings.TrimSpace(update.Update.HandoffRef) == "" {
+			out = append(out, "recovery item "+update.Update.ItemID+" neither verified nor handed off")
+		}
+	}
+	return out
 }
 
 func RecordRecoveryUpdate(scope Scope, recordID, maker string, now time.Time, update RecoveryUpdate) (ledger.Record, error) {
@@ -227,7 +296,7 @@ func ValidateClosureScope(scope Scope, value Closure) error {
 
 func IsRecoveryType(recordType string) bool {
 	switch recordType {
-	case TypeRecoveryUpdate, TypeStandDown, TypePIR, TypeRetention, TypeClosure:
+	case TypeRecoveryUpdate, TypeStandDown, TypePIR, TypeRetention, TypeClosure, TypeReopening:
 		return true
 	default:
 		return false
@@ -238,13 +307,8 @@ func ClosurePrerequisites(state RecoveryState) error {
 	if state.ClosedAt != nil {
 		return ErrIncidentClosed
 	}
-	if state.StandDownAt == nil || state.PIRAt == nil || state.RetentionAt == nil {
-		return ErrClosurePrerequisites
-	}
-	for _, update := range state.Updates {
-		if !update.Update.Verified && strings.TrimSpace(update.Update.HandoffRef) == "" {
-			return ErrClosurePrerequisites
-		}
+	if blockers := ClosureBlockers(state); len(blockers) > 0 {
+		return ClosureBlocked{Blockers: blockers}
 	}
 	return nil
 }

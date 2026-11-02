@@ -108,6 +108,9 @@ func (s *Server) registerIncidentRoutes() {
 		input := ClosureInput{Reason: formValue(r, "reason"), PrivilegedCompartment: formValue(r, "privileged_compartment"), PrivilegedSummary: formValue(r, "privileged_summary"), ShareableSummary: formValue(r, "shareable_summary")}
 		return s.runtime.ProposeClosure(r.Context(), token, id(r), input)
 	}))
+	s.mux.HandleFunc("POST /incident/{incidentID}/close/reopen", s.post(closeout, toClose, "proposed", func(r *http.Request, token string) error {
+		return s.runtime.ProposeReopening(r.Context(), token, id(r), formValue(r, "reason"))
+	}))
 	s.mux.HandleFunc("POST /incident/{incidentID}/close/transcription", s.post(closeout, toClose, "recorded", func(r *http.Request, token string) error {
 		at, err := parseLocalTime(r.FormValue("paper_occurred_at"), "Original time", true)
 		if err != nil {

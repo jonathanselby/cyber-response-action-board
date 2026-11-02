@@ -99,6 +99,9 @@ func (f *fakeRuntime) ProposePerson(_ context.Context, _ string, in PersonInput)
 func (f *fakeRuntime) ProposePersonStatus(context.Context, string, string, string, string) error {
 	return nil
 }
+func (f *fakeRuntime) ProposeReopening(context.Context, string, string, string) error {
+	return nil
+}
 func (f *fakeRuntime) ProposePersonRole(context.Context, string, string, string, bool) error {
 	return nil
 }

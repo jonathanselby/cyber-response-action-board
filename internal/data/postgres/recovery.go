@@ -5,6 +5,8 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
+	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -35,8 +37,13 @@ func (RecoveryProjection) Apply(ctx context.Context, tx pgx.Tx, entry ledger.Ent
 	if err != nil {
 		return err
 	}
-	if closed {
+	// A closed incident accepts only its reopening; a reopening applies only
+	// to a closed incident. Both are refused on replay exactly as on append.
+	if closed && record.RecordType != domain.TypeReopening {
 		return domain.ErrIncidentClosed
+	}
+	if !closed && record.RecordType == domain.TypeReopening && record.Status != "rejected" {
+		return errors.New("only a closed incident can be reopened")
 	}
 
 	if record.RecordType == domain.TypeRecoveryUpdate {
@@ -125,6 +132,15 @@ func validateRecoveryPayload(record ledger.Record) error {
 			return err
 		}
 		return domain.ValidateRetention(value)
+	case domain.TypeReopening:
+		value, err := domain.DecodePayload[domain.Reopening](record)
+		if err != nil {
+			return err
+		}
+		if strings.TrimSpace(value.Reason) == "" {
+			return errors.New("a reason is required to reopen an incident")
+		}
+		return nil
 	case domain.TypeClosure:
 		value, err := domain.DecodePayload[domain.Closure](record)
 		if err != nil {
@@ -202,6 +218,23 @@ func applyConfirmedRecovery(ctx context.Context, tx pgx.Tx, record ledger.Record
 		}
 		_, err = tx.Exec(ctx, `UPDATE crab.incident_recovery_state SET closure_record_id=$2,closed_at=$3,closure_payload=$4 WHERE incident_id=$1`, record.IncidentID, record.RecordID, record.Timestamp, payload)
 		return err
+	case domain.TypeReopening:
+		value, err := domain.DecodePayload[domain.Reopening](record)
+		if err != nil {
+			return err
+		}
+		payload, err := json.Marshal(value)
+		if err != nil {
+			return err
+		}
+		// Supersede the closure and the stand-down; keep the closure for display.
+		_, err = tx.Exec(ctx, `UPDATE crab.incident_recovery_state SET
+			superseded_closure_record_id=closure_record_id, superseded_closed_at=closed_at, superseded_closure_payload=closure_payload,
+			closure_record_id=NULL, closed_at=NULL, closure_payload=NULL,
+			stand_down_record_id=NULL, stand_down_at=NULL, stand_down_payload=NULL,
+			reopen_record_id=$2, reopened_at=$3, reopen_payload=$4
+			WHERE incident_id=$1`, record.IncidentID, record.RecordID, record.Timestamp, payload)
+		return err
 	default:
 		return errors.New("unsupported confirmed recovery milestone")
 	}
@@ -230,6 +263,11 @@ func recoverySummary(record ledger.Record) string {
 		return "Retention / hold / disposition hand-off"
 	case domain.TypeClosure:
 		return "Administrative closure"
+	case domain.TypeReopening:
+		value, err := domain.DecodePayload[domain.Reopening](record)
+		if err == nil {
+			return "Incident reopened: " + value.Reason + " (supersedes the closure and stand-down)"
+		}
 	}
 	return record.RecordType
 }
@@ -290,9 +328,9 @@ func (s *RecoveryStore) State(ctx context.Context, incidentID string) (domain.Re
 func readRecoveryMilestones(ctx context.Context, q interface {
 	QueryRow(context.Context, string, ...any) pgx.Row
 }, state *domain.RecoveryState) error {
-	var standDownAt, pirAt, retentionAt, closedAt *time.Time
-	var standDownRaw, pirRaw, retentionRaw, closureRaw []byte
-	err := q.QueryRow(ctx, `SELECT stand_down_at,stand_down_payload,pir_at,pir_payload,retention_at,retention_payload,closed_at,closure_payload FROM crab.incident_recovery_state WHERE incident_id=$1`, state.IncidentID).Scan(&standDownAt, &standDownRaw, &pirAt, &pirRaw, &retentionAt, &retentionRaw, &closedAt, &closureRaw)
+	var standDownAt, pirAt, retentionAt, closedAt, reopenedAt, supersededAt *time.Time
+	var standDownRaw, pirRaw, retentionRaw, closureRaw, reopenRaw, supersededRaw []byte
+	err := q.QueryRow(ctx, `SELECT stand_down_at,stand_down_payload,pir_at,pir_payload,retention_at,retention_payload,closed_at,closure_payload,reopened_at,reopen_payload,superseded_closed_at,superseded_closure_payload FROM crab.incident_recovery_state WHERE incident_id=$1`, state.IncidentID).Scan(&standDownAt, &standDownRaw, &pirAt, &pirRaw, &retentionAt, &retentionRaw, &closedAt, &closureRaw, &reopenedAt, &reopenRaw, &supersededAt, &supersededRaw)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil
 	}
@@ -300,6 +338,19 @@ func readRecoveryMilestones(ctx context.Context, q interface {
 		return err
 	}
 	state.StandDownAt, state.PIRAt, state.RetentionAt, state.ClosedAt = standDownAt, pirAt, retentionAt, closedAt
+	state.ReopenedAt, state.SupersededClosedAt = reopenedAt, supersededAt
+	if len(reopenRaw) > 0 {
+		state.Reopening = &domain.Reopening{}
+		if err := json.Unmarshal(reopenRaw, state.Reopening); err != nil {
+			return err
+		}
+	}
+	if len(supersededRaw) > 0 {
+		state.SupersededClosure = &domain.Closure{}
+		if err := json.Unmarshal(supersededRaw, state.SupersededClosure); err != nil {
+			return err
+		}
+	}
 	if len(standDownRaw) > 0 {
 		state.StandDown = &domain.StandDown{}
 		if err := json.Unmarshal(standDownRaw, state.StandDown); err != nil {
@@ -409,4 +460,50 @@ func (r *RecoveryRuntime) RecoveryState(ctx context.Context, incidentID string) 
 
 func (r *RecoveryRuntime) CommonOperatingPicture(ctx context.Context, incidentID string) (domain.OperatingPicture, bool, error) {
 	return r.Store.incidents.CommonOperatingPicture(ctx, incidentID)
+}
+
+// ClosureOutstanding reports the governed matters still open on an incident:
+// pending proposals by record type (the closure proposal itself excluded) and
+// active obligation clocks whose deadline is still ahead at now.
+func (r *RecoveryRuntime) ClosureOutstanding(ctx context.Context, incidentID string, now time.Time) (domain.ClosureOutstanding, error) {
+	out := domain.ClosureOutstanding{PendingByType: map[string]int{}}
+	rows, err := r.Store.pool.Query(ctx, `
+		SELECT record_type, count(*) FROM (
+			SELECT record_type FROM crab.incident_proposals WHERE incident_id=$1
+			UNION ALL SELECT record_type FROM crab.continuity_proposals WHERE incident_id=$1
+			UNION ALL SELECT record_type FROM crab.obligation_proposals WHERE scope_id=$1
+			UNION ALL SELECT record_type FROM crab.communication_proposals WHERE incident_id=$1
+			UNION ALL SELECT record_type FROM crab.access_proposals WHERE scope_id=$1
+			UNION ALL SELECT record_type FROM crab.incident_recovery_proposals WHERE incident_id=$1 AND record_type <> $2
+			UNION ALL SELECT 'incident.relationship' FROM crab.incident_relationship_proposals WHERE incident_id=$1
+		) p GROUP BY record_type ORDER BY record_type`, incidentID, domain.TypeClosure)
+	if err != nil {
+		return out, fmt.Errorf("read pending proposals: %w", err)
+	}
+	for rows.Next() {
+		var recordType string
+		var n int
+		if err := rows.Scan(&recordType, &n); err != nil {
+			rows.Close()
+			return out, err
+		}
+		out.PendingByType[recordType] = n
+	}
+	rows.Close()
+	if err := rows.Err(); err != nil {
+		return out, err
+	}
+	clocks, err := r.Store.pool.Query(ctx, `SELECT name, deadline FROM crab.obligation_clocks WHERE incident_id=$1 AND status='active' AND deadline > $2 ORDER BY deadline, name`, incidentID, now)
+	if err != nil {
+		return out, fmt.Errorf("read obligation clocks: %w", err)
+	}
+	defer clocks.Close()
+	for clocks.Next() {
+		var c domain.RunningClock
+		if err := clocks.Scan(&c.Name, &c.Deadline); err != nil {
+			return out, err
+		}
+		out.RunningClocks = append(out.RunningClocks, c)
+	}
+	return out, clocks.Err()
 }

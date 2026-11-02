@@ -232,6 +232,7 @@ func abuseCases(f abuseFixture) []abuseCase {
 		{pattern: "POST /incident/{incidentID}/close/pir", method: "POST", path: inc("/close/pir"), ghost: ghost("/close/pir"), form: url.Values{"executive_summary": {"x"}, "lessons": {"x"}}},
 		{pattern: "POST /incident/{incidentID}/close/retention", method: "POST", path: inc("/close/retention"), ghost: ghost("/close/retention"), form: url.Values{"retention_class": {"x"}}},
 		{pattern: "POST /incident/{incidentID}/close/closure", method: "POST", path: inc("/close/closure"), ghost: ghost("/close/closure"), form: url.Values{"reason": {"x"}, "shareable_summary": {"x"}}},
+		{pattern: "POST /incident/{incidentID}/close/reopen", method: "POST", path: inc("/close/reopen"), ghost: ghost("/close/reopen"), form: url.Values{"reason": {"probe"}}},
 		{pattern: "POST /incident/{incidentID}/close/transcription", method: "POST", path: inc("/close/transcription"), ghost: ghost("/close/transcription"), form: url.Values{"statement": {"x"}, "paper_occurred_at": {"2026-11-02T00:00"}}},
 		{pattern: "POST /evidence/{evidenceID}/handling", method: "POST", path: "/evidence/" + f.evidence + "/handling", ghost: "/evidence/EVID-NOPE/handling", form: url.Values{"action": {"transferred"}, "handler": {"mallory"}}},
 		{pattern: "POST /api/v1/incidents/{incidentID}/facts", method: "POST", path: "/api/v1/incidents/INC-SECRET/facts", ghost: "/api/v1/incidents/INC-NOPE/facts", api: true, form: url.Values{"json": {`{"statement":"planted","source":"api"}`}}},
