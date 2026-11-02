@@ -1,0 +1,16 @@
+{
+  "journey:visible-sign-out:chromium": "F-13",
+  "journey:visible-sign-out:firefox": "F-13",
+  "journey:visible-sign-out:webkit": "F-13",
+  "journey:expired-session-keeps-unfinished-form:chromium": "F-14",
+  "journey:expired-session-keeps-unfinished-form:firefox": "F-14",
+  "journey:expired-session-keeps-unfinished-form:webkit": "F-14",
+  "journey:reflow-200-percent:chromium": "F-15",
+  "journey:reflow-200-percent:firefox": "F-15",
+  "journey:reflow-200-percent:webkit": "F-15",
+  "journey:reflow-400-percent:chromium": "F-15",
+  "journey:reflow-400-percent:firefox": "F-15",
+  "journey:reflow-400-percent:webkit": "F-15",
+  "journey:phone:chromium": "R-20",
+  "journey:phone:webkit": "R-20"
+}

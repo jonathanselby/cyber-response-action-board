@@ -1,0 +1,12 @@
+{
+  "name": "crab-uat",
+  "private": true,
+  "description": "Browser and accessibility harness for CRAB (R-17, R-18). Test-only (U-19): never shipped, never imported by the Go module.",
+  "type": "module",
+  "engines": { "node": ">=20" },
+  "scripts": { "test": "node run.mjs" },
+  "dependencies": {
+    "axe-core": "4.10.3",
+    "playwright": "1.63.0"
+  }
+}

@@ -1,0 +1,67 @@
+name: uat-browser
+
+# Browser and accessibility harness (R-17, R-18; T-245, T-246). Test-only
+# (U-19): Playwright and axe-core live in uat/, outside the Go module.
+# Gating: a new defect, or a recorded defect that now passes, fails the run.
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  browsers:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: crab_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d crab_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      CRAB_TEST_POSTGRES_ADMIN_URL: postgres://postgres:postgres@127.0.0.1:5432/crab_test?sslmode=disable
+      UAT_REQUIRE_ALL: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.27.2'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install harness (pinned)
+        working-directory: uat
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -f package-lock.json ]; then npm ci; else npm install --no-audit --no-fund; fi
+      - name: Keep the lockfile
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: uat-package-lock
+          path: uat/package-lock.json
+          if-no-files-found: ignore
+      - name: Install browsers
+        working-directory: uat
+        run: npx playwright install --with-deps chromium firefox webkit
+      - name: Build CRAB test binary
+        run: go test -count=1 -run '^$' ./cmd/crab
+      - name: Journeys and axe on Chromium, Firefox and WebKit
+        working-directory: uat
+        run: node run.mjs
+      - name: Results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: uat-browser-results
+          path: uat/results/
+          if-no-files-found: ignore
