@@ -34,6 +34,9 @@ type e2e struct {
 	admin   *pgxpool.Pool // superuser view of crab_e2e, for ledger counts only
 	runtime *operatorRuntime
 	clock   *testClock // nil: host clock
+	// served is the runtime behind handler. Background work that appends to
+	// the ledger (the notice pass) must use it: one kernel per process.
+	served *operatorRuntime
 }
 
 // now is the governed time the runtime sees.
@@ -193,7 +196,8 @@ func newE2EWithClock(t *testing.T, clk *testClock) *e2e {
 		cleanup()
 		admin.Close()
 	})
-	return &e2e{t: t, handler: server.Handler(), export: export, admin: admin, clock: clk}
+	served, _ := server.Runtime().(*operatorRuntime)
+	return &e2e{t: t, handler: server.Handler(), export: export, admin: admin, clock: clk, served: served}
 }
 
 func (e *e2e) do(method, path, cookie string, form url.Values) *httptest.ResponseRecorder {

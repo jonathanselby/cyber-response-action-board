@@ -194,13 +194,11 @@ func (r *operatorRuntime) Board(ctx context.Context, token, incidentID, compartm
 			for _, v := range issued {
 				if v.IssuedAt.After(cutoff) {
 					out.IssuedRecently = append(out.IssuedRecently, v)
-					if outcomes, err := store.NotificationOutcomes(ctx, incidentID, v.RecordID); err == nil {
-						for _, o := range outcomes {
-							if o.Outcome.Status == domain.NotificationFailed {
-								failedNotifications++
-							}
-						}
-					}
+				}
+				// A failure stays on the Board until it is resent (T-233).
+				if outcomes, err := store.NotificationOutcomes(ctx, incidentID, v.RecordID); err == nil {
+					failed, _ := app.FailedChannels(outcomes)
+					failedNotifications += len(failed)
 				}
 			}
 		}

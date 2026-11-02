@@ -129,7 +129,8 @@ func (s AccessService) ProposeCompartmentMembership(ctx context.Context, princip
 }
 
 // ProposeOutputPermission lets a Custodian propose granting or withdrawing a
-// separate output permission (print, download) for a named person. Another
+// separate output permission (print, download, or sending an issued
+// communication through notification channels) for a named person. Another
 // Custodian confirms it. Read access never implies output authority.
 func (s AccessService) ProposeOutputPermission(ctx context.Context, principal authz.Principal, recordID, humanID string, action authz.Action, active bool, now time.Time) (ledger.Record, error) {
 	if err := s.ready(); err != nil {
@@ -138,8 +139,8 @@ func (s AccessService) ProposeOutputPermission(ctx context.Context, principal au
 	if d := authz.Authorise(principal, authz.ActionAdminIdentityMetadata, authz.ObjectScope{SystemMetadata: true}); !d.Allowed {
 		return ledger.Record{}, ErrAuthorisationDenied
 	}
-	if action != authz.ActionPrint && action != authz.ActionDownload {
-		return ledger.Record{}, errors.New("only print and download permissions are administered here")
+	if action != authz.ActionPrint && action != authz.ActionDownload && action != authz.ActionNotify {
+		return ledger.Record{}, errors.New("only print, download and notify permissions are administered here")
 	}
 	if strings.TrimSpace(humanID) == "" {
 		return ledger.Record{}, errors.New("person is required")

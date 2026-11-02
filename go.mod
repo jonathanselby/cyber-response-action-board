@@ -1,12 +1,13 @@
 module github.com/jonathanselby/cyber-response-action-board
 
-go 1.25.0
+go 1.26.0
 
 toolchain go1.27.2
 
 require (
 	github.com/jackc/pgx/v5 v5.11.0
 	github.com/jonathanselby/go-app-shell v0.1.0
+	github.com/jonathanselby/notifier v0.2.0
 	github.com/signintech/gopdf v0.38.2
 	golang.org/x/image v0.31.0
 )

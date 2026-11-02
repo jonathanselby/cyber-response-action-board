@@ -59,6 +59,9 @@ func (s *Server) registerCommunicationRoutes() {
 	s.mux.HandleFunc("POST /incident/{incidentID}/communications/sitrep", s.post(sc, back, "drafted", func(r *http.Request, token string) error {
 		return s.runtime.GenerateSituationReport(r.Context(), token, id(r), formValue(r, "cadence_id"), "GENERAL")
 	}))
+	s.mux.HandleFunc("POST /incident/{incidentID}/communications/resend", s.post(sc, back, "resent", func(r *http.Request, token string) error {
+		return s.runtime.ResendCommunication(r.Context(), token, id(r), formValue(r, "communication_id"))
+	}))
 	s.mux.HandleFunc("POST /incident/{incidentID}/communications/notify", s.post(sc, back, "notified", func(r *http.Request, token string) error {
 		return s.runtime.NotifyCommunication(r.Context(), token, id(r), formValue(r, "communication_id"), lines(r.FormValue("channels")))
 	}))

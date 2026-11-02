@@ -103,7 +103,7 @@ func BoardNow(in BoardFocusInput) []NowItem {
 		add(plural(waiting, "approval is", "approvals are")+" waiting for you", "/approvals?incident="+in.Picture.Incident.IncidentID, "warning")
 	}
 	if in.FailedNotifications > 0 {
-		add(plural(in.FailedNotifications, "notification", "notifications")+" failed in the last 24 hours", "#comms", "danger")
+		add(plural(in.FailedNotifications, "notification", "notifications")+" failed — not retried automatically", "#comms", "danger")
 	}
 	if in.LastHandoverAt != nil {
 		fresh := 0

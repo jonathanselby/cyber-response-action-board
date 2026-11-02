@@ -96,6 +96,10 @@ func New() (*Server, error) {
 
 func (s *Server) Handler() http.Handler { return securityHeaders(s.mux) }
 
+// Runtime returns the installed runtime, so the composition root can start
+// its background work (the notice pass). Nil when unconfigured.
+func (s *Server) Runtime() Runtime { return s.runtime }
+
 func (s *Server) preparePWA() error {
 	cfg := shell.PWAConfig{
 		Name:            "CRAB — Cyber Response Action Board",

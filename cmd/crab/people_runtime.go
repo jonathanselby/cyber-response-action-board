@@ -26,6 +26,9 @@ func (r *operatorRuntime) peopleRows(ctx context.Context, principal authz.Princi
 		if p.AccountExpiresAt != nil {
 			row.AccountExpiresAt = p.AccountExpiresAt.UTC().Format(displayTime)
 		}
+		if p.Status != access.IdentityDisabled {
+			row.Route = r.personRoute(ctx, principal, p.HumanID)
+		}
 		rows = append(rows, row)
 	}
 	return rows, nil

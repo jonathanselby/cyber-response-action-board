@@ -226,6 +226,7 @@ var supportingTables = map[string]bool{
 	"ledger_entries": true, "schema_migrations": true, "sessions": true, "local_credentials": true,
 	"totp_credentials": true, "passkey_credentials": true, "break_glass_credentials": true,
 	"blobs": true, "blob_chunks": true, "intake_key_secrets": true,
+	"notification_routes": true, "notice_cursor": true,
 }
 
 // projectionSnapshot fingerprints every rebuildable projection table.

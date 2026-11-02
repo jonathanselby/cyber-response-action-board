@@ -334,6 +334,9 @@ func runServe(stdout, stderr io.Writer) int {
 	}
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
+	if n, ok := ui.Runtime().(interface{ RunNotices(context.Context) }); ok {
+		go n.RunNotices(ctx)
+	}
 	go func() {
 		<-ctx.Done()
 		shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)

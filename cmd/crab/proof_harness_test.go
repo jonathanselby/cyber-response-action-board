@@ -765,7 +765,7 @@ func TestProofUpgradeFromBaseline(t *testing.T) {
 
 	// The real migration, then verification and the incident continues.
 	out, err = exec.Command(newCrab, "migrate").CombinedOutput()
-	if err != nil || !strings.Contains(string(out), `"to_version": 21`) || !strings.Contains(string(out), `"ledger_verified": true`) {
+	if err != nil || !strings.Contains(string(out), fmt.Sprintf(`"to_version": %d`, postgres.CurrentSchemaVersion())) || !strings.Contains(string(out), `"ledger_verified": true`) {
 		t.Fatalf("migrate: %v\n%s", err, out)
 	}
 	if e.ledgerCount() != entries {

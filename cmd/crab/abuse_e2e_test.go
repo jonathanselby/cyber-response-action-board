@@ -185,6 +185,7 @@ func abuseCases(f abuseFixture) []abuseCase {
 	inc := func(suffix string) string { return "/incident/INC-SECRET" + suffix }
 	ghost := func(suffix string) string { return "/incident/INC-NOPE" + suffix }
 	majorProposes := map[string]string{"mallory": "Majors may propose organisation-level changes; maker-checker governs them"}
+	ownRoute := map[string]string{"outsider": "a person sets their own notification route (R-05)", "mallory": "a person sets their own notification route (R-05)", "extern": "a person sets their own notification route (R-05)"}
 	responders := map[string]string{"outsider": "responders capture first reports by design (PRD §17)", "mallory": "responders capture first reports by design (PRD §17)", "extern": "responders capture first reports by design (PRD §17)"}
 	c := []abuseCase{
 		// Public by design.
@@ -276,6 +277,10 @@ func abuseCases(f abuseFixture) []abuseCase {
 		{pattern: "POST /incident/{incidentID}/observables", method: "POST", path: inc("/observables"), ghost: ghost("/observables"), form: url.Values{"compartment": {"GENERAL"}, "type": {"ip"}, "value": {"203.0.113.9"}, "status": {"suspected"}, "source": {"probe"}}},
 		{pattern: "POST /observable/{observableID}/status", method: "POST", path: "/observable/" + f.observable + "/status", ghost: "/observable/OBS-NOPE/status", form: url.Values{"status": {"benign"}, "source": {"probe"}}},
 		{pattern: "GET /signout", method: "GET", path: "/signout"},
+		{pattern: "GET /account", method: "GET", path: "/account"},
+		{pattern: "POST /account/route", method: "POST", path: "/account/route", form: url.Values{"channel": {"mail"}, "address": {"attacker@evil.example"}}, mayWrite: ownRoute},
+		{pattern: "POST /access/route", method: "POST", path: "/access/route", form: url.Values{"human_id": {"alice"}, "channel": {"mail"}, "address": {"attacker@evil.example"}}},
+		{pattern: "POST /incident/{incidentID}/communications/resend", method: "POST", path: inc("/communications/resend"), ghost: ghost("/communications/resend"), form: url.Values{"communication_id": {"COM-1"}}},
 		{pattern: "POST /access/intake-key", method: "POST", path: "/access/intake-key", form: url.Values{"action": {"issue"}, "key_name": {"attacker-key"}, "accountable_human": {"mallory"}, "expires_at": {"2027-01-01T00:00"}, "reason": {"exfiltration"}}},
 		{pattern: "POST /access/intake-key/confirm", method: "POST", path: "/access/intake-key/confirm", ghost: "/access/intake-key/confirm", form: url.Values{"record_id": {f.intakeID}, "version": {f.intakeVersion}}, ghostForm: url.Values{"record_id": {"INTAKEKEY-NOPE"}, "version": {f.intakeVersion}}},
 		{pattern: "POST /api/v1/first-reports", method: "POST", path: "/api/v1/first-reports", api: true, form: url.Values{"json": {`{"description":"session token posing as an intake key"}`}}},

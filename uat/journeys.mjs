@@ -39,7 +39,7 @@ function unique(prefix) {
 const board = (info) => `${info.base}/incident/${info.incident}`;
 
 // Screens checked for reflow and phone layout.
-export const layoutScreens = (info) => ['/', '/approvals', '/intake', '/readiness', '/organisation', '/access',
+export const layoutScreens = (info) => ['/', '/approvals', '/intake', '/readiness', '/organisation', '/access', '/account',
   `/incident/${info.incident}`, `/incident/${info.incident}/evidence`, `/incident/${info.incident}/communications`,
   `/incident/${info.incident}/access`, `/incident/${info.incident}/close`, `/incident/${info.stress}`];
 

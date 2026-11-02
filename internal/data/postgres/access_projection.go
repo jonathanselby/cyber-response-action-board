@@ -236,10 +236,12 @@ func applyIdentity(ctx context.Context, tx pgx.Tx, record ledger.Record, change 
 			return err
 		}
 	}
-	// Disabled is final, so credential material has no further use and is not
-	// kept (Garage rule 8). Replaying this on rebuild is idempotent.
+	// Disabled is final, so credential material and the notification route
+	// have no further use and are not kept (Garage rule 8); the route's audit
+	// records remain in the ledger. Suspension keeps the route and sends
+	// nothing. Replaying this on rebuild is idempotent.
 	if id.Status == access.IdentityDisabled {
-		for _, stmt := range []string{`DELETE FROM crab.local_credentials WHERE human_id=$1`, `DELETE FROM crab.totp_credentials WHERE human_id=$1`} {
+		for _, stmt := range []string{`DELETE FROM crab.local_credentials WHERE human_id=$1`, `DELETE FROM crab.totp_credentials WHERE human_id=$1`, `DELETE FROM crab.notification_routes WHERE human_id=$1`} {
 			if _, err := tx.Exec(ctx, stmt, id.HumanID); err != nil {
 				return err
 			}

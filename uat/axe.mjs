@@ -14,6 +14,7 @@ export const screens = [
   { id: 'organisation', path: () => '/organisation' },
   { id: 'obligation-library', path: () => '/obligations' },
   { id: 'access-admin', path: () => '/access' },
+  { id: 'account', path: () => '/account' },
   { id: 'board', path: (info) => inc(info) },
   { id: 'stress-board', path: (info) => `/incident/${info.stress}` },
   { id: 'evidence', path: (info) => inc(info, '/evidence') },

@@ -79,6 +79,8 @@ type NotificationOutcome struct {
 	Detail          string    `json:"detail,omitempty"`
 	Acknowledgement string    `json:"acknowledgement,omitempty"`
 	DurationMS      int64     `json:"duration_ms"`
+	// RequestID links the attempt to its notification request record.
+	RequestID string `json:"request_id,omitempty"`
 }
 
 type IncomingEnquiry struct {

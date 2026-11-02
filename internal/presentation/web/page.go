@@ -67,6 +67,8 @@ var messages = map[string]string{
 	"report-recorded":      "First report recorded.",
 	"handover-recorded":    "Handover recorded.",
 	"notified":             "Notification attempts recorded. See the outcomes below.",
+	"resent":               "Resent to the channels that failed. See the outcomes below.",
+	"route-saved":          "Notification route saved.",
 	"drafted":              "Draft recorded.",
 	"triaged":              "Triage recorded.",
 	"decided":              "Decision recorded.",
@@ -76,7 +78,7 @@ type navItem struct{ key, label, path string }
 
 var responseNav = []navItem{{"incidents", "Command Summary", "/"}, {"approvals", "Approvals", "/approvals"}, {"intake", "First reports", "/intake"}}
 var incidentNav = []navItem{{"board", "Board", ""}, {"evidence", "Evidence", "/evidence"}, {"communications", "Communications", "/communications"}, {"access", "Access", "/access"}, {"close", "Close-out", "/close"}}
-var systemNav = []navItem{{"readiness", "Readiness", "/readiness"}, {"organisation", "Organisation", "/organisation"}, {"obligations", "Obligation library", "/obligations"}, {"access-admin", "Access admin", "/access"}, {"signout", "Sign out", "/signout"}}
+var systemNav = []navItem{{"readiness", "Readiness", "/readiness"}, {"organisation", "Organisation", "/organisation"}, {"obligations", "Obligation library", "/obligations"}, {"access-admin", "Access admin", "/access"}, {"account", "Your account", "/account"}, {"signout", "Sign out", "/signout"}}
 
 func (s *Server) navigation(frame FrameView, current string) []shell.NavGroup {
 	group := func(label string, items []navItem, prefix string) shell.NavGroup {
@@ -551,6 +553,7 @@ var templateFuncs = template.FuncMap{
 		sort.Strings(keys)
 		return keys
 	},
+	"delivery": func(m map[string]DeliveryView, id string) DeliveryView { return m[id] },
 	"outcomes": func(m map[string][]domain.NotificationOutcomeView, id string) []domain.NotificationOutcomeView {
 		return m[id]
 	},

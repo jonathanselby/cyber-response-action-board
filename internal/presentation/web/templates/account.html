@@ -1,0 +1,15 @@
+{{define "account"}}{{template "feedback" .}}
+<section class="gas-panel gas-stack" aria-labelledby="route-h">
+<h2 id="route-h">Notification route</h2>
+<p>CRAB sends you a short notice when something needs you: a new assignment, items waiting for your decision, a deadline you own, temporary access you can renew, or (where your organisation enables it) a confirmed severity or phase change. A notice says only what kind of item it is and the incident ID. It never contains incident details and never approves anything. Sign in to CRAB to act.</p>
+<p>Your route is not used to sign in, recover an account or verify who you are.</p>
+{{with .Data.Route}}{{if .Hint}}<p>Current route: <strong>{{.Channel}}</strong> to <strong>{{.Hint}}</strong></p>{{else}}<p class="gas-muted">You have no route. Notices are recorded as <em>no route</em> and the items stay on your Command Summary.</p>{{end}}
+{{if .Channels}}{{template "route-form" .}}{{else}}<p class="gas-muted">No channel that reaches a person is configured yet. Ask your administrator.</p>{{end}}{{end}}
+</section>{{end}}
+
+{{define "route-form"}}<form class="gas-form gas-stack" method="post" action="{{if .HumanID}}/access/route{{else}}/account/route{{end}}">
+{{if .HumanID}}<input type="hidden" name="human_id" value="{{.HumanID}}">{{end}}
+<fieldset class="gas-stack"><legend>Channel</legend>{{$cur := .Channel}}{{range $i, $c := .Channels}}<label class="gas-cluster"><input type="radio" name="channel" value="{{$c}}"{{if or (eq $c $cur) (and (not $cur) (eq $i 0))}} checked{{end}}> {{$c}}</label>{{end}}</fieldset>
+<div class="gas-field"><label for="route-addr{{.HumanID}}">Address</label><input id="route-addr{{.HumanID}}" name="address" autocomplete="off" required></div>
+<div class="gas-cluster"><button class="gas-button gas-button--primary">Save route</button>{{if .Hint}}<button class="gas-button" name="clear" value="1" formnovalidate>Remove route</button>{{end}}</div>
+</form>{{end}}

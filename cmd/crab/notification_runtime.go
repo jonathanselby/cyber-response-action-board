@@ -11,57 +11,63 @@ import (
 	"github.com/jonathanselby/cyber-response-action-board/internal/config"
 )
 
-type notificationChannelDeployment struct {
-	Name           string `json:"name"`
-	Type           string `json:"type"`
-	Target         string `json:"target"`
-	DestinationID  string `json:"destination_id"`
-	TimeoutSeconds int    `json:"timeout_seconds,omitempty"`
+// noticeDeployment is the organisation's notice settings (R-05). Escalation
+// notices (event 4) are off unless enabled here.
+type noticeDeployment struct {
+	EscalationEnabled        bool     `json:"escalation_enabled,omitempty"`
+	EscalationToMembers      bool     `json:"escalation_to_members,omitempty"`
+	EscalationSharedChannels []string `json:"escalation_shared_channels,omitempty"`
+	DecisionWindowMinutes    int      `json:"decision_window_minutes,omitempty"`
+	AccessExpiryLeadHours    int      `json:"access_expiry_lead_hours,omitempty"`
 }
 
 type notificationDeploymentFile struct {
-	Channels []notificationChannelDeployment `json:"channels"`
+	Channels []notifier.Deployment `json:"channels"`
+	Notices  noticeDeployment      `json:"notices"`
 }
 
-func loadNotificationDeployment(cfg config.Config) ([]app.NotificationChannel, error) {
+type notificationDeployment struct {
+	Channels []app.NotificationChannel
+	Policy   app.NoticePolicy
+}
+
+func loadNotificationDeployment(cfg config.Config) (notificationDeployment, error) {
 	if strings.TrimSpace(cfg.NotificationConfigFile) == "" {
-		return nil, nil
+		return notificationDeployment{Policy: app.DefaultNoticePolicy()}, nil
 	}
 	var file notificationDeploymentFile
 	if err := readPrivateJSONFile(cfg.NotificationConfigFile, &file); err != nil {
-		return nil, fmt.Errorf("notification deployment config: %w", err)
+		return notificationDeployment{}, fmt.Errorf("notification deployment config: %w", err)
 	}
-	channels := make([]app.NotificationChannel, 0, len(file.Channels))
-	for _, value := range file.Channels {
-		channelType := strings.ToLower(strings.TrimSpace(value.Type))
-		if value.TimeoutSeconds < 0 {
-			return nil, errors.New("notification timeout_seconds must not be negative")
-		}
-		channel := app.NotificationChannel{Name: strings.TrimSpace(value.Name), Type: channelType, Target: strings.TrimSpace(value.Target), DestinationID: strings.TrimSpace(value.DestinationID), Timeout: time.Duration(value.TimeoutSeconds) * time.Second}
-		switch channelType {
-		case notifier.ChannelLocalFile:
-			channel.External = false
-		case notifier.ChannelWebhook:
-			channel.External = true
-		default:
-			return nil, fmt.Errorf("unsupported notification channel type %q", channelType)
-		}
-		channels = append(channels, channel)
+	channels, err := notifier.Channels(file.Channels)
+	if err != nil {
+		return notificationDeployment{}, err
 	}
-	if err := notifier.ValidateChannels(channels); err != nil {
-		return nil, err
+	n := file.Notices
+	if n.DecisionWindowMinutes < 0 || n.DecisionWindowMinutes > 24*60 || n.AccessExpiryLeadHours < 0 || n.AccessExpiryLeadHours > 7*24 {
+		return notificationDeployment{}, errors.New("notices: decision_window_minutes must be 0–1440 and access_expiry_lead_hours 0–168")
 	}
-	app.SortNotificationChannels(channels)
-	return channels, nil
+	policy := app.DefaultNoticePolicy()
+	policy.EscalationEnabled, policy.EscalationToMembers, policy.EscalationSharedChannels = n.EscalationEnabled, n.EscalationToMembers, n.EscalationSharedChannels
+	if n.DecisionWindowMinutes > 0 {
+		policy.DecisionWindow = time.Duration(n.DecisionWindowMinutes) * time.Minute
+	}
+	if n.AccessExpiryLeadHours > 0 {
+		policy.AccessExpiryLead = time.Duration(n.AccessExpiryLeadHours) * time.Hour
+	}
+	if err := app.ValidateNoticePolicy(policy, channels); err != nil {
+		return notificationDeployment{}, err
+	}
+	return notificationDeployment{Channels: channels, Policy: policy}, nil
 }
 
 func notificationDeploymentReadiness(cfg config.Config) app.Check {
 	if strings.TrimSpace(cfg.NotificationConfigFile) == "" {
 		return app.Check{Name: "notification_channels", Status: "not-configured", Message: "no notification deployment file configured; communications remain recordable without delivery"}
 	}
-	channels, err := loadNotificationDeployment(cfg)
+	d, err := loadNotificationDeployment(cfg)
 	if err != nil {
 		return app.Check{Name: "notification_channels", Status: "fail", Message: err.Error()}
 	}
-	return app.Check{Name: "notification_channels", Status: "pass", Message: fmt.Sprintf("%d notification channel(s) configured and validated", len(channels))}
+	return app.Check{Name: "notification_channels", Status: "pass", Message: fmt.Sprintf("%d notification channel(s) configured and validated", len(d.Channels))}
 }

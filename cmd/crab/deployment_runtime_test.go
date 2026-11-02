@@ -68,10 +68,11 @@ func TestNotificationDeploymentDerivesExternalBoundary(t *testing.T) {
     {"name":"external","type":"webhook","target":"https://notify.example.test/crab","destination_id":"external-api","timeout_seconds":5}
   ]
 }`)
-	channels, err := loadNotificationDeployment(config.Config{NotificationConfigFile: path})
+	deployment, err := loadNotificationDeployment(config.Config{NotificationConfigFile: path})
 	if err != nil {
 		t.Fatal(err)
 	}
+	channels := deployment.Channels
 	if len(channels) != 2 {
 		t.Fatalf("channels=%d", len(channels))
 	}

@@ -56,6 +56,9 @@ type operatorRuntime struct {
 	intake          app.IntakeService
 	observables     app.ObservableService
 	management      app.ManagementService
+	routes          app.RouteService
+	notices         app.NoticeService
+	noticeStore     *postgres.NoticeRuntime
 }
 
 type signingKeyFile struct {
@@ -146,7 +149,12 @@ func newOperatorRuntime() (web.Runtime, error) {
 	if err != nil {
 		return fail(err)
 	}
-	channels, err := loadNotificationDeployment(cfg)
+	deployment, err := loadNotificationDeployment(cfg)
+	if err != nil {
+		return fail(err)
+	}
+	channels := deployment.Channels
+	noticeStore, err := postgres.NewNoticeRuntime(kernel, signer, pool)
 	if err != nil {
 		return fail(err)
 	}
@@ -200,7 +208,11 @@ func newOperatorRuntime() (web.Runtime, error) {
 	r.management = app.ManagementService{Backend: managementStore}
 	intakeRate, intakeRefusals := app.NewIntakeLimiters()
 	r.intake = app.IntakeService{Keys: accessStore, Secrets: accessStore, Reports: intakeReports, Rate: intakeRate, Refusals: intakeRefusals}
-	r.communication = app.CommunicationService{Backend: communicationBackend, Incident: r.incident, Notifier: notifier.Sender{}, Channels: channels, Window: r.organisation}
+	sender := notifier.Sender{}
+	r.communication = app.CommunicationService{Backend: communicationBackend, Incident: r.incident, Notifier: sender, Channels: channels, Window: r.organisation}
+	r.noticeStore = noticeStore
+	r.routes = app.RouteService{Backend: noticeStore, People: accessStore, Notifier: sender, Channels: channels}
+	r.notices = app.NoticeService{Backend: noticeStore, People: accessStore, Approvals: app.ApprovalsService{Backend: approvalsBackend{r}}, Notifier: sender, Channels: channels, Policy: deployment.Policy}
 	r.recovery = app.RecoveryService{Backend: recoveryBackend, Window: r.organisation}
 	if corpusStore, err := postgres.NewCorpusStore(pool); err == nil {
 		if corpusBackend, err := postgres.NewCorpusRuntime(kernel, signer, blobStore, corpusStore); err == nil {

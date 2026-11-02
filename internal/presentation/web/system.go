@@ -57,6 +57,26 @@ func (s *Server) registerSystemRoutes() {
 	// Sign out is a page with one button, so the navigation can offer it as
 	// an ordinary link while the session still ends only by POST (F-13).
 	s.mux.HandleFunc("GET /signout", s.show(screen{nav: "signout", title: "Sign out", summary: "End your session on this device.", tmpl: "signout"}))
+	account := screen{nav: "account", title: "Your account", summary: "How CRAB tells you when something needs you.", tmpl: "account"}
+	account.load = func(r *http.Request, token string, frame FrameView) (any, []Action, error) {
+		v, err := s.runtime.Account(r.Context(), token)
+		return v, nil, err
+	}
+	s.mux.HandleFunc("GET /account", s.show(account))
+	s.mux.HandleFunc("POST /account/route", s.post(account, func(*http.Request) string { return "/account" }, "route-saved", func(r *http.Request, token string) error {
+		address := formValue(r, "address")
+		if formValue(r, "clear") != "" {
+			address = ""
+		}
+		return s.runtime.SetNotificationRoute(r.Context(), token, "", formValue(r, "channel"), address)
+	}))
+	s.mux.HandleFunc("POST /access/route", s.post(admin, func(*http.Request) string { return "/access#people" }, "route-saved", func(r *http.Request, token string) error {
+		address := formValue(r, "address")
+		if formValue(r, "clear") != "" {
+			address = ""
+		}
+		return s.runtime.SetNotificationRoute(r.Context(), token, formValue(r, "human_id"), formValue(r, "channel"), address)
+	}))
 	s.mux.HandleFunc("POST /incident", s.post(incidents, func(*http.Request) string { return "/" }, "proposed", func(r *http.Request, token string) error {
 		return s.runtime.DeclareIncident(r.Context(), token, formValue(r, "incident_id"), formValue(r, "mode"), formValue(r, "title"), formValue(r, "summary"), formValue(r, "severity"))
 	}))

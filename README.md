@@ -106,7 +106,7 @@ CRAB_NOTIFICATION_CONFIG_FILE
 
 Model and notification deployment files must be private local JSON files. Managed-provider authentication is referenced by environment-variable name from the private model deployment file; authentication material is not stored in repository configuration. A configured Ollama endpoint must be loopback-only. Managed provider endpoints must use HTTPS.
 
-Notification channels are currently either local file sinks or HTTPS webhooks. CRAB derives whether a channel is external from its type; callers cannot relabel an external webhook as local. Exercise-mode external delivery is suppressed before adapter I/O.
+Notifications go through the Garage [`notifier`](https://github.com/jonathanselby/notifier) component (v0.2.0). Channel types are local file sinks (`local_file`), HTTPS webhooks (`webhook`, optionally `"body_shape": "text"` for Teams or Slack), and two per-person channels: `email` (SMTP with STARTTLS required) and `sms-http` (an HTTPS gateway with a JSON body template). CRAB derives whether a channel is external from its type; callers cannot relabel an external webhook as local. Exercise-mode external delivery is suppressed before any I/O. See [`docs/notifications.md`](docs/notifications.md) for the deployment file, people's routes and the five notice events.
 
 ## Write semantics
 

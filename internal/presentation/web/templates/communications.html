@@ -51,9 +51,20 @@
 <h2 id="issued">Issued</h2>
 {{range .Issued}}{{$id := .RecordID}}<article class="gas-stack"><div class="gas-cluster"><span class="gas-badge gas-badge--success">ISSUED</span><strong>{{.Issue.Subject}}</strong><span class="gas-muted">{{when .IssuedAt}} · approved by {{.Confirmer}}</span></div>
 <p class="gas-muted">To: {{join .Issue.Audience ", "}}</p>
-{{with outcomes $.Data.Outcomes $id}}<ul class="gas-stack">{{range .}}<li><span class="gas-badge gas-badge--{{statusBadge .Outcome.Status}}">{{upper .Outcome.Status}}</span> {{.Outcome.Channel}} · {{when .Outcome.AttemptedAt}}{{if .Outcome.Detail}} · {{.Outcome.Detail}}{{end}}</li>{{end}}</ul>{{else}}<p class="gas-muted">No delivery attempts yet.</p>{{end}}
+{{with delivery $.Data.Deliveries $id}}{{if or .Requests .Earlier}}<div class="gas-table-wrap"><table><caption>Delivery</caption><thead><tr><th scope="col">Requested</th><th scope="col">Channel</th><th scope="col">Outcome</th></tr></thead><tbody>
+{{range .Requests}}{{$req := .}}{{range .Attempts}}<tr><td>{{$req.At}} · {{$req.By}}{{if $req.Resend}} · resend{{end}}</td><td>{{.Channel}}</td><td><span class="gas-badge gas-badge--{{statusBadge .Status}}">{{upper .Status}}</span> <span class="gas-status-text">{{.StatusText}}{{if .Detail}} ({{.Detail}}){{end}} · {{.At}}</span></td></tr>{{end}}{{range .Missing}}<tr><td>{{$req.At}} · {{$req.By}}</td><td>{{.}}</td><td><span class="gas-badge gas-badge--warning">NOT ATTEMPTED</span> <span class="gas-status-text">Requested, but no attempt was recorded (CRAB stopped first). Send again if still needed.</span></td></tr>{{end}}{{end}}
+{{range .Earlier}}<tr><td>earlier</td><td>{{.Channel}}</td><td><span class="gas-badge gas-badge--{{statusBadge .Status}}">{{upper .Status}}</span> <span class="gas-status-text">{{.StatusText}}{{if .Detail}} ({{.Detail}}){{end}} · {{.At}}</span></td></tr>{{end}}
+</tbody></table></div>{{if .CanResend}}<form method="post" action="{{incidentURL $.Data.IncidentID "/communications/resend"}}"><input type="hidden" name="communication_id" value="{{$id}}"><input type="hidden" name="compartment" value="{{$.Data.Compartment}}"><button class="gas-button">Resend to failed: {{join .Failed ", "}}</button></form>{{else if .Failed}}<p class="gas-muted">Failed on {{join .Failed ", "}} — not retried automatically.</p>{{end}}{{else}}<p class="gas-muted">No delivery requested yet.</p>{{end}}{{end}}
 {{if .Issue.Channels}}<form method="post" action="{{incidentURL .IncidentID "/communications/notify"}}"><input type="hidden" name="communication_id" value="{{.RecordID}}"><input type="hidden" name="compartment" value="{{$.Data.Compartment}}"><input type="hidden" name="channels" value="{{join .Issue.Channels "\n"}}"><button class="gas-button">Send via {{join .Issue.Channels ", "}}</button></form>{{end}}
 </article>{{else}}<p class="gas-empty">Nothing issued yet.</p>{{end}}
+</section>
+
+<section class="gas-panel gas-stack" aria-labelledby="notices">
+<h2 id="notices">Notices sent</h2>
+<p class="gas-muted">CRAB tells people when something needs them. A notice says only what kind of item it is and, where they may read it, the incident ID. It never approves anything.</p>
+{{if .Notices}}<div class="gas-table-wrap"><table><thead><tr><th scope="col">When</th><th scope="col">Kind</th><th scope="col">To</th><th scope="col">Outcome</th></tr></thead>
+<tbody>{{range .Notices}}<tr><td>{{.At}}</td><td>{{.Kind}}</td><td>{{.Recipient}}{{if .Channel}} · {{.Channel}}{{end}}</td><td><span class="gas-badge gas-badge--{{statusBadge .Status}}">{{upper .Status}}</span> <span class="gas-status-text">{{.StatusText}}</span></td></tr>{{end}}</tbody></table></div>
+{{else}}<p class="gas-empty">No notices sent for this incident.</p>{{end}}
 </section>
 
 <section class="gas-panel gas-stack" aria-labelledby="enq">

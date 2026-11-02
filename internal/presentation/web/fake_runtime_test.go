@@ -311,6 +311,18 @@ func (f *fakeRuntime) NotifyCommunication(context.Context, string, string, strin
 	return f.record("NotifyCommunication")
 }
 
+func (f *fakeRuntime) ResendCommunication(context.Context, string, string, string) error {
+	return f.record("ResendCommunication")
+}
+
+func (f *fakeRuntime) Account(context.Context, string) (AccountPage, error) {
+	return AccountPage{HumanID: "alice", Route: RouteForm{Channel: "mail", Hint: "a…@example.test", Channels: []string{"mail", "sms"}}}, nil
+}
+
+func (f *fakeRuntime) SetNotificationRoute(context.Context, string, string, string, string) error {
+	return f.record("SetNotificationRoute")
+}
+
 func (f *fakeRuntime) AccessAdministration(context.Context, string) (AccessAdministrationPage, error) {
 	return AccessAdministrationPage{People: f.people}, nil
 }

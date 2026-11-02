@@ -77,6 +77,13 @@ type Runtime interface {
 	RecordIncomingEnquiry(ctx context.Context, token, incidentID, compartment string, value domain.IncomingEnquiry) error
 	GenerateSituationReport(ctx context.Context, token, incidentID, cadenceID, compartment string) error
 	NotifyCommunication(ctx context.Context, token, incidentID, communicationID string, channels []string) error
+	// ResendCommunication resends to the channels whose latest attempt failed.
+	ResendCommunication(ctx context.Context, token, incidentID, communicationID string) error
+	// Account is the signed-in person's own page.
+	Account(ctx context.Context, token string) (AccountPage, error)
+	// SetNotificationRoute sets or clears a route; humanID "" means the
+	// signed-in person. An empty address clears it.
+	SetNotificationRoute(ctx context.Context, token, humanID, channel, address string) error
 
 	// Access and readiness.
 	ProposePerson(ctx context.Context, token string, in PersonInput) error
@@ -528,6 +535,8 @@ type PersonRow struct {
 	Incidents                                                          []string
 	CanSuspend, CanReactivate, CanDisable, CanReset, CanRecordIdentity bool
 	CanChangeRole                                                      bool
+	// Route is set only when the viewer may manage this person's route.
+	Route *RouteForm
 }
 
 // PersonInput is the add-person form.
@@ -645,9 +654,48 @@ type CommunicationsPage struct {
 	Drafts       []domain.CommunicationDraftView
 	Issued       []domain.CommunicationView
 	Outcomes     map[string][]domain.NotificationOutcomeView
-	Cadences     []domain.CommunicationCadenceView
-	Enquiries    []domain.IncomingEnquiryView
-	Pending      []PendingCommunicationItem
+	// Deliveries holds each issued communication's delivery history.
+	Deliveries map[string]DeliveryView
+	// Notices are the notices CRAB sent for this incident (R-05).
+	Notices   []NoticeRow
+	Cadences  []domain.CommunicationCadenceView
+	Enquiries []domain.IncomingEnquiryView
+	Pending   []PendingCommunicationItem
+}
+
+// DeliveryAttemptView is one delivery attempt, already worded.
+type DeliveryAttemptView struct{ Channel, Status, StatusText, Detail, At string }
+
+// DeliveryRequestView is one request to send; Missing lists channels with
+// no recorded attempt.
+type DeliveryRequestView struct {
+	By, At   string
+	Resend   bool
+	Attempts []DeliveryAttemptView
+	Missing  []string
+}
+
+// DeliveryView is a communication's delivery history.
+type DeliveryView struct {
+	Requests  []DeliveryRequestView
+	Earlier   []DeliveryAttemptView
+	Failed    []string
+	CanResend bool
+}
+
+// NoticeRow is one notice, already worded. It never carries an address.
+type NoticeRow struct{ Kind, Recipient, Channel, Status, StatusText, At string }
+
+// RouteForm is a person's notification route as shown: a masked hint only.
+type RouteForm struct {
+	HumanID, Channel, Hint string
+	Channels               []string
+}
+
+// AccountPage is the signed-in person's own settings.
+type AccountPage struct {
+	HumanID, DisplayName string
+	Route                RouteForm
 }
 
 // ---- Close-out -------------------------------------------------------------

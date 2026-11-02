@@ -62,3 +62,11 @@ func (r *CommunicationRuntime) IssuedCommunication(ctx context.Context, incident
 func (r *CommunicationRuntime) CommunicationCadence(ctx context.Context, incidentID, cadenceID string) (domain.CommunicationCadenceView, bool, error) {
 	return r.Store.CommunicationCadence(ctx, incidentID, cadenceID)
 }
+
+func (r *CommunicationRuntime) NotificationOutcomes(ctx context.Context, incidentID, communicationID string) ([]domain.NotificationOutcomeView, error) {
+	return r.Store.NotificationOutcomes(ctx, incidentID, communicationID)
+}
+
+func (r *CommunicationRuntime) NotificationRequests(ctx context.Context, incidentID, communicationID string) ([]domain.NotificationRequestView, error) {
+	return r.Store.NotificationRequests(ctx, incidentID, communicationID)
+}

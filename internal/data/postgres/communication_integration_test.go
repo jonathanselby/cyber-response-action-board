@@ -28,6 +28,8 @@ func (n *postgresTestNotifier) Deliver(_ context.Context, channel app.Notificati
 	return app.NotificationAttempt{Status: domain.NotificationDelivered}
 }
 
+func (n *postgresTestNotifier) AcceptsAddress(app.NotificationChannel, string) bool { return true }
+
 func (n *postgresTestNotifier) callNames() []string {
 	n.mu.Lock()
 	defer n.mu.Unlock()

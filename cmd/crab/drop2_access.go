@@ -209,6 +209,7 @@ func (r *operatorRuntime) Readiness(ctx context.Context, token string) (web.Read
 	if custodians, err := r.accessService.CustodianReadiness(ctx, r.kernel.Clock().Read().Now); err == nil {
 		setReadinessCheck(&value, custodians)
 	}
+	setReadinessCheck(&value, r.routes.Readiness(ctx))
 	if backend, ok := r.evidence.Backend.(*postgres.EvidenceRuntime); ok {
 		if orphans, err := backend.OrphanBlobs(ctx); err == nil {
 			setReadinessCheck(&value, app.OrphanBlobCheck(orphans))

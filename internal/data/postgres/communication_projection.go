@@ -22,7 +22,7 @@ func (CommunicationProjection) Reset(ctx context.Context, tx pgx.Tx) error {
 	if _, err := tx.Exec(ctx, `DELETE FROM crab.incident_timeline WHERE record_type IN ($1,$2)`, domain.TypeCommunicationIssue, domain.TypeCommunicationCadence); err != nil {
 		return err
 	}
-	_, err := tx.Exec(ctx, `TRUNCATE crab.incoming_enquiries, crab.notification_outcomes, crab.communication_cadences, crab.communications, crab.communication_proposals, crab.communication_drafts`)
+	_, err := tx.Exec(ctx, `TRUNCATE crab.incoming_enquiries, crab.notification_requests, crab.notification_outcomes, crab.communication_cadences, crab.communications, crab.communication_proposals, crab.communication_drafts`)
 	return err
 }
 
@@ -121,7 +121,19 @@ func applyCommunicationRecord(ctx context.Context, tx pgx.Tx, record ledger.Reco
 		if err := domain.ValidateNotificationOutcome(value); err != nil {
 			return err
 		}
-		_, err = tx.Exec(ctx, `INSERT INTO crab.notification_outcomes(incident_id,record_id,compartment,communication_id,channel,destination_id,attempted_at,status,detail,acknowledgement,duration_ms,maker,recorded_at) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)`, record.IncidentID, record.RecordID, record.Compartment, value.CommunicationID, value.Channel, value.DestinationID, value.AttemptedAt, value.Status, value.Detail, value.Acknowledgement, value.DurationMS, record.Maker, record.Timestamp)
+		_, err = tx.Exec(ctx, `INSERT INTO crab.notification_outcomes(incident_id,record_id,compartment,communication_id,channel,destination_id,attempted_at,status,detail,acknowledgement,duration_ms,maker,recorded_at,request_id) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)`, record.IncidentID, record.RecordID, record.Compartment, value.CommunicationID, value.Channel, value.DestinationID, value.AttemptedAt, value.Status, value.Detail, value.Acknowledgement, value.DurationMS, record.Maker, record.Timestamp, value.RequestID)
+		return err
+	case domain.TypeNotificationRequest:
+		value, err := domain.DecodePayload[domain.NotificationRequest](record)
+		if err != nil {
+			return err
+		}
+		if err := domain.ValidateNotificationRequest(value); err != nil {
+			return err
+		}
+		channels, _ := json.Marshal(value.Channels)
+		resend, _ := json.Marshal(append([]string{}, value.ResendOf...))
+		_, err = tx.Exec(ctx, `INSERT INTO crab.notification_requests(incident_id,record_id,compartment,communication_id,channels,resend_of,maker,requested_at) VALUES($1,$2,$3,$4,$5,$6,$7,$8)`, record.IncidentID, record.RecordID, record.Compartment, value.CommunicationID, channels, resend, record.Maker, record.Timestamp)
 		return err
 	case domain.TypeIncomingEnquiry:
 		value, err := domain.DecodePayload[domain.IncomingEnquiry](record)
@@ -239,7 +251,7 @@ func upsertCommunicationWake(ctx context.Context, tx pgx.Tx, incidentID, cadence
 
 func communicationType(recordType string) bool {
 	switch recordType {
-	case domain.TypeCommunicationDraft, domain.TypeCommunicationIssue, domain.TypeCommunicationCadence, domain.TypeNotificationOutcome, domain.TypeIncomingEnquiry:
+	case domain.TypeCommunicationDraft, domain.TypeCommunicationIssue, domain.TypeCommunicationCadence, domain.TypeNotificationOutcome, domain.TypeNotificationRequest, domain.TypeIncomingEnquiry:
 		return true
 	default:
 		return false

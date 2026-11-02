@@ -27,8 +27,9 @@
 <div class="gas-cluster"><button class="gas-button gas-button--primary">Propose</button></div>
 </form>
 </details>
-{{range .People}}{{if or .CanSuspend .CanReactivate .CanDisable .CanReset .CanChangeRole}}<details class="gas-panel" id="manage-{{.HumanID}}">
+{{range .People}}{{if or .CanSuspend .CanReactivate .CanDisable .CanReset .CanChangeRole .Route}}<details class="gas-panel" id="manage-{{.HumanID}}">
 <summary><h3>Manage {{.DisplayName}} <span class="gas-muted">{{.HumanID}}</span></h3></summary>
+{{with .Route}}<div class="gas-stack"><h4>Notification route</h4>{{if .Hint}}<p>{{.Channel}} to <strong>{{.Hint}}</strong></p>{{else}}<p class="gas-muted">No route: their notices are recorded as no route.</p>{{end}}{{if .Channels}}{{template "route-form" .}}{{end}}</div>{{end}}
 {{if .CanReset}}<form class="gas-form gas-stack" method="post" action="/access/person/reset">
 <input type="hidden" name="_form" value="reset"><input type="hidden" name="human_id" value="{{.HumanID}}">
 <div class="gas-field"><label for="r-{{.HumanID}}">Issue an enrolment code — reason</label><input id="r-{{.HumanID}}" name="reason" required placeholder="New responder, or forgotten password"></div>
@@ -89,18 +90,18 @@
 </details>{{end}}{{end}}
 </section>
 <section class="gas-panel gas-stack" aria-labelledby="outputs">
-<h2 id="outputs">Print and download permissions</h2>
-<p class="gas-help">Reading an incident never allows printing or downloading. These are separate permissions, granted by one Custodian and confirmed by another.</p>
+<h2 id="outputs">Print, download and send permissions</h2>
+<p class="gas-help">Reading an incident never allows printing, downloading or sending an issued communication. These are separate permissions, granted by one Custodian and confirmed by another.</p>
 {{if .OutputPermissions}}<div class="gas-table-wrap"><table><thead><tr><th scope="col">Person</th><th scope="col">Permission</th></tr></thead>
-<tbody>{{range .OutputPermissions}}<tr><th scope="row">{{.HumanID}}</th><td>{{if eq .Action "print"}}Print paper and PDFs{{else if eq .Action "download"}}Download evidence{{else}}{{.Action}}{{end}}</td></tr>{{end}}</tbody></table></div>
-{{else}}<p class="gas-empty">Nobody can print or download yet.</p>{{end}}
+<tbody>{{range .OutputPermissions}}<tr><th scope="row">{{.HumanID}}</th><td>{{if eq .Action "print"}}Print paper and PDFs{{else if eq .Action "download"}}Download evidence{{else if eq .Action "notify"}}Send issued communications{{else}}{{.Action}}{{end}}</td></tr>{{end}}</tbody></table></div>
+{{else}}<p class="gas-empty">Nobody can print, download or send yet.</p>{{end}}
 <details id="output" class="gas-panel"{{if eq $.Open "output"}} open{{end}}>
 <summary><h2>Grant or withdraw a permission</h2></summary>
 {{template "write-governed"}}
 <form class="gas-form gas-stack" method="post" action="/access/output">
 <input type="hidden" name="_form" value="output">
 <div class="gas-field"><label for="op-human">Person (CRAB ID)</label><input id="op-human" name="human_id" required value="{{$.Form.Get "human_id"}}"></div>
-<div class="gas-field"><label for="op-action">Permission</label><select id="op-action" name="action"><option value="print">Print paper and PDFs</option><option value="download">Download evidence</option></select></div>
+<div class="gas-field"><label for="op-action">Permission</label><select id="op-action" name="action"><option value="print">Print paper and PDFs</option><option value="download">Download evidence</option><option value="notify">Send issued communications</option></select></div>
 <fieldset class="gas-field"><legend>Change</legend>
 <label><input type="radio" name="active" value="true" checked> Grant</label>
 <label><input type="radio" name="active" value="false"> Withdraw</label>
