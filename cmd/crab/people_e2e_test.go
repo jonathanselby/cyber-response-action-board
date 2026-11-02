@@ -26,12 +26,19 @@ var (
 
 func e2eTOTP(t *testing.T, secret string) string {
 	t.Helper()
+	return totpAt(t, secret, time.Now())
+}
+
+// totpAt is the authenticator code at a given time (the governed clock in
+// clock-controlled scenarios).
+func totpAt(t *testing.T, secret string, at time.Time) string {
+	t.Helper()
 	raw, err := base32.StdEncoding.WithPadding(base32.NoPadding).DecodeString(secret)
 	if err != nil {
 		t.Fatal(err)
 	}
 	var msg [8]byte
-	binary.BigEndian.PutUint64(msg[:], uint64(time.Now().Unix()/30))
+	binary.BigEndian.PutUint64(msg[:], uint64(at.Unix()/30))
 	mac := hmac.New(sha1.New, raw)
 	mac.Write(msg[:])
 	sum := mac.Sum(nil)
@@ -174,7 +181,7 @@ func (e *e2e) onboard(maker, confirmer, id, role string, external bool) (session
 	e.t.Helper()
 	form := url.Values{"human_id": {id}, "display_name": {strings.ToUpper(id[:1]) + id[1:]}, "role": {role}, "external": {fmt.Sprint(external)}}
 	if external {
-		form.Set("account_expires_at", time.Now().UTC().Add(7*24*time.Hour).Format("2006-01-02T15:04"))
+		form.Set("account_expires_at", e.now().Add(7*24*time.Hour).Format("2006-01-02T15:04"))
 	}
 	e.post("/access/person", maker, form)
 	e.approveAll(confirmer)
@@ -188,7 +195,7 @@ func (e *e2e) onboard(maker, confirmer, id, role string, external bool) (session
 			e.t.Fatalf("no authenticator key offered to %s", id)
 		}
 		totpKey = m[1]
-		complete.Set("totp", e2eTOTP(e.t, totpKey))
+		complete.Set("totp", totpAt(e.t, totpKey, e.now()))
 	}
 	done := e.do(http.MethodPost, "/enrol/complete", "", complete)
 	for _, c := range done.Result().Cookies() {
@@ -205,7 +212,7 @@ func (e *e2e) signIn(id, totpKey string) string {
 	e.t.Helper()
 	form := url.Values{"human_id": {id}, "password": {"Onboard-" + id + "-26!"}}
 	if totpKey != "" {
-		form.Set("totp", e2eTOTP(e.t, totpKey))
+		form.Set("totp", totpAt(e.t, totpKey, e.now()))
 	}
 	w := e.do(http.MethodPost, "/login", "", form)
 	for _, c := range w.Result().Cookies() {
@@ -254,6 +261,9 @@ func (e *e2e) mcp() *operatorRuntime {
 			e.t.Fatal(err)
 		}
 		e.runtime = rt.(*operatorRuntime)
+		if e.clock != nil {
+			e.runtime.kernel.SetClock(e.clock)
+		}
 	}
 	return e.runtime
 }

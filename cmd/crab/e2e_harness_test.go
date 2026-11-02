@@ -14,9 +14,12 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+	"sync"
 	"testing"
+	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/jonathanselby/cyber-response-action-board/internal/adapters/clock"
 	"github.com/jonathanselby/cyber-response-action-board/internal/data/postgres"
 	"github.com/jonathanselby/cyber-response-action-board/internal/presentation/web"
 )
@@ -30,6 +33,15 @@ type e2e struct {
 	export  string
 	admin   *pgxpool.Pool // superuser view of crab_e2e, for ledger counts only
 	runtime *operatorRuntime
+	clock   *testClock // nil: host clock
+}
+
+// now is the governed time the runtime sees.
+func (e *e2e) now() time.Time {
+	if e.clock != nil {
+		return e.clock.Now()
+	}
+	return time.Now().UTC()
 }
 
 const (
@@ -38,6 +50,39 @@ const (
 )
 
 func newE2E(t *testing.T) *e2e {
+	t.Helper()
+	return newE2EWithClock(t, nil)
+}
+
+// testClock is a governed clock the test moves forward. It reports trusted
+// time so the scenario exercises normal operation, not degraded time.
+type testClock struct {
+	mu  sync.Mutex
+	now time.Time
+}
+
+func (c *testClock) Read() clock.Reading {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return clock.Reading{Now: c.now, Status: clock.Trusted, Detail: "test clock"}
+}
+
+func (c *testClock) Advance(d time.Duration) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.now = c.now.Add(d)
+}
+
+func (c *testClock) Now() time.Time {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.now
+}
+
+// newE2EWithClock is newE2E with the operator runtime's governed clock
+// replaced by clk (nil keeps the host clock). Only the test harness installs
+// it, through the same runtime factory the server uses.
+func newE2EWithClock(t *testing.T, clk *testClock) *e2e {
 	t.Helper()
 	adminURL := os.Getenv("CRAB_TEST_POSTGRES_ADMIN_URL")
 	if adminURL == "" {
@@ -129,6 +174,17 @@ func newE2E(t *testing.T) *e2e {
 	t.Setenv("CRAB_SERVER_SIGNING_KEY_FILE", signing)
 	t.Setenv("CRAB_EXPORT_DIR", export)
 	t.Setenv("CRAB_LISTEN_ADDR", "127.0.0.1:0")
+	if clk != nil {
+		previous := web.RuntimeFactory
+		web.RuntimeFactory = func() (web.Runtime, error) {
+			rt, err := newOperatorRuntime()
+			if err == nil {
+				rt.(*operatorRuntime).kernel.SetClock(clk)
+			}
+			return rt, err
+		}
+		t.Cleanup(func() { web.RuntimeFactory = previous })
+	}
 	server, err := web.New()
 	if err != nil {
 		t.Fatal(err)
@@ -137,7 +193,7 @@ func newE2E(t *testing.T) *e2e {
 		cleanup()
 		admin.Close()
 	})
-	return &e2e{t: t, handler: server.Handler(), export: export, admin: admin}
+	return &e2e{t: t, handler: server.Handler(), export: export, admin: admin, clock: clk}
 }
 
 func (e *e2e) do(method, path, cookie string, form url.Values) *httptest.ResponseRecorder {

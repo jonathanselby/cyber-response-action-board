@@ -14,7 +14,7 @@ TMP=$(mktemp -d)
 trap 'rm -rf "$TMP"' EXIT
 EVIDENCE="$TMP/bafflewick-acceptance.md"
 PASS_COUNT=0
-REQUIRED_PHASES=9
+REQUIRED_PHASES=10
 
 {
   echo "# CRAB Bafflewick acceptance evidence"
@@ -119,6 +119,11 @@ run_phase 9 "degraded authority: unverified time, single-person window, related 
   "TestKernelCapsTimeStatusByClock,TestSelfApprovalUnderUnverifiedTime,TestSinglePersonWindow,TestRelatedIncidentsDoNotLeak,TestEmergencyConfigurationFillsPaperAndStalesPack" \
   "TestKernelCapsTimeStatusByClock|TestSelfApprovalUnderUnverifiedTime|TestSinglePersonWindow|TestRelatedIncidentsDoNotLeak|TestEmergencyConfigurationFillsPaperAndStalesPack" \
   ./internal/data/postgres ./cmd/crab
+
+run_phase 10 "the long night: 72-hour shift, surge and external-access scenario through the browser" \
+  "TestTheLongNight" \
+  "TestTheLongNight" \
+  ./cmd/crab
 
 if [ "$PASS_COUNT" -ne "$REQUIRED_PHASES" ]; then
   echo "Bafflewick threshold failed: ${PASS_COUNT}/${REQUIRED_PHASES}" >&2

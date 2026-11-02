@@ -4,7 +4,7 @@ Bafflewick is CRAB's named end-to-end operational acceptance scenario. It is not
 
 ## Acceptance rule
 
-The threshold is deliberately simple: **9/9 mandatory phases must pass** (phase 9 added in 0.0.20-dev for the Phase 2 UAT response; the earlier threshold was 8/8). If a named proof disappears, does not execute or fails, Bafflewick fails CI. There is no partial-pass score because the PRD Definition of Done requires the whole operational scenario.
+The threshold is deliberately simple: **10/10 mandatory phases must pass** (phase 10 added in 0.0.25-dev for the post-UAT remediation; phase 9 in 0.0.20-dev; the earlier threshold was 8/8). If a named proof disappears, does not execute or fails, Bafflewick fails CI. There is no partial-pass score because the PRD Definition of Done requires the whole operational scenario.
 
 Run locally with a PostgreSQL acceptance database:
 
@@ -27,6 +27,7 @@ An optional first argument writes the Markdown evidence emitted by the runner to
 | 7 | Recovery coordination, stand-down, PIR, retention/hold, closure prerequisites, closed read-only behaviour and deterministic rebuild |
 | 8 | Hostile evidence corruption/partial upload, exercise external-send suppression, managed-model sensitivity refusal and restricted-compartment print refusal all fail closed |
 | 9 | With only one Major available and the host clock unverified: writes are marked TIME UNVERIFIED, a dual-controlled single-person window permits flagged self-approval of covered kinds only, related incidents never reveal a hidden incident, and the printed pack carries the organisation's emergency information |
+| 10 | *The long night*: a 72-hour incident on the governed clock, run only through the browser runtime. Day and night shifts with handovers and changes of incident commander; people join (internal and external) and leave; a Major steps down to Minor while their proposal is still decided by another Major; external forensics access expires after six hours while their work remains; external legal counsel is read into LEGAL and communications is not; communications drafts a notice; eight-hour sessions end and people sign in again; counsel's account ends and stops a live session. No shared account, SQL or break-glass; the ledger verifies and every projection rebuilds identically |
 
 ## CI
 
