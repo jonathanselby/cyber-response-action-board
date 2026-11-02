@@ -1,5 +1,16 @@
 # Changelog
 
+## Unreleased — 0.0.23-dev
+
+Post-UAT remediation, chunk C2: user administration in the browser.
+
+- Access admin has a People section: add a person (internal or external), suspend, reactivate, disable and issue an enrolment code, each confirmed by a second Custodian.
+- Approvals groups a new person's identity and role, and shows an enrolment code once to the confirming Custodian only.
+- First-time set-up page: enrolment code, authenticator for external people, own password.
+- Sign-in accepts an authenticator code for external accounts.
+- Readiness warns when fewer than three Custodians are usable (T-249).
+- The 02:17 journey from the UAT brief passes end to end (T-221).
+
 ## Unreleased — 0.0.22-dev
 
 Post-UAT remediation, chunk C1: identity and credential core.
