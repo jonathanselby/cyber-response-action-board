@@ -1,0 +1,56 @@
+name: final-gate
+
+# The final automated gate (brief §26, T-247) in one run: scripts/final-gate.sh
+# with every prerequisite present, so no gate is NOT RUN. Runs on main and on
+# demand; the per-concern workflows run on every push.
+
+on:
+  push:
+    branches: [main, 'uat3/c13-*']
+  workflow_dispatch:
+
+jobs:
+  final-gate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    env:
+      CRAB_TEST_POSTGRES_ADMIN_URL: postgres://postgres:postgres@127.0.0.1:5432/crab_test?sslmode=disable
+      CRAB_PROOF_PG_STOP: sudo pg_ctlcluster --mode fast 16 main stop
+      CRAB_PROOF_PG_START: sudo pg_ctlcluster 16 main start && until pg_isready -h 127.0.0.1 -q; do sleep 1; done
+      CRAB_PROOF_FULL_DIR: /mnt/pgfull
+      UAT_REQUIRE_ALL: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # the upgrade proof builds the baseline release
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.27.2'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: PostgreSQL on the runner, and a small filesystem for disk-full
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo systemctl start postgresql
+          until pg_isready -h 127.0.0.1 -q; do sleep 1; done
+          sudo -u postgres psql -c "ALTER USER postgres PASSWORD 'postgres'"
+          sudo -u postgres createdb crab_test
+          sudo mkdir -p /mnt/pgfull
+          sudo mount -t tmpfs -o size=24m tmpfs /mnt/pgfull
+          sudo chown postgres:postgres /mnt/pgfull
+      - name: Browser harness (pinned) and browsers
+        working-directory: uat
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium firefox webkit
+      - name: Final gate
+        run: ./scripts/final-gate.sh "${{ runner.temp }}/final-gate.md"
+      - name: Report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: final-gate-report
+          path: ${{ runner.temp }}/final-gate.md
+          if-no-files-found: ignore

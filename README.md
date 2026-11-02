@@ -6,7 +6,7 @@ CRAB is a single Go application for running a cyber incident from first report t
 
 ## Build status
 
-**0.0.33-dev — post-UAT remediation in progress (`docs/remediation-build-plan.md`); chunks C1–C12 complete, all P0 findings pass, and all four contract-addendum capabilities are in: governed reopening, indicators, the management summary and machine first-report intake (`docs/first-report-api.md`). Notifications reach people by email or SMS through the Garage notifier (`docs/notifications.md`).**
+**0.0.34-dev — release candidate for Phase 4 human UAT (`docs/uat-phase4-script.md`); post-UAT remediation chunks C1–C13 complete (`docs/remediation-build-plan.md`), final automated gate `scripts/final-gate.sh`, all P0 findings pass, and all four contract-addendum capabilities are in: governed reopening, indicators, the management summary and machine first-report intake (`docs/first-report-api.md`). Notifications reach people by email or SMS through the Garage notifier (`docs/notifications.md`).**
 
 The frozen product contract is PRD V0.2 and EDD V0.4. The implementation may simplify mechanisms; it may not silently weaken product outcomes, security boundaries or degraded-operation behaviour.
 

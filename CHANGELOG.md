@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased — 0.0.34-dev
+
+Post-UAT remediation, chunk C13: final automated gate and UAT pack. Release candidate for Phase 4 human UAT. The architecture is now frozen.
+
+- `scripts/final-gate.sh` runs every automated gate in one go and writes one report. A gate that cannot run is reported NOT RUN, never PASS. The `final-gate` workflow runs it in full on `main` (T-247).
+- Every remediation register row now has a result. The Phase 3 UAT outcome is recorded (F-6).
+- `docs/uat-phase4-script.md` covers a fresh install, two browser sessions and the representative journeys in about 90 minutes.
+- A database refusal, such as a full disk, is now shown in plain words (*Nothing was saved…*) instead of PostgreSQL's error text.
+
 ## Unreleased — 0.0.33-dev
 
 Post-UAT remediation, chunk C12: notifications (R-05).

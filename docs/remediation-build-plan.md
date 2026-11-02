@@ -30,12 +30,12 @@ This block is refreshed at the end of every chunk. If it cannot be stated in the
 
 ```text
 Authoritative design   PRD V0.2 + EDD V0.4; addendum V0.2.1 APPROVED (2 Nov 2026)
-Branch / implementation main @ C12 merge (0.0.33-dev)
-Last green gate        C12 — local and GitHub CI: gofmt, vet, race tests + PostgreSQL, ratchet, abuse suite, Bafflewick 10/10, visual preflight
-Known defects          P0 passed; R-09 (C5), R-06 (C6), R-07 and R-08 (C7) pass; F-11 partly fixed; C9 fixed F-7 and F-12–F-16 and passed R-17, R-18 and R-20–R-22 (logo and signed-out navigation are a shell limit, U-14); C10 passed R-12–R-15, R-19, F-4 and F-11 with the proof workflow; C11 passed R-10, R-11 and closed F-5 by measurement; C12 passed R-05 on notifier v0.2.0
-Next coherent chunk    C13 — final automated gate and UAT pack
+Branch / implementation main @ C13 merge (0.0.34-dev, release candidate)
+Last green gate        C13 — final-gate workflow (scripts/final-gate.sh) plus local and GitHub CI: gofmt, vet, race tests + PostgreSQL, ratchet, abuse suite, Bafflewick 10/10, visual preflight
+Known defects          P0 passed; R-09 (C5), R-06 (C6), R-07 and R-08 (C7) pass; F-11 partly fixed; C9 fixed F-7 and F-12–F-16 and passed R-17, R-18 and R-20–R-22 (logo and signed-out navigation are a shell limit, U-14); C10 passed R-12–R-15, R-19, F-4 and F-11 with the proof workflow; C11 passed R-10, R-11 and closed F-5 by measurement; C12 passed R-05 on notifier v0.2.0; C13 dispositioned every row (F-6 recorded)
+Next coherent chunk    none: Phase 4 human UAT (docs/uat-phase4-script.md), then close the build (§8)
 UAT started            no (Phase 4 human UAT follows C13)
-Release frozen         no
+Release frozen         architecture frozen after C13; UAT fixes only
 ```
 
 ---

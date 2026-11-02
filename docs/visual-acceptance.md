@@ -91,23 +91,46 @@ A green automated preflight is repository evidence. Human visual sign-off remain
 
 **Response:** triage in `docs/uat-phase2-triage.md`; built in Stages S16–S20 (0.0.16-dev to 0.0.20-dev) per `UAT2-BUILD-NOTES.md`, tests T-193 to T-213 in `TEST-ACCEPTANCE-NOTES.md` §4. PRD V0.2 and EDD V0.4 unchanged.
 
-### Phase 3 human UAT — PENDING
+### Phase 3 human UAT — NOT ACCEPTED (recorded 2 November 2026, F-6)
 
-**Build:** 0.0.21-dev release candidate (Phase 2 response complete).  
-**Script:** `docs/uat-phase3-script.md` — every Phase 2 concern mapped to a section and its tests.  
-**Reference renders:** `ci/visual-capture` branch (`shots/`, `pdf/`), produced by `.github/workflows/visual-capture.yml` from seeded Bafflewick data.  
-**Automated rows:** T-193 to T-210 green in CI.
+**Build:** 0.0.21-dev release candidate (`66b188a`).
+**Script:** `docs/uat-phase3-script.md`.
+**Outcome:** not accepted. The UAT owner did not return the scored rows below. They returned the *CRAB — Post-UAT Remediation Build Brief*: 22 findings, four of them P0 (people could not be added after setup, so external or temporary people could not be used), plus a final-gate and handover requirement. The brief is triaged in `docs/uat-remediation-triage.md` and every finding is tracked in `docs/remediation-register.md`.
 
 | Row | Result |
 |---|---|
-| T-187 phone capture | pending |
-| T-188 keyboard and zoom | pending |
-| T-189 colour independence | pending |
-| T-190 responsive frame | pending |
-| T-191 operating picture comprehension | pending |
-| T-192 approval comprehension | pending |
-| T-211 Storm Blue | pending |
-| T-212 print | pending |
-| T-213 Command Summary in 30 seconds | pending |
+| T-187 phone capture | not scored; superseded by the brief (R-17, R-20) |
+| T-188 keyboard and zoom | not scored; superseded by the brief (R-17, R-18) |
+| T-189 colour independence | not scored; superseded by the brief (R-18, F-16) |
+| T-190 responsive frame | not scored; superseded by the brief (R-20, F-15) |
+| T-191 operating picture comprehension | not scored; superseded by the brief (R-21) |
+| T-192 approval comprehension | not scored; superseded by the brief (R-22) |
+| T-211 Storm Blue | not scored |
+| T-212 print | not scored |
+| T-213 Command Summary in 30 seconds | not scored; superseded by the brief (R-08, R-21) |
+
+The rows are not marked as passed or failed individually, because no such scores were returned. Each is exercised again in Phase 4.
+
+**Response:** post-UAT remediation, chunks C0 to C13 (`docs/remediation-build-plan.md`), 0.0.22-dev to 0.0.34-dev. Every register row now has a result. The final automated gate (`scripts/final-gate.sh`) runs in the `final-gate` workflow.
+
+### Phase 4 human UAT — PENDING
+
+**Build:** 0.0.34-dev release candidate.
+**Script:** `docs/uat-phase4-script.md`. About 90 minutes: a fresh install and two browser sessions.
+**Automated evidence:** the `final-gate` workflow on `main`.
+
+| Section | Result | Findings |
+|---|---|---|
+| 1 Setup and sign-in | pending | |
+| 2 People | pending | |
+| 3 Incident | pending | |
+| 4 Compartment | pending | |
+| 5 Evidence and indicators | pending | |
+| 6 First reports | pending | |
+| 7 Communications and notifications | pending | |
+| 8 Obligations and closure | pending | |
+| 9 Command Summary | pending | |
+| 10 Print | pending | |
+| 11 Devices (record exactly what was tested) | pending | |
 
 AC-43 is signed off here only when every row passes.

@@ -375,6 +375,14 @@ func refusalText(err error) string {
 	if text == "" {
 		return "The request was refused."
 	}
+	// A database refusal is worded for people; PostgreSQL's own text (file
+	// paths, SQLSTATE codes) stays in the server log.
+	if strings.Contains(text, "SQLSTATE 53") {
+		return "Nothing was saved: the database has run out of space or resources. Tell your administrator; CRAB keeps working for reading."
+	}
+	if strings.Contains(text, "SQLSTATE") {
+		return "Nothing was saved: the database refused the change. Tell your administrator."
+	}
 	return strings.ToUpper(text[:1]) + text[1:]
 }
 
