@@ -13,8 +13,8 @@ One row per finding, so no UAT finding disappears during implementation. Detail 
 | R-07 | P1 | Indicators / observables | `incident.observable` record on the Evidence screen; derived related incident only when both are visible; addendum A2 (S25) | T-231 | pass (C7) |
 | R-08 | P1 | Management summary | Panel on the Command Summary over visible incidents; defined median decision loop; addendum A3 (S25) | T-232, T-199 amended | pass (C7) |
 | R-09 | P1 | Closure and reopening | Closure blockers for pending proposals and clocks; governed reopening; addendum A1 (S24) | T-228, T-229 | pass (C5) |
-| R-10 | P1 | Heavy operational use | Load harness and oracle; fix measured bottlenecks only (S27) | T-238 | open |
-| R-11 | P1 | Soak | Accelerated 72-hour soak (S27) | T-239, T-220 | open |
+| R-10 | P1 | Heavy operational use | Load harness and oracle; fix measured bottlenecks only (S27) | T-238 | pass (C11, short profile on the build host and CI): oracle passes at 50 users; no 5xx; approvals cost cut by measurement; full profile weekly; Pi run handed over as one command |
+| R-11 | P1 | Soak | Accelerated 72-hour soak (S27) | T-239, T-220 | pass (C11): accelerated 72 hours, no growth after warm-up; full 6-hour profile weekly |
 | R-12 | P1 | Destructive failure | Failpoint kill harness with oracle (S27) | T-240 | pass (C10): kill points committed once or not at all; oracle passes; notification-before-attempt failpoint exists but its journey is not yet driven (see evidence) |
 | R-13 | P1 | Database and storage failure | PostgreSQL stop/start, tmpfs, disk-full tablespace (S27) | T-241 | pass (C10): outage and disk-full proofs; fixed sign-out on a database outage |
 | R-14 | P1 | Backup and restore on populated data | Extended Bafflewick 6 with full diff (S27) | T-242 | pass (C10): populated backup restores 60 tables and blob hashes identically |
@@ -30,7 +30,7 @@ One row per finding, so no UAT finding disappears during implementation. Detail 
 | F-2 | P0 | Membership expiry uses `time.Now()` not the governed clock | Pass the kernel clock to `PrincipalAt` (S22) | T-219 | pass (C1) |
 | F-3 | P1 | Expired sessions never swept | Bounded sweep on the existing timed-wait cadence (S22) | T-220 | pass — swept on sign-in, bounded (C1) |
 | F-4 | P1 | Blob written before its ledger record | Prove; report orphans in readiness; no automatic delete (S27) | T-240 | pass (C10): orphan blobs reported by readiness, never deleted |
-| F-5 | P1 | `Frame` reads the configuration file on every request | Measure; load once at start if shown (S27) | T-238 | open |
+| F-5 | P1 | `Frame` reads the configuration file on every request | Measure; load once at start if shown (S27) | T-238 | closed (C11): measured at 0.04% of CPU under load; not a bottleneck, so not changed |
 | F-7 | P1 | Policy in the composition tier (`cmd/crab`): approval eligibility hints, kind exclusions and approval wording; 14 role/authorisation references across 6 files | Move into an app-tier approvals query (S26); policy-reference ratchet that only goes down and is zero in touched files (S22 onward); §3.17 tier placement | T-253 | pass (C9): approvals and capability policy in the app tier; ratchet at zero for presentation and composition |
 | F-8 | P1 | Browser sign-in has no failure rate limit (`authn.FailureLimiter` exists but is unwired); found in C1 review | Wire the existing limiter into sign-in and enrolment, keyed by person and source, with the generic refusal (C3) | C3 abuse suite | pass — C3 (`TestSignInFailuresAreLimited`) |
 | F-9 | P1 | Access admin *Incident members* table lists every incident's members to any Custodian, inconsistent with U-17; found in C2 review | Show members only for incidents the Custodian may see; count the rest (C3) | C3 abuse suite | closed — product owner chose names (U-17, 2 Nov 2026): Custodians see incident names in People and the members table, consistent with EDD §9.6; People now names every incident (C6) |

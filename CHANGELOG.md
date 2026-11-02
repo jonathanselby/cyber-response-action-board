@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased — 0.0.32-dev
+
+Post-UAT remediation, chunk C11: load and soak.
+
+- Faster pages under load. Every page was assembling the whole Approvals view just to show a count in the header. With 50 people working at once on the same host, CRAB now serves 73% more requests. Typical (p50) load time fell from 457 to 175 ms on Approvals and from 577 to 268 ms on the Command Summary.
+- Load proof (50 people, each limited to their own incidents) and accelerated 72-hour soak proof, run on every push (short profile), weekly (full profile) and by `scripts/final-acceptance.sh` on the Pi (T-238, T-239).
+
 ## Unreleased — 0.0.31-dev
 
 Post-UAT remediation, chunk C10: failure and recovery proofs.
