@@ -12,7 +12,7 @@ One row per finding, so no UAT finding disappears during implementation. Detail 
 | R-06 | P1 | Vendor-neutral first-report intake | Intake keys (scoped, revocable, rotatable, bound to an accountable human); `POST /api/v1/first-reports`; idempotent, rate-bounded, documented; addendum A4 (S25) | T-230 | open |
 | R-07 | P1 | Indicators / observables | `incident.observable` record on the Evidence screen; derived related incident only when both are visible; addendum A2 (S25) | T-231 | open |
 | R-08 | P1 | Management summary | Panel on the Command Summary over visible incidents; defined median decision loop; addendum A3 (S25) | T-232, T-199 amended | open |
-| R-09 | P1 | Closure and reopening | Closure blockers for pending proposals and clocks; governed reopening; addendum A1 (S24) | T-228, T-229 | open |
+| R-09 | P1 | Closure and reopening | Closure blockers for pending proposals and clocks; governed reopening; addendum A1 (S24) | T-228, T-229 | pass (C5) |
 | R-10 | P1 | Heavy operational use | Load harness and oracle; fix measured bottlenecks only (S27) | T-238 | open |
 | R-11 | P1 | Soak | Accelerated 72-hour soak (S27) | T-239, T-220 | open |
 | R-12 | P1 | Destructive failure | Failpoint kill harness with oracle (S27) | T-240 | open |

@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased — 0.0.26-dev
+
+Post-UAT remediation, chunk C5: closure and reopening (contract addendum A1, approved).
+
+- Closure is refused while any proposal is pending or an obligation clock is still running, as well as without stand-down, PIR and retention; the Close page names each blocker (T-228).
+- Blockers in compartments the reader cannot see are counted, not named.
+- A closed incident can be reopened with a reason and a second Major. The closure is kept as superseded history; closing again needs a new stand-down and closure (T-229).
+
 ## Unreleased — 0.0.25-dev
 
 Post-UAT remediation, chunk C4: the long night.

@@ -29,11 +29,11 @@ In order of precedence. If something in the build seems to need a different answ
 This block is refreshed at the end of every chunk. If it cannot be stated in these lines, stop and reset (§9).
 
 ```text
-Authoritative design   PRD V0.2 + EDD V0.4; addendum V0.2.1 DRAFT (needed before C5)
-Branch / implementation main @ C4 merge (0.0.25-dev)
-Last green gate        C4 — local and GitHub CI: gofmt, vet, race tests + PostgreSQL, ratchet, abuse suite, Bafflewick 10/10, visual preflight
-Known defects          P0 checkpoint passed (R-01–R-04); F-11 host-clock reads → C10; R-05 blocked on notifier v0.2
-Next coherent chunk    C5 — closure and reopening (needs the addendum approved)
+Authoritative design   PRD V0.2 + EDD V0.4; addendum V0.2.1 APPROVED (2 Nov 2026)
+Branch / implementation main @ C5 merge (0.0.26-dev)
+Last green gate        C5 — local and GitHub CI: gofmt, vet, race tests + PostgreSQL, ratchet, abuse suite, Bafflewick 10/10, visual preflight
+Known defects          P0 passed; R-09 passes (C5); F-11 host-clock reads → C10; R-05 blocked on notifier v0.2
+Next coherent chunk    C6 — machine intake (addendum A4)
 UAT started            no (Phase 4 human UAT follows C13)
 Release frozen         no
 ```
