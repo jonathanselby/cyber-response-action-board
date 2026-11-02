@@ -674,8 +674,13 @@ func (r *operatorRuntime) approvals(ctx context.Context, principal authz.Princip
 
 	out := web.ApprovalsView{Incidents: incidents, SelfApprovals: r.recentSelfApprovals(ctx, principal)}
 	now := r.kernel.Clock().Read().Now
+	external, err := r.accessService.ExternalPeople(ctx)
+	if err != nil {
+		return web.ApprovalsView{}, err
+	}
 	for _, s := range sources {
 		item := r.approvalView(ctx, s, titles)
+		item.MakerExternal = external[s.maker]
 		item.CanDecide = s.maker != principal.HumanID
 		if !item.CanDecide && principal.Role == authz.RoleMajor && s.kind != "organisation" && s.kind != "access" && s.kind != "relationship" && s.kind != "declaration" {
 			if ok, err := r.organisation.Permits(ctx, principal.HumanID, s.recordType, now); err == nil && ok {

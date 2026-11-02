@@ -18,9 +18,10 @@ type Runtime interface {
 	Bootstrap(context.Context, BootstrapInput) error
 	// Authenticate signs a person in. enrol=true means the secret was a valid
 	// enrolment code and the person must finish setting up their account.
-	Authenticate(ctx context.Context, humanID, secret, totp string) (token string, enrol bool, err error)
-	BeginEnrolment(ctx context.Context, humanID, code string) (EnrolmentView, error)
-	CompleteEnrolment(ctx context.Context, humanID, code, password, totp string) (string, error)
+	// source identifies the client for failure limiting (the remote address).
+	Authenticate(ctx context.Context, humanID, secret, totp, source string) (token string, enrol bool, err error)
+	BeginEnrolment(ctx context.Context, humanID, code, source string) (EnrolmentView, error)
+	CompleteEnrolment(ctx context.Context, humanID, code, password, totp, source string) (string, error)
 	Logout(context.Context, string) error
 	Frame(ctx context.Context, token, incidentID string) (FrameView, bool, error)
 	Home(context.Context, string) (HomeView, bool, error)
@@ -76,6 +77,8 @@ type Runtime interface {
 	// Access and readiness.
 	ProposePerson(ctx context.Context, token string, in PersonInput) error
 	ProposePersonStatus(ctx context.Context, token, humanID, status, reason string) error
+	// ProposePersonRole proposes a new role, or removing the role when remove is true.
+	ProposePersonRole(ctx context.Context, token, humanID, role string, remove bool) error
 	ProposeCredentialReset(ctx context.Context, token, humanID, reason string) error
 	ConfirmCredentialReset(ctx context.Context, token, recordID, version string) (ResetCodeView, error)
 	AccessAdministration(context.Context, string, time.Time) (AccessAdministrationPage, error)
@@ -275,6 +278,7 @@ type ApprovalView struct {
 	Effective     []Field
 	Proposed      []Field
 	Maker         string
+	MakerExternal bool
 	ProposedAt    string
 	Reason        string
 	Consequence   string
@@ -450,6 +454,7 @@ type AccessMembershipView struct {
 	Reason      string
 	Status      string
 	Implicit    bool
+	External    bool
 }
 
 type AccessPendingView struct {
@@ -483,6 +488,7 @@ type PersonRow struct {
 	VisibleIncidents                                                   []string
 	OtherIncidents                                                     int
 	CanSuspend, CanReactivate, CanDisable, CanReset, CanRecordIdentity bool
+	CanChangeRole                                                      bool
 }
 
 // PersonInput is the add-person form.

@@ -53,6 +53,10 @@ type OperationalRoleView struct {
 	Maker       string
 	Confirmer   string
 	ConfirmedAt time.Time
+	// External is set by the application tier when the role holder is an
+	// external person, so every view and print can say so in words. It is not
+	// stored.
+	External bool `json:",omitempty"`
 }
 
 type PendingProposal struct {

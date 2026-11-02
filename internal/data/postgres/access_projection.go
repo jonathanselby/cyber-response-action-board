@@ -619,3 +619,21 @@ func (s *AccessStore) HasPendingIdentity(ctx context.Context, humanID string) (b
 	err := s.pool.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM crab.access_proposals WHERE scope_id='' AND record_type=$1 AND convert_from(payload,'UTF8')::jsonb->>'human_id' = $2)`, access.RecordIdentity, humanID).Scan(&pending)
 	return pending, err
 }
+
+// ExternalPeople returns the IDs of people recorded as external.
+func (s *AccessStore) ExternalPeople(ctx context.Context) (map[string]bool, error) {
+	rows, err := s.pool.Query(ctx, `SELECT human_id FROM crab.identities WHERE external`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := map[string]bool{}
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		out[id] = true
+	}
+	return out, rows.Err()
+}

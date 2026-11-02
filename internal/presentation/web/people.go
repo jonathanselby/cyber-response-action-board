@@ -1,6 +1,7 @@
 package web
 
 import (
+	"net"
 	"net/http"
 	"net/url"
 )
@@ -25,6 +26,9 @@ func (s *Server) registerPeopleRoutes(admin, approvals screen) {
 	}))
 	s.mux.HandleFunc("POST /access/person/status", s.post(admin, back, "proposed", func(r *http.Request, token string) error {
 		return s.runtime.ProposePersonStatus(r.Context(), token, formValue(r, "human_id"), formValue(r, "status"), formValue(r, "reason"))
+	}))
+	s.mux.HandleFunc("POST /access/person/role", s.post(admin, back, "proposed", func(r *http.Request, token string) error {
+		return s.runtime.ProposePersonRole(r.Context(), token, formValue(r, "human_id"), formValue(r, "role"), r.FormValue("remove") == "true")
 	}))
 	s.mux.HandleFunc("POST /access/person/reset", s.post(admin, back, "proposed", func(r *http.Request, token string) error {
 		return s.runtime.ProposeCredentialReset(r.Context(), token, formValue(r, "human_id"), formValue(r, "reason"))
@@ -75,7 +79,7 @@ func (s *Server) enrolBegin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	humanID, code := formValue(r, "human_id"), formValue(r, "code")
-	view, err := s.runtime.BeginEnrolment(r.Context(), humanID, code)
+	view, err := s.runtime.BeginEnrolment(r.Context(), humanID, code, clientSource(r))
 	if err != nil {
 		s.page(w, http.StatusUnauthorized, enrolScreen, pageData{Error: "That enrolment code was not accepted. Check it with the Custodian who gave it to you.", Form: url.Values{"human_id": {humanID}}}, nil)
 		return
@@ -93,11 +97,11 @@ func (s *Server) enrolComplete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	humanID, code := formValue(r, "human_id"), formValue(r, "code")
-	token, err := s.runtime.CompleteEnrolment(r.Context(), humanID, code, r.FormValue("password"), formValue(r, "totp"))
+	token, err := s.runtime.CompleteEnrolment(r.Context(), humanID, code, r.FormValue("password"), formValue(r, "totp"), clientSource(r))
 	if err != nil {
 		// Show the second step again with the refusal; the secret is re-issued
 		// so a stale authenticator entry cannot linger.
-		view, berr := s.runtime.BeginEnrolment(r.Context(), humanID, code)
+		view, berr := s.runtime.BeginEnrolment(r.Context(), humanID, code, clientSource(r))
 		if berr != nil {
 			s.page(w, http.StatusUnauthorized, enrolScreen, pageData{Error: "That enrolment code was not accepted.", Form: url.Values{"human_id": {humanID}}}, nil)
 			return
@@ -107,4 +111,14 @@ func (s *Server) enrolComplete(w http.ResponseWriter, r *http.Request) {
 	}
 	s.setSession(w, r, token)
 	http.Redirect(w, r, "/", http.StatusSeeOther)
+}
+
+// clientSource is the connecting address used to key sign-in failure limits.
+// Forwarding headers are not trusted: CRAB is served directly, not behind a
+// proxy it can vouch for.
+func clientSource(r *http.Request) string {
+	if host, _, err := net.SplitHostPort(r.RemoteAddr); err == nil {
+		return host
+	}
+	return r.RemoteAddr
 }

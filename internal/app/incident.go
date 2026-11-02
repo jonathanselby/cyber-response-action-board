@@ -37,6 +37,14 @@ type IncidentService struct {
 	Backend  IncidentBackend
 	Severity SeverityPolicy
 	Window   WindowPolicy
+	// External identifies external people so role holders are marked (T-222).
+	// Optional: without it, nobody is marked.
+	External ExternalPeopleSource
+}
+
+// ExternalPeopleSource reports which people are external.
+type ExternalPeopleSource interface {
+	ExternalPeople(context.Context) (map[string]bool, error)
 }
 
 func (s IncidentService) ProposeIncidentDeclaration(ctx context.Context, principal authz.Principal, scope domain.Scope, recordID string, declaration domain.IncidentDeclaration, now time.Time) (ledger.Record, error) {
@@ -214,6 +222,15 @@ func (s IncidentService) CommonOperatingPicture(ctx context.Context, principal a
 			return domain.OperatingPicture{}, false, err
 		}
 		picture.Obligations = obligations
+	}
+	if s.External != nil && len(picture.OperationalRoles) > 0 {
+		external, err := s.External.ExternalPeople(ctx)
+		if err != nil {
+			return domain.OperatingPicture{}, false, err
+		}
+		for i := range picture.OperationalRoles {
+			picture.OperationalRoles[i].External = external[picture.OperationalRoles[i].Assignment.HumanID]
+		}
 	}
 	return picture, true, nil
 }

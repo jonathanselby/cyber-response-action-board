@@ -156,7 +156,7 @@ func (s *Server) login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	humanID := formValue(r, "human_id")
-	token, enrol, err := s.runtime.Authenticate(r.Context(), humanID, r.FormValue("password"), formValue(r, "totp"))
+	token, enrol, err := s.runtime.Authenticate(r.Context(), humanID, r.FormValue("password"), formValue(r, "totp"), clientSource(r))
 	if enrol {
 		http.Redirect(w, r, "/enrol?human_id="+url.QueryEscape(humanID), http.StatusSeeOther)
 		return

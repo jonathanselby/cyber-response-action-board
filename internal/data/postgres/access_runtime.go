@@ -102,3 +102,7 @@ func (r *AccessRuntime) People(ctx context.Context, now time.Time) ([]access.Per
 func (r *AccessRuntime) HasPendingIdentity(ctx context.Context, humanID string) (bool, error) {
 	return r.Store.HasPendingIdentity(ctx, humanID)
 }
+
+func (r *AccessRuntime) ExternalPeople(ctx context.Context) (map[string]bool, error) {
+	return r.Store.ExternalPeople(ctx)
+}

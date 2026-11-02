@@ -2,6 +2,7 @@ package postgres
 
 import (
 	"context"
+	"errors"
 	"strings"
 	"testing"
 	"time"
@@ -77,16 +78,22 @@ func TestContinuityProductFlowThroughLedgerAndPostgres(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if _, err := continuityService.TriageFirstReport(ctx, aliceUnassigned, "TRIAGE-1", domain.FirstReportDisposition{ReportID: "REPORT-1", Decision: "associate", IncidentID: scope.IncidentID, Reason: "Report matches declared payroll incident"}, base.Add(3*time.Minute)); err != nil {
+	alice := slice3Principal("alice", authz.RoleMajor, scope.IncidentID, true)
+	bob := slice3Principal("bob", authz.RoleMajor, scope.IncidentID, true)
+
+	// Hidden means hidden (EDD §9.5): someone not on the incident cannot link a
+	// report to it, so association is never an existence oracle (C3 abuse suite).
+	if _, err := continuityService.TriageFirstReport(ctx, aliceUnassigned, "TRIAGE-0", domain.FirstReportDisposition{ReportID: "REPORT-1", Decision: "associate", IncidentID: scope.IncidentID, Reason: "probe"}, base.Add(3*time.Minute)); !errors.Is(err, app.ErrAuthorisationDenied) {
+		t.Fatalf("unassigned association err=%v", err)
+	}
+	// The declarer, a member once the declaration is confirmed, links it.
+	if _, err := continuityService.TriageFirstReport(ctx, alice, "TRIAGE-1", domain.FirstReportDisposition{ReportID: "REPORT-1", Decision: "associate", IncidentID: scope.IncidentID, Reason: "Report matches declared payroll incident"}, base.Add(3*time.Minute)); err != nil {
 		t.Fatal(err)
 	}
 	reports, err = continuityService.FirstReports(ctx, aliceUnassigned)
 	if err != nil || reports[0].Disposition == nil || reports[0].Disposition.IncidentID != scope.IncidentID {
 		t.Fatalf("associated report=%+v err=%v", reports, err)
 	}
-
-	alice := slice3Principal("alice", authz.RoleMajor, scope.IncidentID, true)
-	bob := slice3Principal("bob", authz.RoleMajor, scope.IncidentID, true)
 	if _, err := continuityService.RecordScopeAssessment(ctx, alice, scope, "SCOPE-1", domain.ScopeAssessment{
 		AffectedAssets:   []string{"PAY-01", "PAY-02"},
 		AffectedServices: []string{"Payroll"},

@@ -27,13 +27,19 @@
 <div class="gas-cluster"><button class="gas-button gas-button--primary">Propose</button></div>
 </form>
 </details>
-{{range .People}}{{if or .CanSuspend .CanReactivate .CanDisable .CanReset}}<details class="gas-panel" id="manage-{{.HumanID}}">
+{{range .People}}{{if or .CanSuspend .CanReactivate .CanDisable .CanReset .CanChangeRole}}<details class="gas-panel" id="manage-{{.HumanID}}">
 <summary><h3>Manage {{.DisplayName}} <span class="gas-muted">{{.HumanID}}</span></h3></summary>
 {{if .CanReset}}<form class="gas-form gas-stack" method="post" action="/access/person/reset">
 <input type="hidden" name="_form" value="reset"><input type="hidden" name="human_id" value="{{.HumanID}}">
 <div class="gas-field"><label for="r-{{.HumanID}}">Issue an enrolment code — reason</label><input id="r-{{.HumanID}}" name="reason" required placeholder="New responder, or forgotten password"></div>
 <p class="gas-help">The Custodian who confirms sees the code once and passes it on. Their current sessions, password and authenticator are reset.</p>
 <div class="gas-cluster"><button class="gas-button">Propose enrolment code</button></div></form>{{end}}
+{{if .CanChangeRole}}<form class="gas-form gas-stack" method="post" action="/access/person/role">
+<input type="hidden" name="_form" value="role"><input type="hidden" name="human_id" value="{{.HumanID}}">
+<div class="gas-field"><label for="ro-{{.HumanID}}">Change role{{if .Role}} (now {{.Role}}){{end}}</label><select id="ro-{{.HumanID}}" name="role"><option value="Minor">Minor — responder</option><option value="Major">Major — decides and confirms</option><option value="Observer">Observer — reads only</option></select></div>
+<fieldset class="gas-field"><legend>Change</legend><label><input type="radio" name="remove" value="false" checked> Set this role</label><label><input type="radio" name="remove" value="true"> Remove their role</label></fieldset>
+<p class="gas-help">A lower role takes effect on their next request, in every session.</p>
+<div class="gas-cluster"><button class="gas-button">Propose role change</button></div></form>{{end}}
 {{if .CanSuspend}}<form class="gas-form gas-stack" method="post" action="/access/person/status">
 <input type="hidden" name="_form" value="status"><input type="hidden" name="human_id" value="{{.HumanID}}"><input type="hidden" name="status" value="suspended">
 <div class="gas-field"><label for="s-{{.HumanID}}">Suspend — reason</label><input id="s-{{.HumanID}}" name="reason" required></div>
@@ -77,13 +83,13 @@
 <section class="gas-panel gas-stack" aria-labelledby="members">
 <h2 id="members">Incident members</h2>
 {{if .IncidentMemberships}}<div class="gas-table-wrap"><table><thead><tr><th scope="col">Person</th><th scope="col">Incident</th><th scope="col">Status</th><th scope="col">From</th><th scope="col">Expires</th><th scope="col">Reason</th></tr></thead>
-<tbody>{{range .IncidentMemberships}}<tr><th scope="row">{{.HumanID}}</th><td>{{.IncidentID}}</td><td><span class="gas-badge gas-badge--{{statusBadge .Status}}">{{upper .Status}}</span></td><td>{{if .EffectiveAt}}{{.EffectiveAt}}{{else}}—{{end}}</td><td>{{if .ExpiresAt}}{{.ExpiresAt}}{{else}}No expiry{{end}}</td><td>{{.Reason}}</td></tr>{{end}}</tbody></table></div>
+<tbody>{{range .IncidentMemberships}}<tr><th scope="row">{{.HumanID}}{{if .External}} <span class="gas-badge gas-badge--warning">EXTERNAL</span>{{end}}</th><td>{{.IncidentID}}</td><td><span class="gas-badge gas-badge--{{statusBadge .Status}}">{{upper .Status}}</span></td><td>{{if .EffectiveAt}}{{.EffectiveAt}}{{else}}—{{end}}</td><td>{{if .ExpiresAt}}{{.ExpiresAt}}{{else}}No expiry{{end}}</td><td>{{.Reason}}</td></tr>{{end}}</tbody></table></div>
 {{else}}<p class="gas-empty">No members visible.</p>{{end}}
 </section>
 <section class="gas-panel gas-stack" aria-labelledby="restricted">
 <h2 id="restricted">Restricted compartments</h2>
 {{if or .Controllers .CompartmentMemberships}}<div class="gas-table-wrap"><table><thead><tr><th scope="col">Person</th><th scope="col">Compartment</th><th scope="col">Role</th><th scope="col">Status</th><th scope="col">Expires</th></tr></thead>
-<tbody>{{range .Controllers}}<tr><th scope="row">{{.HumanID}}</th><td>{{.Compartment}}</td><td>Controller</td><td>—</td><td>—</td></tr>{{end}}{{range .CompartmentMemberships}}{{if ne .Compartment "GENERAL"}}<tr><th scope="row">{{.HumanID}}</th><td>{{.Compartment}}</td><td>Read in</td><td><span class="gas-badge gas-badge--{{statusBadge .Status}}">{{upper .Status}}</span></td><td>{{if .ExpiresAt}}{{.ExpiresAt}}{{else}}No expiry{{end}}</td></tr>{{end}}{{end}}</tbody></table></div>
+<tbody>{{range .Controllers}}<tr><th scope="row">{{.HumanID}}</th><td>{{.Compartment}}</td><td>Controller</td><td>—</td><td>—</td></tr>{{end}}{{range .CompartmentMemberships}}{{if ne .Compartment "GENERAL"}}<tr><th scope="row">{{.HumanID}}{{if .External}} <span class="gas-badge gas-badge--warning">EXTERNAL</span>{{end}}</th><td>{{.Compartment}}</td><td>Read in</td><td><span class="gas-badge gas-badge--{{statusBadge .Status}}">{{upper .Status}}</span></td><td>{{if .ExpiresAt}}{{.ExpiresAt}}{{else}}No expiry{{end}}</td></tr>{{end}}{{end}}</tbody></table></div>
 {{else}}<p class="gas-empty">No restricted compartments visible.</p>{{end}}
 </section>
 <section class="gas-panel gas-stack" aria-labelledby="sponsors">

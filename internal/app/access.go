@@ -29,6 +29,7 @@ type AccessBackend interface {
 	IdentityState(context.Context, string) (access.IdentityState, bool, error)
 	People(context.Context, time.Time) ([]access.PersonRecord, error)
 	HasPendingIdentity(context.Context, string) (bool, error)
+	ExternalPeople(context.Context) (map[string]bool, error)
 }
 
 type AccessService struct{ Backend AccessBackend }
@@ -88,6 +89,13 @@ func (s AccessService) ProposeIncidentMembership(ctx context.Context, principal 
 	if err := s.requireSponsor(ctx, principal, scope.IncidentID); err != nil {
 		return ledger.Record{}, err
 	}
+	if payload.Active {
+		expires, err := s.externalAccessEnd(ctx, payload.HumanID, payload.ExpiresAt)
+		if err != nil {
+			return ledger.Record{}, err
+		}
+		payload.ExpiresAt = expires
+	}
 	return s.propose(ctx, principal.HumanID, scope, recordID, access.RecordIncidentMembership, payload, now)
 }
 
@@ -107,6 +115,13 @@ func (s AccessService) ProposeCompartmentMembership(ctx context.Context, princip
 	}
 	if !allowed {
 		return ledger.Record{}, ErrAuthorisationDenied
+	}
+	if payload.Active {
+		expires, err := s.externalAccessEnd(ctx, payload.HumanID, payload.ExpiresAt)
+		if err != nil {
+			return ledger.Record{}, err
+		}
+		payload.ExpiresAt = expires
 	}
 	return s.propose(ctx, principal.HumanID, scope, recordID, access.RecordCompartmentMembership, payload, now)
 }
@@ -230,6 +245,9 @@ func (s AccessService) validateAtConfirmation(ctx context.Context, change access
 		}
 	case access.RecordIncidentMembership:
 		if change.Active {
+			if _, err := s.externalAccessEnd(ctx, change.HumanID, change.ExpiresAt); err != nil {
+				return err
+			}
 			eligible, err := s.Backend.HasRoleEligibility(ctx, change.HumanID)
 			if err != nil {
 				return err
@@ -244,6 +262,9 @@ func (s AccessService) validateAtConfirmation(ctx context.Context, change access
 		}
 	case access.RecordCompartmentMembership:
 		if change.Active {
+			if _, err := s.externalAccessEnd(ctx, change.HumanID, change.ExpiresAt); err != nil {
+				return err
+			}
 			member, err := s.Backend.HasIncidentMembershipAt(ctx, change.HumanID, change.IncidentID, now)
 			if err != nil {
 				return err
@@ -385,6 +406,35 @@ func (s AccessService) authoriseMakerAtDecision(ctx context.Context, maker strin
 		return ErrAuthorisationDenied
 	}
 	return nil
+}
+
+// ErrExternalAccessOutlivesAccount refuses incident or compartment access for
+// an external person that would outlast their account.
+var ErrExternalAccessOutlivesAccount = errors.New("an external person's access cannot end after their account ends")
+
+// externalAccessEnd applies the external-access rule (T-222): for an external
+// person, incident and compartment access must end no later than their
+// account. If no end is given it defaults to the account end. Internal people
+// are unchanged.
+func (s AccessService) externalAccessEnd(ctx context.Context, humanID string, requested *time.Time) (*time.Time, error) {
+	state, _, err := s.Backend.IdentityState(ctx, humanID)
+	if err != nil {
+		return nil, err
+	}
+	if !state.Found || !state.External {
+		return requested, nil
+	}
+	if state.AccountExpiresAt == nil {
+		return nil, access.ErrExternalNeedsExpiry
+	}
+	if requested == nil {
+		end := state.AccountExpiresAt.UTC()
+		return &end, nil
+	}
+	if requested.After(*state.AccountExpiresAt) {
+		return nil, ErrExternalAccessOutlivesAccount
+	}
+	return requested, nil
 }
 
 func (s AccessService) ready() error {

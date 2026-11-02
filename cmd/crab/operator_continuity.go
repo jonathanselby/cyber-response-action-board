@@ -309,7 +309,21 @@ func (r *operatorRuntime) continuityService() (app.ContinuityService, error) {
 	if err != nil {
 		return app.ContinuityService{}, err
 	}
-	return app.ContinuityService{Backend: backend, Incident: r.incident, Severity: r.organisation, Window: r.organisation}, nil
+	return app.ContinuityService{Backend: backend, Incident: r.incident, Severity: r.organisation, Window: r.organisation, DeclarationMaker: r.pendingDeclarationMaker}, nil
+}
+
+// pendingDeclarationMaker reports who proposed a pending declaration.
+func (r *operatorRuntime) pendingDeclarationMaker(ctx context.Context, incidentID string) (string, bool, error) {
+	pending, err := r.incidents.PendingDeclarations(ctx)
+	if err != nil {
+		return "", false, err
+	}
+	for _, p := range pending {
+		if p.IncidentID == incidentID {
+			return p.Maker, true, nil
+		}
+	}
+	return "", false, nil
 }
 
 func splitOperatorList(raw string) []string {

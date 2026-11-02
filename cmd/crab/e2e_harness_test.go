@@ -16,6 +16,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/jonathanselby/cyber-response-action-board/internal/data/postgres"
 	"github.com/jonathanselby/cyber-response-action-board/internal/presentation/web"
 )
@@ -27,6 +28,8 @@ type e2e struct {
 	t       *testing.T
 	handler http.Handler
 	export  string
+	admin   *pgxpool.Pool // superuser view of crab_e2e, for ledger counts only
+	runtime *operatorRuntime
 }
 
 const (
@@ -134,7 +137,7 @@ func newE2E(t *testing.T) *e2e {
 		cleanup()
 		admin.Close()
 	})
-	return &e2e{t: t, handler: server.Handler(), export: export}
+	return &e2e{t: t, handler: server.Handler(), export: export, admin: admin}
 }
 
 func (e *e2e) do(method, path, cookie string, form url.Values) *httptest.ResponseRecorder {
@@ -235,7 +238,9 @@ func (e *e2e) approveAll(cookie string) int {
 			form.Set(m[1], htmlUnescape(m[2]))
 		}
 		key := form.Get("record_id") + form.Get("version")
-		if form.Get("record_id") == "" || seen[key] {
+		// Enrolment codes are confirmed only through their own action
+		// (confirmReset); their Approvals card offers /decide for rejection only.
+		if form.Get("record_id") == "" || seen[key] || form.Get("record_type") == "security.credential_reset" {
 			continue
 		}
 		seen[key] = true

@@ -20,10 +20,10 @@ func accessDesignationViews(values []access.DesignationView) []web.AccessDesigna
 	return out
 }
 
-func accessMembershipViews(values []access.MembershipView) []web.AccessMembershipView {
+func accessMembershipViews(values []access.MembershipView, external map[string]bool) []web.AccessMembershipView {
 	out := make([]web.AccessMembershipView, 0, len(values))
 	for _, value := range values {
-		item := web.AccessMembershipView{HumanID: value.HumanID, IncidentID: value.IncidentID, Compartment: value.Compartment, Reason: value.Reason, Status: value.Status, Implicit: value.Implicit}
+		item := web.AccessMembershipView{HumanID: value.HumanID, IncidentID: value.IncidentID, Compartment: value.Compartment, Reason: value.Reason, Status: value.Status, Implicit: value.Implicit, External: external[value.HumanID]}
 		if value.EffectiveAt != nil {
 			item.EffectiveAt = value.EffectiveAt.UTC().Format(displayTime)
 		}
@@ -55,7 +55,11 @@ func (r *operatorRuntime) AccessAdministration(ctx context.Context, token string
 	if err != nil {
 		return web.AccessAdministrationPage{}, err
 	}
-	out := web.AccessAdministrationPage{People: people, Sponsors: accessDesignationViews(view.Sponsors), Controllers: accessDesignationViews(view.Controllers), IncidentMemberships: accessMembershipViews(view.IncidentMemberships), CompartmentMemberships: accessMembershipViews(view.CompartmentMemberships)}
+	external, err := r.accessService.ExternalPeople(ctx)
+	if err != nil {
+		return web.AccessAdministrationPage{}, err
+	}
+	out := web.AccessAdministrationPage{People: people, Sponsors: accessDesignationViews(view.Sponsors), Controllers: accessDesignationViews(view.Controllers), IncidentMemberships: accessMembershipViews(view.IncidentMemberships, external), CompartmentMemberships: accessMembershipViews(view.CompartmentMemberships, external)}
 	for _, value := range pending {
 		out.Pending = append(out.Pending, web.AccessPendingView{ScopeID: value.ScopeID, RecordID: value.RecordID, RecordType: value.RecordType, Compartment: value.Compartment, Version: value.Version, Maker: value.Maker, Mode: value.Mode, ProposedAt: value.ProposedAt.UTC().Format(displayTime)})
 	}
@@ -90,6 +94,10 @@ func (r *operatorRuntime) IncidentAccess(ctx context.Context, token, incidentID 
 	if err != nil {
 		return web.AccessAdministrationPage{}, err
 	}
+	external, err := r.accessService.ExternalPeople(ctx)
+	if err != nil {
+		return web.AccessAdministrationPage{}, err
+	}
 	out := web.AccessAdministrationPage{}
 	for _, value := range view.Sponsors {
 		if value.IncidentID == incidentID {
@@ -98,7 +106,7 @@ func (r *operatorRuntime) IncidentAccess(ctx context.Context, token, incidentID 
 	}
 	for _, value := range view.IncidentMemberships {
 		if value.IncidentID == incidentID {
-			out.IncidentMemberships = append(out.IncidentMemberships, accessMembershipViews([]access.MembershipView{value})[0])
+			out.IncidentMemberships = append(out.IncidentMemberships, accessMembershipViews([]access.MembershipView{value}, external)[0])
 		}
 	}
 	allowedCompartments := principal.Compartments[incidentID]
@@ -109,7 +117,7 @@ func (r *operatorRuntime) IncidentAccess(ctx context.Context, token, incidentID 
 	}
 	for _, value := range view.CompartmentMemberships {
 		if value.IncidentID == incidentID && allowedCompartments[value.Compartment] {
-			out.CompartmentMemberships = append(out.CompartmentMemberships, accessMembershipViews([]access.MembershipView{value})[0])
+			out.CompartmentMemberships = append(out.CompartmentMemberships, accessMembershipViews([]access.MembershipView{value}, external)[0])
 		}
 	}
 	for _, value := range pending {

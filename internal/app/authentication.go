@@ -72,6 +72,21 @@ func (p Principals) ForToken(ctx context.Context, token string) (authz.Principal
 	return principal, session, true, nil
 }
 
+// Sign-in failure limits (F-8). Per person-and-source stops password guessing;
+// per source stops one client spraying many IDs. Both are in memory: a restart
+// clears them, which is acceptable for a rate bound (it is not an audit record).
+const (
+	AccountFailureLimit = 5
+	SourceFailureLimit  = 50
+	FailureWindow       = 15 * time.Minute
+)
+
+// NewFailureLimiters returns the two sign-in limiters with CRAB's limits.
+func NewFailureLimiters() (account, source *authn.FailureLimiter) {
+	return &authn.FailureLimiter{MaxFailures: AccountFailureLimit, Window: FailureWindow},
+		&authn.FailureLimiter{MaxFailures: SourceFailureLimit, Window: FailureWindow}
+}
+
 // Authentication owns sign-in and first-time enrolment.
 type Authentication struct {
 	Credentials CredentialBackend
@@ -79,6 +94,28 @@ type Authentication struct {
 	Identities  PrincipalSource
 	// Issuer labels TOTP enrolment URIs.
 	Issuer string
+	// AccountLimiter and SourceLimiter bound failed attempts. Both are required.
+	AccountLimiter, SourceLimiter *authn.FailureLimiter
+}
+
+// limited runs one sign-in or enrolment attempt under the failure limits. A
+// limited attempt is refused with the same error as any other failure, before
+// any credential is checked.
+func (a Authentication) limited(humanID, source string, now time.Time, attempt func() error) error {
+	accountKey, sourceKey := "acct:"+strings.ToLower(humanID)+"|"+source, "src:"+source
+	if !a.AccountLimiter.Allow(accountKey, now) || !a.SourceLimiter.Allow(sourceKey, now) {
+		return ErrAuthenticationFailed
+	}
+	err := attempt()
+	if err == nil || errors.Is(err, ErrEnrolmentRequired) {
+		a.AccountLimiter.Success(accountKey)
+		return err
+	}
+	if errors.Is(err, ErrAuthenticationFailed) {
+		a.AccountLimiter.Failure(accountKey, now)
+		a.SourceLimiter.Failure(sourceKey, now)
+	}
+	return err
 }
 
 // Enrolment is what a person needs to finish setting up their account.
@@ -91,36 +128,48 @@ type Enrolment struct {
 // Authenticate signs a person in. External people must also present a valid
 // TOTP code. A valid enrolment code returns ErrEnrolmentRequired and creates
 // no session.
-func (a Authentication) Authenticate(ctx context.Context, humanID, secret, totpCode string, now time.Time) (string, error) {
+func (a Authentication) Authenticate(ctx context.Context, humanID, secret, totpCode, source string, now time.Time) (string, error) {
 	if err := a.ready(); err != nil {
 		return "", err
 	}
 	humanID = strings.TrimSpace(humanID)
-	state, cred, err := a.verifySecret(ctx, humanID, secret, now)
-	if err != nil {
-		return "", err
-	}
-	if cred.MustSetPassword {
-		return "", ErrEnrolmentRequired
-	}
-	if state.External {
-		if err := a.verifyConfirmedTOTP(ctx, humanID, totpCode, now); err != nil {
-			return "", err
+	var token string
+	err := a.limited(humanID, source, now, func() error {
+		state, cred, err := a.verifySecret(ctx, humanID, secret, now)
+		if err != nil {
+			return err
 		}
-	}
-	return a.startSession(ctx, humanID, now)
+		if cred.MustSetPassword {
+			return ErrEnrolmentRequired
+		}
+		if state.External {
+			if err := a.verifyConfirmedTOTP(ctx, humanID, totpCode, now); err != nil {
+				return err
+			}
+		}
+		token, err = a.startSession(ctx, humanID, now)
+		return err
+	})
+	return token, err
 }
 
 // BeginEnrolment checks an enrolment code and, for an external person, creates
 // a new pending TOTP secret to show them. Calling it again replaces the secret.
-func (a Authentication) BeginEnrolment(ctx context.Context, humanID, code string, now time.Time) (Enrolment, error) {
+func (a Authentication) BeginEnrolment(ctx context.Context, humanID, code, source string, now time.Time) (Enrolment, error) {
 	if err := a.ready(); err != nil {
 		return Enrolment{}, err
 	}
 	humanID = strings.TrimSpace(humanID)
-	state, cred, err := a.verifySecret(ctx, humanID, normaliseCode(code), now)
-	if err != nil || !cred.MustSetPassword {
-		return Enrolment{}, ErrAuthenticationFailed
+	var state access.IdentityState
+	if err := a.limited(humanID, source, now, func() error {
+		s, cred, err := a.verifySecret(ctx, humanID, normaliseCode(code), now)
+		if err != nil || !cred.MustSetPassword {
+			return ErrAuthenticationFailed
+		}
+		state = s
+		return nil
+	}); err != nil {
+		return Enrolment{}, err
 	}
 	if !state.External {
 		return Enrolment{}, nil
@@ -137,14 +186,21 @@ func (a Authentication) BeginEnrolment(ctx context.Context, humanID, code string
 
 // CompleteEnrolment replaces an enrolment code with the person's own password
 // (and confirms their TOTP secret if external), then signs them in.
-func (a Authentication) CompleteEnrolment(ctx context.Context, humanID, code, newPassword, totpCode string, now time.Time) (string, error) {
+func (a Authentication) CompleteEnrolment(ctx context.Context, humanID, code, newPassword, totpCode, source string, now time.Time) (string, error) {
 	if err := a.ready(); err != nil {
 		return "", err
 	}
 	humanID = strings.TrimSpace(humanID)
-	state, cred, err := a.verifySecret(ctx, humanID, normaliseCode(code), now)
-	if err != nil || !cred.MustSetPassword {
-		return "", ErrAuthenticationFailed
+	var state access.IdentityState
+	if err := a.limited(humanID, source, now, func() error {
+		s, cred, err := a.verifySecret(ctx, humanID, normaliseCode(code), now)
+		if err != nil || !cred.MustSetPassword {
+			return ErrAuthenticationFailed
+		}
+		state = s
+		return nil
+	}); err != nil {
+		return "", err
 	}
 	if err := authn.ValidateNewPassword(newPassword); err != nil {
 		return "", err
@@ -231,7 +287,7 @@ func (a Authentication) startSession(ctx context.Context, humanID string, now ti
 }
 
 func (a Authentication) ready() error {
-	if a.Credentials == nil || a.Sessions == nil || a.Identities == nil {
+	if a.Credentials == nil || a.Sessions == nil || a.Identities == nil || a.AccountLimiter == nil || a.SourceLimiter == nil {
 		return errors.New("authentication is not configured")
 	}
 	return nil

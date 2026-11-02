@@ -105,7 +105,11 @@ func (Renderer) RenderIncidentBrief(value domain.IncidentBrief, pageSize, printM
 		d.section("Who is in charge")
 		rows := make([][]string, 0, len(value.OperationalRoles))
 		for _, role := range value.OperationalRoles {
-			rows = append(rows, []string{role.Assignment.RoleName, role.Assignment.HumanID + deputy(role.Assignment.Deputy)})
+			person := role.Assignment.HumanID + deputy(role.Assignment.Deputy)
+			if role.External {
+				person += " (EXTERNAL)"
+			}
+			rows = append(rows, []string{role.Assignment.RoleName, person})
 		}
 		d.table([]string{"Role", "Person"}, []float64{0.45, 0.55}, rows)
 	}

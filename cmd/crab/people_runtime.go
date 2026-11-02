@@ -22,7 +22,7 @@ func (r *operatorRuntime) peopleRows(ctx context.Context, principal authz.Princi
 	for _, p := range people {
 		row := web.PersonRow{HumanID: p.HumanID, DisplayName: p.DisplayName, Organisation: p.Organisation, Status: p.Status, Role: p.Role,
 			External: p.External, Custodian: p.HoldsCustodian, Usable: p.Usable, Legacy: p.Legacy, VisibleIncidents: p.VisibleIncidents, OtherIncidents: p.OtherIncidents,
-			CanSuspend: p.CanSuspend, CanReactivate: p.CanReactivate, CanDisable: p.CanDisable, CanReset: p.CanReset, CanRecordIdentity: p.CanRecordIdentity}
+			CanSuspend: p.CanSuspend, CanReactivate: p.CanReactivate, CanDisable: p.CanDisable, CanReset: p.CanReset, CanRecordIdentity: p.CanRecordIdentity, CanChangeRole: p.CanChangeRole}
 		if p.AccountExpiresAt != nil {
 			row.AccountExpiresAt = p.AccountExpiresAt.UTC().Format(displayTime)
 		}
@@ -57,6 +57,18 @@ func (r *operatorRuntime) ProposePersonStatus(ctx context.Context, token, humanI
 	return err
 }
 
+func (r *operatorRuntime) ProposePersonRole(ctx context.Context, token, humanID, role string, remove bool) error {
+	principal, ok, err := r.principal(ctx, token)
+	if err != nil {
+		return err
+	}
+	if !ok {
+		return app.ErrAuthorisationDenied
+	}
+	_, err = r.accessService.ProposeRoleEligibility(ctx, principal, newOperatorID("ROLE"), humanID, authz.Role(strings.TrimSpace(role)), !remove, r.kernel.Clock().Read().Now)
+	return err
+}
+
 func (r *operatorRuntime) ProposeCredentialReset(ctx context.Context, token, humanID, reason string) error {
 	principal, ok, err := r.principal(ctx, token)
 	if err != nil {
@@ -84,14 +96,14 @@ func (r *operatorRuntime) ConfirmCredentialReset(ctx context.Context, token, rec
 	return web.ResetCodeView{HumanID: issued.HumanID, Code: issued.Code, ExpiresAt: issued.ExpiresAt.UTC().Format(displayTime)}, nil
 }
 
-func (r *operatorRuntime) BeginEnrolment(ctx context.Context, humanID, code string) (web.EnrolmentView, error) {
-	e, err := r.auth.BeginEnrolment(ctx, humanID, code, r.kernel.Clock().Read().Now)
+func (r *operatorRuntime) BeginEnrolment(ctx context.Context, humanID, code, source string) (web.EnrolmentView, error) {
+	e, err := r.auth.BeginEnrolment(ctx, humanID, code, source, r.kernel.Clock().Read().Now)
 	if err != nil {
 		return web.EnrolmentView{}, err
 	}
 	return web.EnrolmentView{HumanID: strings.TrimSpace(humanID), Code: code, NeedsTOTP: e.NeedsTOTP, TOTPSecret: e.TOTPSecret, TOTPURI: e.TOTPURI}, nil
 }
 
-func (r *operatorRuntime) CompleteEnrolment(ctx context.Context, humanID, code, password, totp string) (string, error) {
-	return r.auth.CompleteEnrolment(ctx, humanID, code, password, totp, r.kernel.Clock().Read().Now)
+func (r *operatorRuntime) CompleteEnrolment(ctx context.Context, humanID, code, password, totp, source string) (string, error) {
+	return r.auth.CompleteEnrolment(ctx, humanID, code, password, totp, source, r.kernel.Clock().Read().Now)
 }

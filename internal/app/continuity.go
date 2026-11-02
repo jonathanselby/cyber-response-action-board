@@ -43,6 +43,9 @@ type ContinuityService struct {
 	Incident IncidentPictureReader
 	Severity SeverityPolicy
 	Window   WindowPolicy
+	// DeclarationMaker returns the maker of a pending declaration for an
+	// incident ID, so a triager may point a report at their own proposal.
+	DeclarationMaker func(context.Context, string) (string, bool, error)
 }
 
 func (s ContinuityService) CaptureFirstReport(ctx context.Context, principal authz.Principal, reportID string, report domain.FirstReport, attachments []FirstReportAttachmentInput, now time.Time) (ledger.Record, error) {
@@ -79,6 +82,9 @@ func (s ContinuityService) TriageFirstReport(ctx context.Context, principal auth
 	if !principal.Authenticated || principal.HumanID == "" || (principal.Role != authz.RoleMajor && principal.Role != authz.RoleMinor) {
 		return ledger.Record{}, ErrAuthorisationDenied
 	}
+	if err := s.authoriseTriageTarget(ctx, principal, value); err != nil {
+		return ledger.Record{}, err
+	}
 	record, err := domain.RecordFirstReportDisposition(recordID, principal.HumanID, now, value)
 	if err != nil {
 		return ledger.Record{}, err
@@ -87,6 +93,41 @@ func (s ContinuityService) TriageFirstReport(ctx context.Context, principal auth
 		return ledger.Record{}, err
 	}
 	return record, nil
+}
+
+// authoriseTriageTarget stops a report being linked to an incident the triager
+// cannot work in. Associating needs record authority in the incident. Pointing
+// at a declaration needs read authority or being the maker of that pending
+// declaration. Every refusal is the same, so it never reveals whether a hidden
+// incident exists.
+func (s ContinuityService) authoriseTriageTarget(ctx context.Context, principal authz.Principal, value domain.FirstReportDisposition) error {
+	incidentID := strings.TrimSpace(value.IncidentID)
+	if incidentID == "" {
+		return nil
+	}
+	scope := authz.ObjectScope{IncidentID: incidentID, Compartment: "GENERAL"}
+	switch value.Decision {
+	case "associate":
+		if authz.Authorise(principal, authz.ActionRecord, scope).Allowed {
+			return nil
+		}
+	case "propose_declaration":
+		if authz.Authorise(principal, authz.ActionRead, scope).Allowed {
+			return nil
+		}
+		if s.DeclarationMaker != nil {
+			maker, found, err := s.DeclarationMaker(ctx, incidentID)
+			if err != nil {
+				return err
+			}
+			if found && maker == principal.HumanID {
+				return nil
+			}
+		}
+	default:
+		return nil
+	}
+	return ErrAuthorisationDenied
 }
 
 func (s ContinuityService) RecordScopeAssessment(ctx context.Context, principal authz.Principal, scope domain.Scope, recordID string, value domain.ScopeAssessment, now time.Time) (ledger.Record, error) {

@@ -91,7 +91,8 @@ func newIdentityFixture(t *testing.T) *identityFixture {
 	clock := func() time.Time { return f.now }
 	f.sessions = authn.Sessions{Store: security, TTL: 8 * time.Hour, Now: clock}
 	f.principals = app.Principals{Sessions: f.sessions, Source: f.store, Now: clock}
-	f.auth = app.Authentication{Credentials: f.creds, Sessions: f.sessions, Identities: f.store, Issuer: "CRAB"}
+	accountLimiter, sourceLimiter := app.NewFailureLimiters()
+	f.auth = app.Authentication{Credentials: f.creds, Sessions: f.sessions, Identities: f.store, Issuer: "CRAB", AccountLimiter: accountLimiter, SourceLimiter: sourceLimiter}
 	for _, id := range []string{"alice", "bob"} {
 		f.setPassword(id, "Bafflewick-"+id+"-26!")
 	}
@@ -182,7 +183,7 @@ func (f *identityFixture) reset(maker, confirmer, humanID string) string {
 
 func (f *identityFixture) signIn(humanID, secret, totp string) string {
 	f.t.Helper()
-	token, err := f.auth.Authenticate(f.ctx, humanID, secret, totp, f.now)
+	token, err := f.auth.Authenticate(f.ctx, humanID, secret, totp, "test-client", f.now)
 	if err != nil {
 		f.t.Fatalf("sign in %s: %v", humanID, err)
 	}
@@ -324,17 +325,17 @@ func TestEnrolmentCodeLifecycle(t *testing.T) {
 	}
 
 	// The code alone creates no session; a weak password is refused.
-	if _, err := f.auth.Authenticate(f.ctx, "jane", code, "", f.now); !errors.Is(err, app.ErrEnrolmentRequired) {
+	if _, err := f.auth.Authenticate(f.ctx, "jane", code, "", "test-client", f.now); !errors.Is(err, app.ErrEnrolmentRequired) {
 		t.Fatalf("sign-in with code err=%v", err)
 	}
-	if _, err := f.auth.CompleteEnrolment(f.ctx, "jane", strings.ToLower(code), "short", "", f.now); err == nil {
+	if _, err := f.auth.CompleteEnrolment(f.ctx, "jane", strings.ToLower(code), "short", "", "test-client", f.now); err == nil {
 		t.Fatal("weak password accepted at enrolment")
 	}
-	token, err := f.auth.CompleteEnrolment(f.ctx, "jane", strings.ToLower(code), "Forensic-Night-26!", "", f.now)
+	token, err := f.auth.CompleteEnrolment(f.ctx, "jane", strings.ToLower(code), "Forensic-Night-26!", "", "test-client", f.now)
 	if err != nil || !f.tokenWorks(token) {
 		t.Fatalf("complete enrolment err=%v", err)
 	}
-	if _, err := f.auth.Authenticate(f.ctx, "jane", code, "", f.now); !errors.Is(err, app.ErrAuthenticationFailed) {
+	if _, err := f.auth.Authenticate(f.ctx, "jane", code, "", "test-client", f.now); !errors.Is(err, app.ErrAuthenticationFailed) {
 		t.Fatalf("used code still accepted err=%v", err)
 	}
 	second := f.signIn("jane", "Forensic-Night-26!", "")
@@ -344,12 +345,12 @@ func TestEnrolmentCodeLifecycle(t *testing.T) {
 	if f.tokenWorks(token) || f.tokenWorks(second) {
 		t.Fatal("session survived credential reset")
 	}
-	if _, err := f.auth.Authenticate(f.ctx, "jane", "Forensic-Night-26!", "", f.now); !errors.Is(err, app.ErrAuthenticationFailed) {
+	if _, err := f.auth.Authenticate(f.ctx, "jane", "Forensic-Night-26!", "", "test-client", f.now); !errors.Is(err, app.ErrAuthenticationFailed) {
 		t.Fatalf("old password survived reset err=%v", err)
 	}
 	// An expired code is refused.
 	f.now = f.now.Add(app.EnrolmentCodeLifetime + time.Minute)
-	if _, err := f.auth.CompleteEnrolment(f.ctx, "jane", newCode, "Forensic-Night-27!", "", f.now); !errors.Is(err, app.ErrAuthenticationFailed) {
+	if _, err := f.auth.CompleteEnrolment(f.ctx, "jane", newCode, "Forensic-Night-27!", "", "test-client", f.now); !errors.Is(err, app.ErrAuthenticationFailed) {
 		t.Fatalf("expired code err=%v", err)
 	}
 }
@@ -375,7 +376,7 @@ func TestAccountStateEndsLiveSessions(t *testing.T) {
 	if remaining != 0 {
 		t.Fatalf("suspended person still holds %d sessions", remaining)
 	}
-	if _, err := f.auth.Authenticate(f.ctx, "jane", "Forensic-Night-26!", "", f.now); !errors.Is(err, app.ErrAuthenticationFailed) {
+	if _, err := f.auth.Authenticate(f.ctx, "jane", "Forensic-Night-26!", "", "test-client", f.now); !errors.Is(err, app.ErrAuthenticationFailed) {
 		t.Fatalf("suspended sign-in err=%v", err)
 	}
 
@@ -386,7 +387,7 @@ func TestAccountStateEndsLiveSessions(t *testing.T) {
 	if f.tokenWorks(token) {
 		t.Fatal("session survived account expiry")
 	}
-	if _, err := f.auth.Authenticate(f.ctx, "jane", "Forensic-Night-26!", "", f.now); !errors.Is(err, app.ErrAuthenticationFailed) {
+	if _, err := f.auth.Authenticate(f.ctx, "jane", "Forensic-Night-26!", "", "test-client", f.now); !errors.Is(err, app.ErrAuthenticationFailed) {
 		t.Fatalf("expired account sign-in err=%v", err)
 	}
 }
@@ -460,7 +461,7 @@ func TestUnusableCustodiansCannotCompleteGovernedChanges(t *testing.T) {
 	if _, err := f.service.Decide(f.ctx, carolPrincipal, "", another.RecordType, another.RecordID, version, "confirmed", f.now); !errors.Is(err, app.ErrAuthorisationDenied) {
 		t.Fatalf("suspended Custodian confirmed err=%v", err)
 	}
-	if _, err := f.auth.Authenticate(f.ctx, "carol", "Bafflewick-carol-26!", "", f.now); !errors.Is(err, app.ErrAuthenticationFailed) {
+	if _, err := f.auth.Authenticate(f.ctx, "carol", "Bafflewick-carol-26!", "", "test-client", f.now); !errors.Is(err, app.ErrAuthenticationFailed) {
 		t.Fatalf("suspended Custodian signed in err=%v", err)
 	}
 }
@@ -482,17 +483,17 @@ func TestExternalPeopleNeedTOTP(t *testing.T) {
 	}
 
 	code := f.reset("alice", "bob", "jane")
-	enrolment, err := f.auth.BeginEnrolment(f.ctx, "jane", code, f.now)
+	enrolment, err := f.auth.BeginEnrolment(f.ctx, "jane", code, "test-client", f.now)
 	if err != nil || !enrolment.NeedsTOTP || !strings.HasPrefix(enrolment.TOTPURI, "otpauth://totp/") {
 		t.Fatalf("begin enrolment=%+v err=%v", enrolment, err)
 	}
-	if _, err := f.auth.CompleteEnrolment(f.ctx, "jane", code, "Forensic-Night-26!", "000000", f.now); err == nil {
+	if _, err := f.auth.CompleteEnrolment(f.ctx, "jane", code, "Forensic-Night-26!", "000000", "test-client", f.now); err == nil {
 		t.Fatal("enrolment completed with a wrong TOTP code")
 	}
-	if _, err := f.auth.CompleteEnrolment(f.ctx, "jane", code, "Forensic-Night-26!", totpNow(t, enrolment.TOTPSecret, f.now), f.now); err != nil {
+	if _, err := f.auth.CompleteEnrolment(f.ctx, "jane", code, "Forensic-Night-26!", totpNow(t, enrolment.TOTPSecret, f.now), "test-client", f.now); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := f.auth.Authenticate(f.ctx, "jane", "Forensic-Night-26!", "", f.now); !errors.Is(err, app.ErrAuthenticationFailed) {
+	if _, err := f.auth.Authenticate(f.ctx, "jane", "Forensic-Night-26!", "", "test-client", f.now); !errors.Is(err, app.ErrAuthenticationFailed) {
 		t.Fatalf("external sign-in without TOTP err=%v", err)
 	}
 	f.signIn("jane", "Forensic-Night-26!", totpNow(t, enrolment.TOTPSecret, f.now))
@@ -538,5 +539,62 @@ func TestNewPersonIsAllOrNothing(t *testing.T) {
 	}
 	if err := f.service.ProposeNewPerson(f.ctx, f.principal("bob"), "PERSON-Z", access.IdentityChange{HumanID: "alice", DisplayName: "Impostor"}, authz.RoleMajor, f.now); err == nil {
 		t.Fatal("new person reused an existing ID")
+	}
+}
+
+// F-8: repeated sign-in failures are limited per person-and-source and per
+// source; a limited attempt is refused like any other failure, even with the
+// right password; other sources and people are unaffected.
+func TestSignInFailuresAreLimited(t *testing.T) {
+	f := newIdentityFixture(t)
+	for i := 0; i < app.AccountFailureLimit; i++ {
+		if _, err := f.auth.Authenticate(f.ctx, "alice", "wrong-password", "", "10.0.0.9", f.now); !errors.Is(err, app.ErrAuthenticationFailed) {
+			t.Fatalf("attempt %d err=%v", i, err)
+		}
+	}
+	if _, err := f.auth.Authenticate(f.ctx, "alice", "Bafflewick-alice-26!", "", "10.0.0.9", f.now); !errors.Is(err, app.ErrAuthenticationFailed) {
+		t.Fatalf("correct password after the limit err=%v", err)
+	}
+	if _, err := f.auth.Authenticate(f.ctx, "alice", "Bafflewick-alice-26!", "", "10.0.0.10", f.now); err != nil {
+		t.Fatalf("another source was locked out: %v", err)
+	}
+	f.now = f.now.Add(app.FailureWindow + time.Second)
+	if _, err := f.auth.Authenticate(f.ctx, "alice", "Bafflewick-alice-26!", "", "10.0.0.9", f.now); err != nil {
+		t.Fatalf("limit did not expire: %v", err)
+	}
+	// One source spraying many IDs is limited too.
+	for i := 0; i < app.SourceFailureLimit; i++ {
+		_, _ = f.auth.Authenticate(f.ctx, fmt.Sprintf("guess-%d", i), "x", "", "10.0.0.66", f.now)
+	}
+	if _, err := f.auth.Authenticate(f.ctx, "bob", "Bafflewick-bob-26!", "", "10.0.0.66", f.now); !errors.Is(err, app.ErrAuthenticationFailed) {
+		t.Fatalf("spraying source not limited err=%v", err)
+	}
+}
+
+// T-222: an external person's incident and compartment access ends no later
+// than their account; with no end given it defaults to the account end.
+func TestExternalAccessNeverOutlivesTheAccount(t *testing.T) {
+	f := newIdentityFixture(t)
+	accountEnd := f.now.Add(48 * time.Hour)
+	f.createPerson("alice", "bob", access.IdentityChange{HumanID: "jane", DisplayName: "Jane Doe", External: true, Status: access.IdentityActive, AccountExpiresAt: &accountEnd}, authz.RoleMinor)
+	f.decide("alice", "bob", f.propose(f.service.ProposeRoleEligibility(f.ctx, f.principal("alice"), f.id("ROLE"), "jane", authz.RoleMinor, true, f.now)))
+	scope := domain.Scope{IncidentID: "INC-EXT", Mode: "live", Compartment: "GENERAL"}
+	// Projection rows stand in for a confirmed declaration; this test is about
+	// the access rule, not declaration.
+	if _, err := f.db.runtime.Exec(f.ctx, `INSERT INTO crab.incidents(incident_id,mode,title,summary,severity,declaration_record_id,declared_at) VALUES($1,'live','External fixture','fixture','Severity level 2','DECLARE-EXT',$2)`, scope.IncidentID, f.now); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := f.db.runtime.Exec(f.ctx, `INSERT INTO crab.incident_sponsors(human_id,incident_id) VALUES('alice',$1)`, scope.IncidentID); err != nil {
+		t.Fatal(err)
+	}
+	tooLate := accountEnd.Add(time.Hour)
+	if _, err := f.service.ProposeIncidentMembership(f.ctx, f.principal("alice"), scope, f.id("MEMBER"), access.IncidentMembershipChange{HumanID: "jane", IncidentID: scope.IncidentID, Active: true, ExpiresAt: &tooLate}, f.now); !errors.Is(err, app.ErrExternalAccessOutlivesAccount) {
+		t.Fatalf("access beyond the account err=%v", err)
+	}
+	proposal := f.propose(f.service.ProposeIncidentMembership(f.ctx, f.principal("alice"), scope, f.id("MEMBER"), access.IncidentMembershipChange{HumanID: "jane", IncidentID: scope.IncidentID, Active: true}, f.now))
+	data, _ := domain.DecodeGovernedData(proposal.Data)
+	change, _, _ := access.Decode(access.RecordIncidentMembership, data.Payload)
+	if change.ExpiresAt == nil || !change.ExpiresAt.Equal(accountEnd) {
+		t.Fatalf("default access end=%v, want account end %v", change.ExpiresAt, accountEnd)
 	}
 }

@@ -32,7 +32,7 @@ type PersonView struct {
 	VisibleIncidents []string
 	OtherIncidents   int
 	// What the viewing Custodian may propose for this person now.
-	CanSuspend, CanReactivate, CanDisable, CanReset, CanRecordIdentity bool
+	CanSuspend, CanReactivate, CanDisable, CanReset, CanRecordIdentity, CanChangeRole bool
 }
 
 // People returns everyone known to access administration, for a usable
@@ -65,6 +65,7 @@ func (s AccessService) People(ctx context.Context, principal authz.Principal, no
 		v.CanDisable = r.Identity.Found && r.Identity.Status != access.IdentityDisabled
 		v.CanReset = v.Usable
 		v.CanRecordIdentity = !r.Identity.Found
+		v.CanChangeRole = r.Identity.Found && r.Identity.Status == access.IdentityActive
 		out = append(out, v)
 	}
 	return out, nil
@@ -141,6 +142,15 @@ func (s AccessService) CustodianReadiness(ctx context.Context, now time.Time) (C
 		check.Message = fmt.Sprintf("%d usable Custodian(s); at least %d are recommended so identity changes still have a second Custodian when one is unavailable", usable, MinimumUsableCustodians)
 	}
 	return check, nil
+}
+
+// ExternalPeople reports which people are external, so views can mark them in
+// words next to names the viewer already sees. It reveals nothing else.
+func (s AccessService) ExternalPeople(ctx context.Context) (map[string]bool, error) {
+	if err := s.ready(); err != nil {
+		return nil, err
+	}
+	return s.Backend.ExternalPeople(ctx)
 }
 
 // AccessApprovalSummary words an identity, eligibility or credential-reset

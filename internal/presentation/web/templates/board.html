@@ -71,7 +71,7 @@
 <section class="gas-panel gas-stack" aria-labelledby="command">
 <h2 id="command">Who is in charge</h2>
 {{if $p.OperationalRoles}}<div class="gas-table-wrap"><table><thead><tr><th scope="col">Role</th><th scope="col">Person</th><th scope="col">Since</th></tr></thead>
-<tbody>{{range $p.OperationalRoles}}<tr><th scope="row">{{.Assignment.RoleName}}{{if .Assignment.Deputy}} (deputy){{end}}</th><td>{{.Assignment.HumanID}}</td><td>{{when .ConfirmedAt}}{{if eq .Maker .Confirmer}} <span class="gas-badge gas-badge--warning">SELF-APPROVAL</span>{{end}}</td></tr>{{end}}</tbody></table></div>
+<tbody>{{range $p.OperationalRoles}}<tr><th scope="row">{{.Assignment.RoleName}}{{if .Assignment.Deputy}} (deputy){{end}}</th><td>{{.Assignment.HumanID}}{{if .External}} <span class="gas-badge gas-badge--warning">EXTERNAL</span>{{end}}</td><td>{{when .ConfirmedAt}}{{if eq .Maker .Confirmer}} <span class="gas-badge gas-badge--warning">SELF-APPROVAL</span>{{end}}</td></tr>{{end}}</tbody></table></div>
 {{else}}<p class="gas-empty">No operational roles assigned.</p>{{end}}
 <p class="gas-help">Operational roles are your organisation's titles. They are separate from CRAB permissions.</p>
 <details{{if eq $.Open "role"}} open{{end}}><summary>Assign role</summary>
