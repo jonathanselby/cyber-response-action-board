@@ -421,3 +421,39 @@ func insertTimelineDecision(ctx context.Context, tx pgx.Tx, entry ledger.Entry, 
 	_, err := tx.Exec(ctx, `INSERT INTO crab.incident_timeline(sequence,incident_id,record_id,record_type,governance,compartment,summary,recorded_at,awareness,time_status) VALUES($1,$2,$3,$4,$5,$6,$7,$8,'[]'::jsonb,$9)`, entry.Seq, record.IncidentID, record.RecordID, record.RecordType, timelineGovernance(record), record.Compartment, summary, record.Timestamp, record.TimeStatus)
 	return err
 }
+
+// IncidentHeader reads only an incident's title, mode and severity, for
+// listings that need no more (C11: the approvals queue read the whole
+// operating picture, timeline included, for every incident on every page).
+func (s *IncidentStore) IncidentHeader(ctx context.Context, incidentID string) (title, mode, severity string, found bool, err error) {
+	err = s.pool.QueryRow(ctx, `SELECT title, mode, severity FROM crab.incidents WHERE incident_id=$1`, incidentID).Scan(&title, &mode, &severity)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return "", "", "", false, nil
+	}
+	return title, mode, severity, err == nil, err
+}
+
+// PendingProposals lists an incident's pending governed proposals.
+func (s *IncidentStore) PendingProposals(ctx context.Context, incidentID string) ([]domain.PendingProposal, error) {
+	var picture domain.OperatingPicture
+	err := s.readPending(ctx, incidentID, &picture)
+	return picture.Pending, err
+}
+
+// SelfApprovedSince lists self-approved timeline entries recorded after since.
+func (s *IncidentStore) SelfApprovedSince(ctx context.Context, incidentID, compartment string, since time.Time) ([]domain.TimelineEntry, error) {
+	rows, err := s.pool.Query(ctx, `SELECT record_type, summary, recorded_at, time_status FROM crab.incident_timeline WHERE incident_id=$1 AND compartment=$2 AND governance='self-approved' AND recorded_at > $3 ORDER BY recorded_at, sequence`, incidentID, compartment, since)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []domain.TimelineEntry
+	for rows.Next() {
+		var v domain.TimelineEntry
+		if err := rows.Scan(&v.RecordType, &v.Summary, &v.RecordedAt, &v.TimeStatus); err != nil {
+			return nil, err
+		}
+		out = append(out, v)
+	}
+	return out, rows.Err()
+}

@@ -101,9 +101,11 @@ run_gate() {
 run_gate "module contract" bash -c 'go mod tidy && git diff --exit-code -- go.mod go.sum'
 run_gate "format contract" bash -c 'files=$(gofmt -l ./cmd ./internal); test -z "$files"'
 run_gate "vet" go vet ./...
-run_gate "Bafflewick 9-of-9 scenario" ./scripts/bafflewick-acceptance.sh
+run_gate "Bafflewick 10-of-10 scenario" ./scripts/bafflewick-acceptance.sh
 run_gate "visual and accessibility preflight" ./scripts/visual-acceptance-preflight.sh
 run_gate "full tests" go test -count=1 ./...
+PROOF_DIR="$TMP/proof"
+run_gate "load and soak (T-238, T-239; ${CRAB_PROOF_PROFILE:-short} profile)" env CRAB_PROOF_REPORT_DIR="$PROOF_DIR" go test -tags proof -count=1 -timeout 400m -run '^TestProof(Load|Soak)$' ./cmd/crab
 run_gate "native build" ./scripts/build.sh ./bin/crab
 run_gate "binary provenance" bash -c 'test "$(./bin/crab version)" = "crab ${VERSION} commit=${SOURCE_COMMIT} built=${CRAB_BUILD_TIME}"'
 run_gate "binary startup baseline" ./bin/crab version
@@ -122,6 +124,13 @@ run_gate "binary startup baseline" ./bin/crab version
   echo
   echo "Bafflewick includes the required degraded-operation paths: optional model loss/shedding, corporate federation loss with local authentication, paper fallback/reconciliation, backup/restore/rebuild, access revocation, closure/read-only enforcement, fail-closed hostile/output controls, unverified time and the single-person window."
   echo
+  echo "## Load and soak on this host"
+  echo
+  echo "Measured by the load and soak gates above (T-238, T-239). Return this whole file as the evidence."
+  echo
+  for report in "$PROOF_DIR"/load.md "$PROOF_DIR"/soak.md; do
+    if [ -f "$report" ]; then sed 's/^# /### /' "$report"; echo; fi
+  done
   echo "## Host snapshot after gates"
   echo
   echo '```text'

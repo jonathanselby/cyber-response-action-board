@@ -19,6 +19,7 @@ var hostClockAllowed = map[string]string{
 	"cmd/crab/operator_runtime.go":           "record-ID fallback when the random source fails; uniqueness only",
 	"internal/presentation/web/server.go":    "health endpoint reports the host clock as such",
 	"internal/presentation/web/incident.go":  "download file name only",
+	"internal/proof/proof_on.go":             "test-only sampler timestamps, compiled only with -tags proof",
 }
 
 // F-11: no new direct host-clock reads.

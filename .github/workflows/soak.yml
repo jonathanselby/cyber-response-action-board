@@ -1,0 +1,43 @@
+name: soak
+
+# Full-profile load and accelerated 72-hour soak (C11; R-10, R-11; T-238,
+# T-239): ten minutes of 50-user load, then six real hours in which the
+# governed clock covers 72 hours. Weekly, and on demand.
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '17 15 * * 6'
+
+jobs:
+  soak:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 400
+    env:
+      CRAB_TEST_POSTGRES_ADMIN_URL: postgres://postgres:postgres@127.0.0.1:5432/crab_test?sslmode=disable
+      CRAB_PROOF_PROFILE: full
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.27.2'
+      - name: PostgreSQL on the runner
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo systemctl start postgresql
+          until pg_isready -h 127.0.0.1 -q; do sleep 1; done
+          sudo -u postgres psql -c "ALTER USER postgres PASSWORD 'postgres'"
+          sudo -u postgres createdb crab_test
+      - name: Load and soak, full profile
+        env:
+          CRAB_PROOF_REPORT_DIR: ${{ runner.temp }}/proof-report
+        run: go test -tags proof -count=1 -v -timeout 390m -run '^TestProof(Load|Soak)$' ./cmd/crab
+      - name: Report
+        if: always()
+        run: cat "${{ runner.temp }}"/proof-report/*.md || true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: soak-report
+          path: ${{ runner.temp }}/proof-report/

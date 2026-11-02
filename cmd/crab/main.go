@@ -7,6 +7,7 @@ import (
 	"flag"
 	"fmt"
 	"github.com/jonathanselby/cyber-response-action-board/internal/adapters/clock"
+	"github.com/jonathanselby/cyber-response-action-board/internal/proof"
 	"io"
 	"net/http"
 	"os"
@@ -311,6 +312,8 @@ func runSetup(stdout, stderr io.Writer) int {
 }
 
 func runServe(stdout, stderr io.Writer) int {
+	proof.StartSampler() // test-only; empty in a release build
+	defer proof.Stop()
 	cfg, err := config.Load()
 	if err != nil {
 		fmt.Fprintln(stderr, err)

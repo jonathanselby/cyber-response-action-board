@@ -7,7 +7,6 @@ package main
 import (
 	"context"
 	"errors"
-	"github.com/jonathanselby/cyber-response-action-board/internal/ledger"
 	"sort"
 	"strings"
 	"time"
@@ -45,8 +44,10 @@ func (r *operatorRuntime) Frame(ctx context.Context, token, incidentID string) (
 	if cfg, err := config.Load(); err == nil {
 		frame.Status.PackStale = packFreshnessCheck(cfg, r.emergencyChangedAt(ctx)).Status != "pass"
 	}
-	if approvals, err := r.approvals(ctx, principal, ""); err == nil {
-		frame.Status.PendingApprovals = len(approvals.Waiting)
+	// Only the count is needed here, on every page (C11: building the whole
+	// view, self-approvals included, was the largest cost per request).
+	if queue, err := (app.ApprovalsService{Backend: approvalsBackend{r}}).Queue(ctx, principal, "", r.kernel.Clock().Read().Now); err == nil {
+		frame.Status.PendingApprovals = len(queue.Waiting)
 	}
 	if incidentID = strings.TrimSpace(incidentID); incidentID != "" {
 		frame.Incident = r.incidentContext(ctx, principal, incidentID)
@@ -730,23 +731,9 @@ func (r *operatorRuntime) ActivateChecklist(ctx context.Context, token, incident
 // recentSelfApprovals lists self-approved decisions in the last 24 hours in
 // incidents the viewer can see (AC-07 single-approval dashboard).
 func (r *operatorRuntime) recentSelfApprovals(ctx context.Context, principal authz.Principal) []web.SelfApprovalView {
-	since := r.kernel.Clock().Read().Now.Add(-24 * time.Hour)
 	var out []web.SelfApprovalView
-	ids := make([]string, 0, len(principal.Incidents))
-	for id := range principal.Incidents {
-		ids = append(ids, id)
-	}
-	sort.Strings(ids)
-	for _, id := range ids {
-		picture, found, err := r.incident.CommonOperatingPicture(ctx, principal, id, "GENERAL")
-		if err != nil || !found {
-			continue
-		}
-		for _, entry := range picture.Timeline {
-			if entry.Governance == "self-approved" && entry.RecordedAt.After(since) {
-				out = append(out, web.SelfApprovalView{IncidentID: id, Summary: humanRecordLabel(entry.RecordType) + ": " + entry.Summary, At: entry.RecordedAt.UTC().Format(displayTime), TimeUnverified: entry.TimeStatus != ledger.TimeTrusted})
-			}
-		}
+	for _, a := range (app.ApprovalsService{Backend: approvalsBackend{r}}).RecentSelfApprovals(ctx, principal, r.kernel.Clock().Read().Now) {
+		out = append(out, web.SelfApprovalView{IncidentID: a.IncidentID, Summary: a.Summary, At: a.At.UTC().Format(displayTime), TimeUnverified: a.TimeUnverified})
 	}
 	return out
 }

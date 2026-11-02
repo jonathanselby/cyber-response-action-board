@@ -10,3 +10,9 @@ const Enabled = false
 
 // Hit is a named failpoint. It does nothing in a release build.
 func Hit(string) {}
+
+// StartSampler does nothing in a release build.
+func StartSampler() {}
+
+// Stop does nothing in a release build.
+func Stop() {}

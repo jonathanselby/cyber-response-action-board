@@ -15,19 +15,22 @@ import (
 // store's list empty, as before, so one unavailable area cannot hide the rest.
 type approvalsBackend struct{ r *operatorRuntime }
 
-func (b approvalsBackend) Incident(ctx context.Context, principal authz.Principal, incidentID string) (app.IncidentRef, bool) {
-	picture, found, err := b.r.incident.CommonOperatingPicture(ctx, principal, incidentID, "GENERAL")
+func (b approvalsBackend) Incident(ctx context.Context, _ authz.Principal, incidentID string) (app.IncidentRef, bool) {
+	title, mode, severity, found, err := b.r.incidents.IncidentHeader(ctx, incidentID)
 	if err != nil || !found {
 		return app.IncidentRef{}, false
 	}
-	return app.IncidentRef{IncidentID: incidentID, Title: picture.Incident.Title, Mode: picture.Incident.Mode, Severity: picture.Incident.Severity}, true
+	return app.IncidentRef{IncidentID: incidentID, Title: title, Mode: mode, Severity: severity}, true
 }
 
 func (b approvalsBackend) PendingInIncident(ctx context.Context, principal authz.Principal, id, compartment string) []app.PendingProposal {
 	r := b.r
 	var out []app.PendingProposal
-	if picture, ok, err := r.incident.CommonOperatingPicture(ctx, principal, id, compartment); err == nil && ok {
-		for _, p := range picture.Pending {
+	if pending, err := r.incidents.PendingProposals(ctx, id); err == nil {
+		for _, p := range pending {
+			if p.Compartment != "GENERAL" && p.Compartment != compartment {
+				continue
+			}
 			kind := "incident"
 			if p.RecordType == domain.TypeIncidentDeclaration {
 				kind = "declaration"
@@ -163,4 +166,9 @@ func (b approvalsBackend) CurrentSeverity(ctx context.Context, incidentID string
 		return ""
 	}
 	return picture.Incident.Severity
+}
+
+func (b approvalsBackend) SelfApprovedSince(ctx context.Context, incidentID string, since time.Time) []domain.TimelineEntry {
+	entries, _ := b.r.incidents.SelfApprovedSince(ctx, incidentID, "GENERAL", since)
+	return entries
 }

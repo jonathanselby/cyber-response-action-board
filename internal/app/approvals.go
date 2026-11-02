@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/jonathanselby/cyber-response-action-board/internal/domain"
+	"github.com/jonathanselby/cyber-response-action-board/internal/ledger"
 	"github.com/jonathanselby/cyber-response-action-board/internal/security/access"
 	"github.com/jonathanselby/cyber-response-action-board/internal/security/authz"
 )
@@ -57,6 +58,33 @@ type ApprovalsBackend interface {
 	People(ctx context.Context) (map[string]PersonLabel, error)
 	SelfApprovalPermitted(ctx context.Context, humanID, recordType string, now time.Time) bool
 	CurrentSeverity(ctx context.Context, incidentID string) string
+	SelfApprovedSince(ctx context.Context, incidentID string, since time.Time) []domain.TimelineEntry
+}
+
+// SelfApproval is a decision a Major took alone under a single-person window.
+type SelfApproval struct {
+	IncidentID, Summary string
+	At                  time.Time
+	TimeUnverified      bool
+}
+
+// RecentSelfApprovals lists self-approved decisions of the last 24 hours in
+// incidents the person may read (GENERAL only).
+func (s ApprovalsService) RecentSelfApprovals(ctx context.Context, principal authz.Principal, now time.Time) []SelfApproval {
+	ids := make([]string, 0, len(principal.Incidents))
+	for id, member := range principal.Incidents {
+		if member && authz.Authorise(principal, authz.ActionRead, authz.ObjectScope{IncidentID: id, Compartment: "GENERAL"}).Allowed {
+			ids = append(ids, id)
+		}
+	}
+	sort.Strings(ids)
+	var out []SelfApproval
+	for _, id := range ids {
+		for _, e := range s.Backend.SelfApprovedSince(ctx, id, now.Add(-24*time.Hour)) {
+			out = append(out, SelfApproval{IncidentID: id, Summary: ApprovalLabel(e.RecordType) + ": " + e.Summary, At: e.RecordedAt, TimeUnverified: e.TimeStatus != ledger.TimeTrusted})
+		}
+	}
+	return out
 }
 
 // ApprovalItem is one pending change as this person sees it.
@@ -118,6 +146,9 @@ func (s ApprovalsService) Queue(ctx context.Context, principal authz.Principal, 
 	}
 	sort.Strings(ids)
 	for _, id := range ids {
+		if !readable(id, "GENERAL") {
+			continue
+		}
 		ref, ok := s.Backend.Incident(ctx, principal, id)
 		if !ok {
 			continue
