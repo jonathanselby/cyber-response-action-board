@@ -46,7 +46,15 @@ export const layoutScreens = (info) => ['/', '/approvals', '/intake', '/readines
 async function overflowing(page) {
   return page.evaluate(() => {
     const doc = document.documentElement;
-    return doc.scrollWidth > window.innerWidth + 1 ? `${doc.scrollWidth}px wide in a ${window.innerWidth}px viewport` : '';
+    const vw = window.innerWidth;
+    if (doc.scrollWidth <= vw + 1) return '';
+    // Name the widest leaf elements past the edge, to point at the cause.
+    const culprits = [...document.querySelectorAll('body *')]
+      .filter((el) => el.children.length === 0 && el.getBoundingClientRect().right > vw + 1)
+      .sort((a, b) => b.getBoundingClientRect().right - a.getBoundingClientRect().right)
+      .slice(0, 3)
+      .map((el) => `${el.tagName.toLowerCase()}${el.className ? '.' + String(el.className).split(' ')[0] : ''} "${(el.textContent || el.value || '').trim().slice(0, 30)}"`);
+    return `${doc.scrollWidth}px wide in a ${vw}px viewport (${culprits.join(', ')})`;
   });
 }
 

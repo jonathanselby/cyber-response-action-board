@@ -1,7 +1,7 @@
 {{define "approvals"}}{{template "feedback" .}}
 {{with .Data}}
 {{if .Incidents}}<form class="gas-cluster" method="get" action="/approvals">
-<div class="gas-field"><label for="ap-filter">Show</label><select id="ap-filter" name="incident"><option value="">All my incidents and system changes</option>{{range .Incidents}}<option value="{{.IncidentID}}"{{if eq $.Data.Filter .IncidentID}} selected{{end}}>{{.IncidentID}} · {{.Title}}</option>{{end}}</select></div>
+<div class="gas-field"><label for="ap-filter">Show</label><select id="ap-filter" name="incident"><option value="">Everything</option>{{range .Incidents}}<option value="{{.IncidentID}}"{{if eq $.Data.Filter .IncidentID}} selected{{end}}>{{.IncidentID}}</option>{{end}}</select><p class="gas-help">Everything means all your incidents and organisation changes.</p></div>
 <button class="gas-button">Filter</button>
 </form>{{end}}
 {{if .SelfApprovals}}<section class="gas-panel gas-stack" id="self" aria-labelledby="self-h">

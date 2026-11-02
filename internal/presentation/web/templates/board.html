@@ -127,7 +127,7 @@
 {{template "write-governed"}}
 <form class="gas-form gas-stack" method="post" action="{{incidentURL $id "/relationship"}}">
 <input type="hidden" name="_form" value="relate">
-<div class="gas-field"><label for="rl-other">Incident</label><select id="rl-other" name="related_incident_id" required>{{range $b.RelateCandidates}}<option value="{{.IncidentID}}">{{.IncidentID}} · {{.Title}}</option>{{end}}</select></div>
+<fieldset class="gas-field"><legend>Incident</legend>{{range $i, $c := $b.RelateCandidates}}<label><input type="radio" name="related_incident_id" value="{{$c.IncidentID}}" required{{if eq $i 0}} checked{{end}}> {{$c.IncidentID}} · {{$c.Title}}</label>{{end}}</fieldset>
 <div class="gas-field"><label for="rl-reason">Reason (required)</label><textarea id="rl-reason" name="reason" rows="2" required>{{$.Form.Get "reason"}}</textarea></div>
 <fieldset class="gas-field"><legend>Change</legend><label><input type="radio" name="active" value="true" checked> Relate these incidents</label><label><input type="radio" name="active" value="false"> Remove the link</label></fieldset>
 <button class="gas-button gas-button--primary">Propose</button>
