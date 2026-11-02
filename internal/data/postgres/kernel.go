@@ -130,6 +130,10 @@ func (k *Kernel) Verify(ctx context.Context) (ledger.VerifyResult, error) {
 	return res, nil
 }
 
+// kernelProjections apply to every append whatever the caller passes. They
+// must ignore records they do not concern.
+var kernelProjections = []Projection{DecisionLoopProjection{}}
+
 // Append atomically appends one signed ledger entry and applies every affected
 // projection in the same PostgreSQL transaction.
 func (k *Kernel) Append(ctx context.Context, record ledger.Record, signer Signer, projections ...Projection) (ledger.Entry, error) {
@@ -178,7 +182,9 @@ func (k *Kernel) Append(ctx context.Context, record ledger.Record, signer Signer
 		VALUES ($1, $2, $3, $4)`, int64(entry.Seq), entry.PrevHash, entry.Hash, raw); err != nil {
 		return ledger.Entry{}, fmt.Errorf("insert ledger entry: %w", err)
 	}
-	for _, projection := range projections {
+	all := make([]Projection, 0, len(projections)+len(kernelProjections))
+	all = append(append(all, projections...), kernelProjections...)
+	for _, projection := range all {
 		if projection == nil {
 			continue
 		}

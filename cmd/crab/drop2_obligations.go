@@ -86,7 +86,7 @@ func (r *operatorRuntime) ProposeObligationDefinition(ctx context.Context, token
 	if err != nil {
 		return err
 	}
-	_, err = service.ProposeDefinition(ctx, principal, newOperatorID("OBDEF"), def, time.Now().UTC())
+	_, err = service.ProposeDefinition(ctx, principal, newOperatorID("OBDEF"), def, r.kernel.Clock().Read().Now)
 	return err
 }
 
@@ -99,7 +99,7 @@ func (r *operatorRuntime) ProposeObligationTrigger(ctx context.Context, token, i
 	if err != nil {
 		return err
 	}
-	_, err = service.ProposeTrigger(ctx, principal, scope, newOperatorID("CLOCK"), value, time.Now().UTC())
+	_, err = service.ProposeTrigger(ctx, principal, scope, newOperatorID("CLOCK"), value, r.kernel.Clock().Read().Now)
 	return err
 }
 
@@ -112,7 +112,7 @@ func (r *operatorRuntime) ProposeObligationChange(ctx context.Context, token, in
 	if err != nil {
 		return err
 	}
-	_, err = service.ProposeChange(ctx, principal, scope, newOperatorID("OBCHG"), value, time.Now().UTC())
+	_, err = service.ProposeChange(ctx, principal, scope, newOperatorID("OBCHG"), value, r.kernel.Clock().Read().Now)
 	return err
 }
 
@@ -128,6 +128,6 @@ func (r *operatorRuntime) DecideObligation(ctx context.Context, token, scopeID, 
 	if err != nil {
 		return err
 	}
-	_, err = service.Decide(ctx, principal, scopeID, recordType, recordID, version, outcome, time.Now().UTC())
+	_, err = service.Decide(ctx, principal, scopeID, recordType, recordID, version, outcome, r.kernel.Clock().Read().Now)
 	return err
 }

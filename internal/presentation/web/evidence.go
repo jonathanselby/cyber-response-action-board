@@ -34,6 +34,23 @@ func (s *Server) registerEvidenceRoutes() {
 		return s.runtime.RecordEvidenceHandling(r.Context(), token, r.PathValue("evidenceID"), formValue(r, "action"), formValue(r, "handler"), formValue(r, "location"), formValue(r, "note"), at)
 	}))
 	s.mux.HandleFunc("GET /evidence/{evidenceID}/attachment", s.evidenceAttachment)
+	s.mux.HandleFunc("POST /incident/{incidentID}/observables", s.post(register, func(r *http.Request) string {
+		return incidentURL(r, "/evidence?compartment="+url.QueryEscape(compartmentParam(r))+"#indicators")
+	}, "recorded", func(r *http.Request, token string) error {
+		seen, err := parseLocalTime(r.FormValue("first_seen"), "First seen", false)
+		if err != nil {
+			return err
+		}
+		return s.runtime.RecordObservable(r.Context(), token, r.PathValue("incidentID"), ObservableInput{Compartment: compartmentParam(r), Type: formValue(r, "type"), Value: formValue(r, "value"), Status: formValue(r, "status"), Source: formValue(r, "source"), TimeConfidence: formValue(r, "time_confidence"), Note: formValue(r, "note"), FirstSeen: seen})
+	}))
+	s.mux.HandleFunc("POST /observable/{observableID}/status", s.post(register, func(r *http.Request) string {
+		if back := formValue(r, "back"); strings.HasPrefix(back, "/incident/") && !strings.ContainsAny(back, "\\\r\n") {
+			return back
+		}
+		return "/"
+	}, "recorded", func(r *http.Request, token string) error {
+		return s.runtime.ChangeObservableStatus(r.Context(), token, r.PathValue("observableID"), formValue(r, "status"), formValue(r, "source"), formValue(r, "note"))
+	}))
 }
 
 func (s *Server) loadEvidence(r *http.Request, token string, frame FrameView) (any, []Action, error) {
@@ -47,7 +64,11 @@ func (s *Server) loadEvidence(r *http.Request, token string, frame FrameView) (a
 	if frame.Incident != nil && len(frame.Incident.Compartments) > 0 {
 		compartments = frame.Incident.Compartments
 	}
-	return EvidenceRegisterPage{IncidentID: incidentID, Compartment: compartment, Compartments: compartments, Items: items}, []Action{{Label: "Add evidence", URL: "?open=add#add", Primary: true}}, nil
+	observables, err := s.runtime.Observables(r.Context(), token, incidentID, compartment)
+	if err != nil {
+		return nil, nil, err
+	}
+	return EvidenceRegisterPage{IncidentID: incidentID, Compartment: compartment, Compartments: compartments, Items: items, Observables: observables, Types: domain.ObservableTypes, Statuses: domain.ObservableStatuses}, []Action{{Label: "Add evidence", URL: "?open=add#add", Primary: true}, {Label: "Add indicator", URL: "?open=indicator#indicator"}}, nil
 }
 
 // showEvidenceDetail places the evidence page in its incident's frame once the

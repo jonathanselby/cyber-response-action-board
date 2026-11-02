@@ -21,3 +21,5 @@ details{display:block}details>summary,form,.gas-page-actions{display:none!import
 .gas-app-context,.gas-status-text{display:inline!important;color:#000}
 .gas-panel{break-inside:avoid}
 }
+
+.crab-indicator{overflow-wrap:anywhere}

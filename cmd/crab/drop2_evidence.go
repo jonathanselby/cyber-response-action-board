@@ -22,7 +22,7 @@ func (r *operatorRuntime) CaptureEvidence(ctx context.Context, token, incidentID
 	if err != nil {
 		return err
 	}
-	_, err = r.evidence.Capture(ctx, principal, scope, newOperatorID("EVID"), appEvidenceCapture(filename, mediaType, description, collector, source, collectedAt, occurredAt, sourceLocation, currentHandler, relatedRef), src, time.Now().UTC())
+	_, err = r.evidence.Capture(ctx, principal, scope, newOperatorID("EVID"), appEvidenceCapture(filename, mediaType, description, collector, source, collectedAt, occurredAt, sourceLocation, currentHandler, relatedRef), src, r.kernel.Clock().Read().Now)
 	return err
 }
 
@@ -60,7 +60,7 @@ func (r *operatorRuntime) RecordEvidenceHandling(ctx context.Context, token, evi
 	if !ok {
 		return app.ErrAuthorisationDenied
 	}
-	_, err = r.evidence.RecordHandling(ctx, principal, evidenceID, newOperatorID("EH"), domain.EvidenceHandling{Action: action, Handler: handler, Location: location, Note: note, OccurredAt: occurredAt}, time.Now().UTC())
+	_, err = r.evidence.RecordHandling(ctx, principal, evidenceID, newOperatorID("EH"), domain.EvidenceHandling{Action: action, Handler: handler, Location: location, Note: note, OccurredAt: occurredAt}, r.kernel.Clock().Read().Now)
 	return err
 }
 

@@ -54,6 +54,8 @@ type operatorRuntime struct {
 	principals      app.Principals
 	auth            app.Authentication
 	intake          app.IntakeService
+	observables     app.ObservableService
+	management      app.ManagementService
 }
 
 type signingKeyFile struct {
@@ -180,6 +182,20 @@ func newOperatorRuntime() (web.Runtime, error) {
 	if err != nil {
 		return fail(err)
 	}
+	observableStore, err := postgres.NewObservableStore(pool)
+	if err != nil {
+		return fail(err)
+	}
+	observableBackend, err := postgres.NewObservableRuntime(kernel, signer, observableStore)
+	if err != nil {
+		return fail(err)
+	}
+	r.observables = app.ObservableService{Backend: observableBackend}
+	managementStore, err := postgres.NewManagementStore(pool)
+	if err != nil {
+		return fail(err)
+	}
+	r.management = app.ManagementService{Backend: managementStore}
 	intakeRate, intakeRefusals := app.NewIntakeLimiters()
 	r.intake = app.IntakeService{Keys: accessStore, Secrets: accessStore, Reports: intakeReports, Rate: intakeRate, Refusals: intakeRefusals}
 	r.communication = app.CommunicationService{Backend: communicationBackend, Incident: r.incident, Notifier: notifier.Sender{}, Channels: channels, Window: r.organisation}
@@ -390,6 +406,9 @@ func (r *operatorRuntime) Home(ctx context.Context, token string) (web.HomeView,
 			}
 		}
 	}
+	if summary, err := r.management.Summary(ctx, principal, r.kernel.Clock().Read().Now); err == nil {
+		home.Management = managementView(summary)
+	}
 	if principal.Role == authz.RoleMajor {
 		values, err := r.incidents.PendingDeclarations(ctx)
 		if err != nil {
@@ -436,7 +455,7 @@ func (r *operatorRuntime) DeclareIncident(ctx context.Context, token, incidentID
 		return app.ErrAuthorisationDenied
 	}
 	scope := domain.Scope{IncidentID: incidentID, Mode: mode, Compartment: "GENERAL"}
-	_, err = r.incident.ProposeIncidentDeclaration(ctx, principal, scope, newOperatorID("DECL"), domain.IncidentDeclaration{Title: title, Summary: summary, Severity: severity}, time.Now().UTC())
+	_, err = r.incident.ProposeIncidentDeclaration(ctx, principal, scope, newOperatorID("DECL"), domain.IncidentDeclaration{Title: title, Summary: summary, Severity: severity}, r.kernel.Clock().Read().Now)
 	return err
 }
 
@@ -445,7 +464,7 @@ func (r *operatorRuntime) RecordFact(ctx context.Context, token, incidentID, sta
 	if err != nil {
 		return err
 	}
-	_, err = r.incident.RecordFact(ctx, principal, domain.Scope{IncidentID: incidentID, Mode: picture.Incident.Mode, Compartment: "GENERAL"}, newOperatorID("FACT"), domain.Fact{Statement: statement, Source: source}, time.Now().UTC())
+	_, err = r.incident.RecordFact(ctx, principal, domain.Scope{IncidentID: incidentID, Mode: picture.Incident.Mode, Compartment: "GENERAL"}, newOperatorID("FACT"), domain.Fact{Statement: statement, Source: source}, r.kernel.Clock().Read().Now)
 	return err
 }
 
@@ -455,7 +474,7 @@ func (r *operatorRuntime) ProposeAction(ctx context.Context, token, incidentID, 
 		return err
 	}
 	action := domain.Action{Title: title, OwnerHumanID: owner, Status: domain.ActionStatusNotStarted, Priority: priority, SourceRef: sourceRef}
-	_, err = r.incident.ProposeAction(ctx, principal, domain.Scope{IncidentID: incidentID, Mode: picture.Incident.Mode, Compartment: "GENERAL"}, newOperatorID("ACT"), action, time.Now().UTC())
+	_, err = r.incident.ProposeAction(ctx, principal, domain.Scope{IncidentID: incidentID, Mode: picture.Incident.Mode, Compartment: "GENERAL"}, newOperatorID("ACT"), action, r.kernel.Clock().Read().Now)
 	return err
 }
 
@@ -467,7 +486,7 @@ func (r *operatorRuntime) Decide(ctx context.Context, token, incidentID, recordT
 	if !ok {
 		return app.ErrAuthorisationDenied
 	}
-	_, err = r.incident.Decide(ctx, principal, incidentID, recordType, recordID, version, outcome, time.Now().UTC())
+	_, err = r.incident.Decide(ctx, principal, incidentID, recordType, recordID, version, outcome, r.kernel.Clock().Read().Now)
 	return err
 }
 

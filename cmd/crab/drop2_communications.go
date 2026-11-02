@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"time"
 
 	"github.com/jonathanselby/cyber-response-action-board/internal/app"
 	"github.com/jonathanselby/cyber-response-action-board/internal/data/postgres"
@@ -56,7 +55,7 @@ func (r *operatorRuntime) RecordCommunicationDraft(ctx context.Context, token, i
 	if err != nil {
 		return err
 	}
-	_, err = r.communication.RecordDraft(ctx, principal, scope, newOperatorID("COMDRAFT"), value, time.Now().UTC())
+	_, err = r.communication.RecordDraft(ctx, principal, scope, newOperatorID("COMDRAFT"), value, r.kernel.Clock().Read().Now)
 	return err
 }
 
@@ -68,7 +67,7 @@ func (r *operatorRuntime) ProposeCommunicationIssue(ctx context.Context, token, 
 	if !ok {
 		return app.ErrAuthorisationDenied
 	}
-	_, err = r.communication.ProposeIssue(ctx, principal, incidentID, draftID, newOperatorID("COMISSUE"), time.Now().UTC())
+	_, err = r.communication.ProposeIssue(ctx, principal, incidentID, draftID, newOperatorID("COMISSUE"), r.kernel.Clock().Read().Now)
 	return err
 }
 
@@ -77,7 +76,7 @@ func (r *operatorRuntime) ProposeCommunicationCadence(ctx context.Context, token
 	if err != nil {
 		return err
 	}
-	_, err = r.communication.ProposeCadence(ctx, principal, scope, newOperatorID("CADENCE"), value, time.Now().UTC())
+	_, err = r.communication.ProposeCadence(ctx, principal, scope, newOperatorID("CADENCE"), value, r.kernel.Clock().Read().Now)
 	return err
 }
 
@@ -86,7 +85,7 @@ func (r *operatorRuntime) RecordIncomingEnquiry(ctx context.Context, token, inci
 	if err != nil {
 		return err
 	}
-	_, err = r.communication.RecordIncomingEnquiry(ctx, principal, scope, newOperatorID("ENQ"), value, time.Now().UTC())
+	_, err = r.communication.RecordIncomingEnquiry(ctx, principal, scope, newOperatorID("ENQ"), value, r.kernel.Clock().Read().Now)
 	return err
 }
 
@@ -95,7 +94,7 @@ func (r *operatorRuntime) GenerateSituationReport(ctx context.Context, token, in
 	if err != nil {
 		return err
 	}
-	_, err = r.communication.GenerateDueSituationReportDraft(ctx, principal, incidentID, cadenceID, newOperatorID("SITREP"), time.Now().UTC())
+	_, err = r.communication.GenerateDueSituationReportDraft(ctx, principal, incidentID, cadenceID, newOperatorID("SITREP"), r.kernel.Clock().Read().Now)
 	return err
 }
 
@@ -107,7 +106,7 @@ func (r *operatorRuntime) NotifyCommunication(ctx context.Context, token, incide
 	if !ok {
 		return app.ErrAuthorisationDenied
 	}
-	_, err = r.communication.NotifyIssued(ctx, principal, incidentID, communicationID, channels, time.Now().UTC())
+	_, err = r.communication.NotifyIssued(ctx, principal, incidentID, communicationID, channels, r.kernel.Clock().Read().Now)
 	return err
 }
 
@@ -119,6 +118,6 @@ func (r *operatorRuntime) DecideCommunication(ctx context.Context, token, incide
 	if !ok {
 		return app.ErrAuthorisationDenied
 	}
-	_, err = r.communication.Decide(ctx, principal, incidentID, recordType, recordID, version, outcome, time.Now().UTC())
+	_, err = r.communication.Decide(ctx, principal, incidentID, recordType, recordID, version, outcome, r.kernel.Clock().Read().Now)
 	return err
 }

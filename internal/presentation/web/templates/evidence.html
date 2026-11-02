@@ -31,4 +31,42 @@
 <tbody>{{range .Items}}<tr><th scope="row"><a href="/evidence/{{pathEscape .EvidenceID}}">{{.Evidence.OriginalFilename}}</a><br><span class="gas-muted">{{.EvidenceID}}{{if ne .Compartment "GENERAL"}} · {{.Compartment}}{{end}}</span></th><td>{{whenPtr .Evidence.CollectedAt}}</td><td>{{size .Evidence.SizeBytes}}</td><td>{{.Evidence.DetectedMediaType}}</td><td>{{.Evidence.CurrentHandler}}</td></tr>{{end}}</tbody>
 </table></div>{{else}}<p class="gas-empty">No evidence in this compartment.</p>{{end}}
 </section>
+<section class="gas-panel gas-stack" aria-labelledby="indicators-h" id="indicators">
+<h2 id="indicators-h">Indicators</h2>
+<p class="gas-help">IP addresses, domains, URLs, hostnames, email addresses and file hashes seen in this incident. Values are shown as text and are never links. CRAB does not look them up anywhere.</p>
+{{if .Observables}}<div class="gas-table-wrap"><table>
+<thead><tr><th scope="col">Indicator</th><th scope="col">Status</th><th scope="col">First seen</th><th scope="col">Source</th><th scope="col">Also in</th></tr></thead>
+<tbody>{{range .Observables}}<tr><th scope="row"><span class="gas-muted">{{upper .Type}}</span><br><code class="crab-indicator">{{.Value}}</code><br><span class="gas-muted">{{.ObservableID}} · version {{.Version}}{{if ne .Compartment "GENERAL"}} · {{.Compartment}}{{end}}</span></th>
+<td><span class="gas-badge gas-badge--{{if eq .Status "confirmed"}}danger{{else if eq .Status "blocked"}}success{{else if eq .Status "benign"}}info{{else}}warning{{end}}">{{upper .Status}}</span><br><span class="gas-muted">by {{.Maker}} at {{.RecordedAt}}</span></td>
+<td>{{.FirstSeen}}{{if ne .TimeConfidence "trusted"}} <span class="gas-muted">({{.TimeConfidence}})</span>{{end}}</td>
+<td>{{.Source}}{{if .Note}}<br><span class="gas-muted">{{.Note}}</span>{{end}}</td>
+<td>{{range $i, $id := .Related}}{{if $i}}, {{end}}<a href="{{incidentURL $id "/evidence#indicators"}}">{{$id}}</a>{{end}}{{if not .Related}}—{{end}}</td></tr>{{end}}</tbody>
+</table></div>
+{{range .Observables}}<details class="gas-panel" id="obs-{{.ObservableID}}">
+<summary><h3>Change status of <code class="crab-indicator">{{.Value}}</code></h3></summary>
+<form class="gas-form gas-stack" method="post" action="/observable/{{pathEscape .ObservableID}}/status">
+<input type="hidden" name="_form" value="observable-status"><input type="hidden" name="back" value="{{incidentURL $.Data.IncidentID "/evidence"}}?compartment={{$.Data.Compartment}}#indicators">
+<div class="gas-field"><label for="os-{{.ObservableID}}">Status</label><select id="os-{{.ObservableID}}" name="status">{{$cur := .Status}}{{range $.Data.Statuses}}<option value="{{.}}"{{if eq . $cur}} selected{{end}}>{{.}}</option>{{end}}</select></div>
+<div class="gas-field"><label for="osrc-{{.ObservableID}}">Source of this assessment</label><input id="osrc-{{.ObservableID}}" name="source" required value="{{.Source}}"></div>
+<div class="gas-field"><label for="on-{{.ObservableID}}">Note</label><input id="on-{{.ObservableID}}" name="note"></div>
+<p class="gas-help">Recorded as a new version. Earlier versions stay in the history.</p>
+<div class="gas-cluster"><button class="gas-button">Record new status</button></div>
+</form></details>{{end}}
+{{else}}<p class="gas-empty">No indicators in this compartment.</p>{{end}}
+<details id="indicator" class="gas-panel"{{if eq $.Open "indicator"}} open{{end}}>
+<summary><h3>Add indicator</h3></summary>
+<form class="gas-form gas-stack" method="post" action="{{incidentURL .IncidentID "/observables"}}">
+<input type="hidden" name="_form" value="indicator">
+<input type="hidden" name="compartment" value="{{.Compartment}}">
+<div class="gas-field"><label for="o-type">Type</label><select id="o-type" name="type">{{range .Types}}<option value="{{.}}"{{if eq ($.Form.Get "type") .}} selected{{end}}>{{.}}</option>{{end}}</select></div>
+<div class="gas-field"><label for="o-value">Value</label><input id="o-value" name="value" required autocomplete="off" spellcheck="false" value="{{$.Form.Get "value"}}"><p class="gas-help">For example 203.0.113.7, evil.example, or a SHA-256 hash.</p></div>
+<div class="gas-field"><label for="o-status">Status</label><select id="o-status" name="status">{{range .Statuses}}<option value="{{.}}"{{if eq ($.Form.Get "status") .}} selected{{end}}>{{.}}</option>{{end}}</select></div>
+<div class="gas-field"><label for="o-source">Source</label><input id="o-source" name="source" required value="{{$.Form.Get "source"}}"><p class="gas-help">Where it came from, for example EDR alert 4411 or firewall logs.</p></div>
+<div class="gas-field"><label for="o-seen">First seen (UTC)</label><input id="o-seen" type="datetime-local" name="first_seen" value="{{$.Form.Get "first_seen"}}"><p class="gas-help">Leave empty for now.</p></div>
+<div class="gas-field"><label for="o-conf">How sure is that time?</label><select id="o-conf" name="time_confidence"><option value="">Not stated</option><option value="trusted">Trusted</option><option value="drifting">Drifting</option><option value="untrusted">Untrusted</option></select></div>
+<div class="gas-field"><label for="o-note">Note</label><input id="o-note" name="note" value="{{$.Form.Get "note"}}"></div>
+<div class="gas-cluster"><button class="gas-button gas-button--primary">Record indicator</button></div>
+</form>
+</details>
+</section>
 {{end}}{{end}}

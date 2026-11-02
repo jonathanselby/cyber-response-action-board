@@ -18,7 +18,7 @@ import (
 
 // Marker strings exist only inside the target incident INC-SECRET. No response
 // to an unauthorised principal may contain any of them.
-var abuseMarkers = []string{"SECRET-TITLE-7F3", "SECRET-FACT-7F3", "SECRET-EVIDENCE-7F3", "SECRET-FORENSIC-7F3", "SECRET-DECISION-7F3"}
+var abuseMarkers = []string{"SECRET-TITLE-7F3", "SECRET-FACT-7F3", "SECRET-EVIDENCE-7F3", "SECRET-FORENSIC-7F3", "SECRET-DECISION-7F3", "secret-c2-7f3.example"}
 
 // abuseCase is one registered route with a concrete request against
 // INC-SECRET objects and, where the path names an object, the same request
@@ -40,8 +40,8 @@ type abuseCase struct {
 
 // abuseFixture holds the target objects and the attacking principals.
 type abuseFixture struct {
-	evidence, forensic, report, decisionID, decisionVersion, resetID, resetVersion, intakeID, intakeVersion string
-	principals                                                                                              map[string]string // name → session token
+	evidence, forensic, report, decisionID, decisionVersion, resetID, resetVersion, intakeID, intakeVersion, observable string
+	principals                                                                                                          map[string]string // name → session token
 }
 
 func multipartBody(t *testing.T, fields url.Values, fileField, filename, content string) (*bytes.Buffer, string) {
@@ -113,8 +113,15 @@ func (e *e2e) buildAbuseFixture() abuseFixture {
 	if f.forensic == "" {
 		e.t.Fatal("forensic evidence ID not found")
 	}
+	// An indicator on INC-SECRET.
+	e.post("/incident/INC-SECRET/observables", alice, url.Values{"compartment": {"GENERAL"}, "type": {"domain"}, "value": {"secret-c2-7f3.example"}, "status": {"suspected"}, "source": {"EDR"}})
+	if m := regexp.MustCompile(`(OBS-[0-9a-f]+) · version`).FindStringSubmatch(e.get("/incident/INC-SECRET/evidence", alice)); m != nil {
+		f.observable = m[1]
+	} else {
+		e.t.Fatal("observable ID not found")
+	}
 	// A pending decision on INC-SECRET, visible only to members.
-	e.post("/incident/INC-SECRET/decision", alice, url.Values{"decision": {"SECRET-DECISION-7F3"}, "rationale": {"containment"}})
+	e.post("/incident/INC-SECRET/decision", alice, url.Values{"decision": {"SECRET-DECISION-7F3", "secret-c2-7f3.example"}, "rationale": {"containment"}})
 	// Read the record reference from the maker's own Approvals page.
 	ref := regexp.MustCompile(`record ([A-Za-z0-9_-]+) · version ([^<\s]+)`)
 	if m := ref.FindStringSubmatch(e.get("/approvals?incident=INC-SECRET", alice)); m != nil {
@@ -266,6 +273,8 @@ func abuseCases(f abuseFixture) []abuseCase {
 		{pattern: "POST /access/person/status", method: "POST", path: "/access/person/status", form: url.Values{"human_id": {"alice"}, "status": {"suspended"}, "reason": {"coup"}}},
 		{pattern: "POST /access/person/role", method: "POST", path: "/access/person/role", form: url.Values{"human_id": {"mallory"}, "role": {"Major"}, "remove": {"false"}}},
 		{pattern: "POST /access/person/reset", method: "POST", path: "/access/person/reset", form: url.Values{"human_id": {"alice"}, "reason": {"takeover"}}},
+		{pattern: "POST /incident/{incidentID}/observables", method: "POST", path: inc("/observables"), ghost: ghost("/observables"), form: url.Values{"compartment": {"GENERAL"}, "type": {"ip"}, "value": {"203.0.113.9"}, "status": {"suspected"}, "source": {"probe"}}},
+		{pattern: "POST /observable/{observableID}/status", method: "POST", path: "/observable/" + f.observable + "/status", ghost: "/observable/OBS-NOPE/status", form: url.Values{"status": {"benign"}, "source": {"probe"}}},
 		{pattern: "POST /access/intake-key", method: "POST", path: "/access/intake-key", form: url.Values{"action": {"issue"}, "key_name": {"attacker-key"}, "accountable_human": {"mallory"}, "expires_at": {"2027-01-01T00:00"}, "reason": {"exfiltration"}}},
 		{pattern: "POST /access/intake-key/confirm", method: "POST", path: "/access/intake-key/confirm", ghost: "/access/intake-key/confirm", form: url.Values{"record_id": {f.intakeID}, "version": {f.intakeVersion}}, ghostForm: url.Values{"record_id": {"INTAKEKEY-NOPE"}, "version": {f.intakeVersion}}},
 		{pattern: "POST /api/v1/first-reports", method: "POST", path: "/api/v1/first-reports", api: true, form: url.Values{"json": {`{"description":"session token posing as an intake key"}`}}},

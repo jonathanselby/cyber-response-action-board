@@ -20,6 +20,16 @@
 </a>{{if .Pending}}<a href="/approvals?incident={{.IncidentID}}"><strong>{{.Pending}} to decide</strong> in Approvals</a>{{end}}</li>{{end}}</ul>
 {{else}}<p class="gas-empty">You are not assigned to any incident.</p>{{end}}
 </section>
+{{with .Management}}<section class="gas-panel gas-stack" aria-labelledby="management">
+<h2 id="management">Management summary</h2>
+<dl class="gas-kv">
+<dt>Active incidents</dt><dd><strong>{{.ActiveIncidents}}</strong>{{if .BySeverity}} — {{range $i, $s := .BySeverity}}{{if $i}}, {{end}}{{$s.Severity}}: {{$s.Count}}{{end}}{{end}}</dd>
+<dt>Overdue critical actions</dt><dd><strong>{{.OverdueCriticalActions}}</strong></dd>
+<dt>Overdue obligations</dt><dd><strong>{{.OverdueObligations}}</strong></dd>
+<dt>Median decision-loop time</dt><dd><strong>{{if .MedianDecisionLoop}}{{.MedianDecisionLoop}}{{else}}—{{end}}</strong> <span class="gas-muted">over {{.Decisions}} confirmed {{if eq .Decisions 1}}decision{{else}}decisions{{end}}</span></dd>
+</dl>
+<p class="gas-help">Live incidents you can see only; exercises are not counted. Active means declared and not closed. Critical actions are priority P1 or critical, past due and not complete or skipped. Obligations are overdue when an active clock's deadline has passed. Decision-loop time is the time from proposal to confirmation of governed changes confirmed in the last 7 days.</p>
+</section>{{end}}
 <p class="gas-help">Only items you are authorised to see are shown.</p>
 {{if .CanDeclare}}
 <details id="declare" class="gas-panel"{{if eq $.Open "declare"}} open{{end}}>

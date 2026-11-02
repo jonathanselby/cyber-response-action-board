@@ -59,6 +59,10 @@ type Runtime interface {
 
 	// Evidence.
 	EvidenceRegister(ctx context.Context, token, incidentID, compartment string) ([]domain.EvidenceView, error)
+	// Observables (addendum A2).
+	Observables(ctx context.Context, token, incidentID, compartment string) ([]ObservableRow, error)
+	RecordObservable(ctx context.Context, token, incidentID string, in ObservableInput) error
+	ChangeObservableStatus(ctx context.Context, token, observableID, status, source, note string) error
 	CaptureEvidence(ctx context.Context, token, incidentID, compartment, filename, mediaType, description, collector, source string, collectedAt, occurredAt *time.Time, sourceLocation, currentHandler, relatedRef string, body io.Reader) error
 	EvidenceDetail(ctx context.Context, token, evidenceID string) (domain.EvidenceView, error)
 	EvidenceHistory(ctx context.Context, token, evidenceID string) ([]domain.EvidenceHandlingView, error)
@@ -205,6 +209,24 @@ type HomeView struct {
 	AwaitingTriage   int
 	SeverityValues   []string // the organisation's confirmed scale
 	SelfApprovals    []SelfApprovalView
+	// Management is the fixed management summary (addendum A3), already
+	// scoped to this viewer; nil when it could not be computed.
+	Management *ManagementView
+}
+
+// ManagementView is the management summary as displayed.
+type ManagementView struct {
+	ActiveIncidents        int
+	BySeverity             []SeverityCountView
+	OverdueCriticalActions int
+	OverdueObligations     int
+	Decisions              int
+	MedianDecisionLoop     string // empty when no decisions were confirmed
+}
+
+type SeverityCountView struct {
+	Severity string
+	Count    int
 }
 
 type SelfApprovalView struct {
@@ -533,6 +555,23 @@ type EvidenceRegisterPage struct {
 	Compartment  string
 	Compartments []string
 	Items        []domain.EvidenceView
+	Observables  []ObservableRow
+	Types        []string
+	Statuses     []string
+}
+
+// ObservableRow is one current observable on the Evidence screen. Value is
+// text: it is never rendered as a link.
+type ObservableRow struct {
+	ObservableID, Type, Value, Status, Source, Note, FirstSeen, TimeConfidence, Maker, RecordedAt, Compartment string
+	Version                                                                                                    int
+	Related                                                                                                    []string
+}
+
+// ObservableInput is the add-observable form.
+type ObservableInput struct {
+	Compartment, Type, Value, Status, Source, TimeConfidence, Note string
+	FirstSeen                                                      *time.Time
 }
 
 type EvidenceDetailPage struct {

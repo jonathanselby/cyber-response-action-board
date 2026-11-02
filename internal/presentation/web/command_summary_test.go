@@ -6,8 +6,10 @@ import (
 	"testing"
 )
 
-// T-199: the Command Summary is built from the frame call and the Home view
-// only; it does not fan out to other listings.
+// T-199 (amended by C7): the Command Summary is built from the frame call and
+// the Home view only; it does not fan out to other listings. The management
+// summary arrives inside the Home view, computed with a fixed number of
+// queries (TestManagementSummaryUsesAFixedNumberOfQueries).
 func TestCommandSummaryUsesFrameAndHomeOnly(t *testing.T) {
 	runtime := &fakeRuntime{bootstrapped: true, status: StatusFlags{PackStale: true, TimeStatus: "trusted"}}
 	s := withRuntime(t, runtime)
@@ -23,6 +25,8 @@ func TestCommandSummaryUsesFrameAndHomeOnly(t *testing.T) {
 		"Emergency Response Pack stale", `href="/readiness#pack"`,
 		"My active incidents", "Bafflewick payroll", "Severity: High", "Phase: Active response",
 		"Only items you are authorised to see are shown.", "Declare incident",
+		"Management summary", "<strong>3</strong> — High: 2, Low: 1", "Overdue critical actions", "<strong>4</strong>", "<strong>12m</strong>", "over 5 confirmed decisions",
+		"Decision-loop time is the time from proposal to confirmation of governed changes confirmed in the last 7 days.",
 	} {
 		if !strings.Contains(body, want) {
 			t.Fatalf("summary missing %q", want)

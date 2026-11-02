@@ -139,7 +139,7 @@ func (r *operatorRuntime) ProposeSponsor(ctx context.Context, token, incidentID,
 		return err
 	}
 	scope := domain.Scope{IncidentID: incidentID, Mode: picture.Incident.Mode, Compartment: "GENERAL"}
-	_, err = r.accessService.ProposeSponsorDesignation(ctx, principal, scope, newOperatorID("SPONSOR"), access.IncidentSponsorDesignation{HumanID: humanID, IncidentID: incidentID, Active: active}, time.Now().UTC())
+	_, err = r.accessService.ProposeSponsorDesignation(ctx, principal, scope, newOperatorID("SPONSOR"), access.IncidentSponsorDesignation{HumanID: humanID, IncidentID: incidentID, Active: active}, r.kernel.Clock().Read().Now)
 	return err
 }
 
@@ -149,7 +149,7 @@ func (r *operatorRuntime) ProposeController(ctx context.Context, token, incident
 		return err
 	}
 	scope := domain.Scope{IncidentID: incidentID, Mode: picture.Incident.Mode, Compartment: compartment}
-	_, err = r.accessService.ProposeControllerDesignation(ctx, principal, scope, newOperatorID("CTRL"), access.CompartmentControllerDesignation{HumanID: humanID, IncidentID: incidentID, Compartment: compartment, Active: active}, time.Now().UTC())
+	_, err = r.accessService.ProposeControllerDesignation(ctx, principal, scope, newOperatorID("CTRL"), access.CompartmentControllerDesignation{HumanID: humanID, IncidentID: incidentID, Compartment: compartment, Active: active}, r.kernel.Clock().Read().Now)
 	return err
 }
 
@@ -159,7 +159,7 @@ func (r *operatorRuntime) ProposeIncidentMembership(ctx context.Context, token, 
 		return err
 	}
 	scope := domain.Scope{IncidentID: incidentID, Mode: picture.Incident.Mode, Compartment: "GENERAL"}
-	_, err = r.accessService.ProposeIncidentMembership(ctx, principal, scope, newOperatorID("MEM"), access.IncidentMembershipChange{HumanID: humanID, IncidentID: incidentID, Active: active, EffectiveAt: effectiveAt, ExpiresAt: expiresAt, Reason: reason}, time.Now().UTC())
+	_, err = r.accessService.ProposeIncidentMembership(ctx, principal, scope, newOperatorID("MEM"), access.IncidentMembershipChange{HumanID: humanID, IncidentID: incidentID, Active: active, EffectiveAt: effectiveAt, ExpiresAt: expiresAt, Reason: reason}, r.kernel.Clock().Read().Now)
 	return err
 }
 
@@ -169,7 +169,7 @@ func (r *operatorRuntime) ProposeCompartmentMembership(ctx context.Context, toke
 		return err
 	}
 	scope := domain.Scope{IncidentID: incidentID, Mode: picture.Incident.Mode, Compartment: compartment}
-	_, err = r.accessService.ProposeCompartmentMembership(ctx, principal, scope, newOperatorID("CMEM"), access.CompartmentMembershipChange{HumanID: humanID, IncidentID: incidentID, Compartment: compartment, Active: active, EffectiveAt: effectiveAt, ExpiresAt: expiresAt, Reason: reason}, time.Now().UTC())
+	_, err = r.accessService.ProposeCompartmentMembership(ctx, principal, scope, newOperatorID("CMEM"), access.CompartmentMembershipChange{HumanID: humanID, IncidentID: incidentID, Compartment: compartment, Active: active, EffectiveAt: effectiveAt, ExpiresAt: expiresAt, Reason: reason}, r.kernel.Clock().Read().Now)
 	return err
 }
 

@@ -193,7 +193,7 @@ func (r *operatorRuntime) Board(ctx context.Context, token, incidentID, compartm
 			out.OpenEnquiries = len(enquiries)
 		}
 		if issued, err := store.Issued(ctx, incidentID, compartment); err == nil {
-			cutoff := time.Now().UTC().Add(-24 * time.Hour)
+			cutoff := r.kernel.Clock().Read().Now.Add(-24 * time.Hour)
 			for _, v := range issued {
 				if v.IssuedAt.After(cutoff) {
 					out.IssuedRecently = append(out.IssuedRecently, v)
@@ -202,7 +202,7 @@ func (r *operatorRuntime) Board(ctx context.Context, token, incidentID, compartm
 		}
 	}
 
-	if view, err := r.access.AdministrationView(ctx, time.Now().UTC()); err == nil {
+	if view, err := r.access.AdministrationView(ctx, r.kernel.Clock().Read().Now); err == nil {
 		seen := map[string]bool{}
 		for _, m := range view.IncidentMemberships {
 			if m.IncidentID == incidentID && m.Status == "active" && !seen[m.HumanID] {
@@ -266,7 +266,7 @@ func (r *operatorRuntime) RecordUncertainty(ctx context.Context, token, incident
 	if err != nil {
 		return err
 	}
-	_, err = r.incident.RecordUncertainty(ctx, principal, scope, newOperatorID("UNC"), domain.Uncertainty{Kind: kind, Statement: statement}, time.Now().UTC())
+	_, err = r.incident.RecordUncertainty(ctx, principal, scope, newOperatorID("UNC"), domain.Uncertainty{Kind: kind, Statement: statement}, r.kernel.Clock().Read().Now)
 	return err
 }
 
@@ -275,7 +275,7 @@ func (r *operatorRuntime) ProposeDecision(ctx context.Context, token, incidentID
 	if err != nil {
 		return err
 	}
-	_, err = r.incident.ProposeDecision(ctx, principal, scope, newOperatorID("DEC"), domain.Decision{Decision: decision, Rationale: rationale}, time.Now().UTC())
+	_, err = r.incident.ProposeDecision(ctx, principal, scope, newOperatorID("DEC"), domain.Decision{Decision: decision, Rationale: rationale}, r.kernel.Clock().Read().Now)
 	return err
 }
 
@@ -284,7 +284,7 @@ func (r *operatorRuntime) ProposeRoleAssignment(ctx context.Context, token, inci
 	if err != nil {
 		return err
 	}
-	_, err = r.incident.ProposeOperationalRoleAssignment(ctx, principal, scope, newOperatorID("ROLE"), domain.OperationalRoleAssignment{RoleName: roleName, HumanID: humanID, Deputy: deputy}, time.Now().UTC())
+	_, err = r.incident.ProposeOperationalRoleAssignment(ctx, principal, scope, newOperatorID("ROLE"), domain.OperationalRoleAssignment{RoleName: roleName, HumanID: humanID, Deputy: deputy}, r.kernel.Clock().Read().Now)
 	return err
 }
 
@@ -305,7 +305,7 @@ func (r *operatorRuntime) ProposeActionStatus(ctx context.Context, token, incide
 			next.SkipReason = skipReason
 		}
 		scope := domain.Scope{IncidentID: incidentID, Mode: picture.Incident.Mode, Compartment: current.Compartment}
-		_, err = r.incident.ProposeAction(ctx, principal, scope, actionID, next, time.Now().UTC())
+		_, err = r.incident.ProposeAction(ctx, principal, scope, actionID, next, r.kernel.Clock().Read().Now)
 		return err
 	}
 	return errors.New("action not found")
@@ -390,7 +390,7 @@ func (r *operatorRuntime) RecordRecoveryUpdate(ctx context.Context, token, incid
 		return err
 	}
 	value := domain.RecoveryUpdate{ItemID: newOperatorID("ITEM"), Summary: input.Summary, OwnerHumanID: input.OwnerHumanID, RestorationPriority: input.RestorationPriority, Verified: input.Verified, ResidualRisk: input.ResidualRisk, HandoffRef: input.HandoffRef}
-	_, err = r.recovery.RecordRecoveryUpdate(ctx, principal, scope, newOperatorID("RECOV"), value, time.Now().UTC())
+	_, err = r.recovery.RecordRecoveryUpdate(ctx, principal, scope, newOperatorID("RECOV"), value, r.kernel.Clock().Read().Now)
 	return err
 }
 
@@ -399,7 +399,7 @@ func (r *operatorRuntime) ProposeStandDown(ctx context.Context, token, incidentI
 	if err != nil {
 		return err
 	}
-	_, err = r.recovery.ProposeStandDown(ctx, principal, scope, newOperatorID("STANDDOWN"), domain.StandDown{Reason: reason}, time.Now().UTC())
+	_, err = r.recovery.ProposeStandDown(ctx, principal, scope, newOperatorID("STANDDOWN"), domain.StandDown{Reason: reason}, r.kernel.Clock().Read().Now)
 	return err
 }
 
@@ -408,7 +408,7 @@ func (r *operatorRuntime) ProposePIR(ctx context.Context, token, incidentID, sum
 	if err != nil {
 		return err
 	}
-	_, err = r.recovery.ProposePIR(ctx, principal, scope, newOperatorID("PIR"), domain.PIR{ExecutiveSummary: summary, HumanLessons: lessons, LongTermWork: longTermWork}, time.Now().UTC())
+	_, err = r.recovery.ProposePIR(ctx, principal, scope, newOperatorID("PIR"), domain.PIR{ExecutiveSummary: summary, HumanLessons: lessons, LongTermWork: longTermWork}, r.kernel.Clock().Read().Now)
 	return err
 }
 
@@ -418,7 +418,7 @@ func (r *operatorRuntime) ProposeRetention(ctx context.Context, token, incidentI
 		return err
 	}
 	value := domain.RetentionDisposition{RetentionClass: input.RetentionClass, Hold: input.Hold, HoldReason: input.HoldReason, DispositionEligibleAfter: input.DispositionEligibleAfter, HandoffRef: input.HandoffRef}
-	_, err = r.recovery.ProposeRetention(ctx, principal, scope, newOperatorID("RETAIN"), value, time.Now().UTC())
+	_, err = r.recovery.ProposeRetention(ctx, principal, scope, newOperatorID("RETAIN"), value, r.kernel.Clock().Read().Now)
 	return err
 }
 
@@ -428,7 +428,7 @@ func (r *operatorRuntime) ProposeClosure(ctx context.Context, token, incidentID 
 		return err
 	}
 	value := domain.Closure{Reason: input.Reason, PrivilegedCompartment: input.PrivilegedCompartment, PrivilegedSummary: input.PrivilegedSummary, ShareableSummary: input.ShareableSummary}
-	_, err = r.recovery.ProposeClosure(ctx, principal, scope, newOperatorID("CLOSE"), value, time.Now().UTC())
+	_, err = r.recovery.ProposeClosure(ctx, principal, scope, newOperatorID("CLOSE"), value, r.kernel.Clock().Read().Now)
 	return err
 }
 
@@ -438,7 +438,7 @@ func (r *operatorRuntime) TranscribePaper(ctx context.Context, token, incidentID
 		return err
 	}
 	value := domain.PaperTranscription{Statement: input.Statement, PaperOccurredAt: input.PaperOccurredAt, SourceReference: input.SourceReference, TimeConfidence: input.TimeConfidence}
-	_, err = r.incident.RecordPaperTranscription(ctx, principal, scope, newOperatorID("PAPER"), value, time.Now().UTC())
+	_, err = r.incident.RecordPaperTranscription(ctx, principal, scope, newOperatorID("PAPER"), value, r.kernel.Clock().Read().Now)
 	return err
 }
 
@@ -485,7 +485,7 @@ func (r *operatorRuntime) IncidentBriefPDF(ctx context.Context, token, incidentI
 	if pageSize == "" {
 		pageSize = defaultSize
 	}
-	if _, err := service.GenerateIncidentBrief(ctx, principal, incidentID, "GENERAL", nil, pageSize, printMode, time.Now().UTC()); err != nil {
+	if _, err := service.GenerateIncidentBrief(ctx, principal, incidentID, "GENERAL", nil, pageSize, printMode, r.kernel.Clock().Read().Now); err != nil {
 		return nil, err
 	}
 	return capture.bytes, nil

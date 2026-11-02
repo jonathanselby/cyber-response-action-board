@@ -148,7 +148,8 @@ func (f *fakeRuntime) Frame(_ context.Context, token, incidentID string) (FrameV
 
 func (f *fakeRuntime) Home(context.Context, string) (HomeView, bool, error) {
 	f.read("Home")
-	return HomeView{HumanID: "alice", Role: "Major", CanDeclare: true, Incidents: []IncidentLink{{IncidentID: testIncident, Mode: f.incidentMode(), Title: "Bafflewick payroll", Severity: "High", Phase: "Active response", Pending: 2}}, WaitingApprovals: 2, CanTriage: true, AwaitingTriage: 1}, true, nil
+	return HomeView{HumanID: "alice", Role: "Major", CanDeclare: true, Incidents: []IncidentLink{{IncidentID: testIncident, Mode: f.incidentMode(), Title: "Bafflewick payroll", Severity: "High", Phase: "Active response", Pending: 2}}, WaitingApprovals: 2, CanTriage: true, AwaitingTriage: 1,
+		Management: &ManagementView{ActiveIncidents: 3, BySeverity: []SeverityCountView{{"High", 2}, {"Low", 1}}, OverdueCriticalActions: 4, OverdueObligations: 1, Decisions: 5, MedianDecisionLoop: "12m"}}, true, nil
 }
 
 func (f *fakeRuntime) Incident(_ context.Context, _ string, id string) (IncidentView, bool, error) {
@@ -255,6 +256,15 @@ func (f *fakeRuntime) ProposeObligationChange(context.Context, string, string, s
 	return f.record("ProposeObligationChange")
 }
 
+func (f *fakeRuntime) Observables(_ context.Context, _, incidentID, _ string) ([]ObservableRow, error) {
+	return []ObservableRow{{ObservableID: "OBS-1", Type: "url", Value: `https://evil.example/login?a=1&b="><script>alert(1)</script>`, Status: "suspected", Source: "EDR alert 4411", FirstSeen: "2 Nov 2026 02:17 UTC", TimeConfidence: "untrusted", Maker: "carol", RecordedAt: "2 Nov 2026 02:20 UTC", Compartment: "GENERAL", Version: 2, Related: []string{"INC-2"}}}, nil
+}
+func (f *fakeRuntime) RecordObservable(context.Context, string, string, ObservableInput) error {
+	return nil
+}
+func (f *fakeRuntime) ChangeObservableStatus(context.Context, string, string, string, string, string) error {
+	return nil
+}
 func (f *fakeRuntime) EvidenceRegister(_ context.Context, _ string, _ string, compartment string) ([]domain.EvidenceView, error) {
 	f.evidenceComp = compartment
 	return []domain.EvidenceView{{EvidenceID: "EV-1", IncidentID: testIncident, Compartment: compartment, Evidence: domain.Evidence{BlobReceipt: domain.BlobReceipt{OriginalFilename: "screenshot.png", SizeBytes: 2048, DetectedMediaType: "image/png"}, CurrentHandler: "carol"}}}, nil

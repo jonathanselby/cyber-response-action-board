@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"strings"
-	"time"
 
 	"github.com/jonathanselby/cyber-response-action-board/internal/app"
 	"github.com/jonathanselby/cyber-response-action-board/internal/data/postgres"
@@ -60,7 +59,7 @@ func (r *operatorRuntime) CaptureFirstReport(ctx context.Context, token string, 
 	if !ok {
 		return app.ErrAuthorisationDenied
 	}
-	now := time.Now().UTC()
+	now := r.kernel.Clock().Read().Now
 	receivedAt := input.ReceivedAt
 	if receivedAt.IsZero() {
 		receivedAt = now
@@ -109,7 +108,7 @@ func (r *operatorRuntime) TriageFirstReport(ctx context.Context, token, reportID
 		Decision:   strings.TrimSpace(decision),
 		IncidentID: strings.TrimSpace(incidentID),
 		Reason:     strings.TrimSpace(reason),
-	}, time.Now().UTC())
+	}, r.kernel.Clock().Read().Now)
 	return err
 }
 
@@ -229,7 +228,7 @@ func (r *operatorRuntime) RecordScopeAssessment(ctx context.Context, token, inci
 		Impact:                strings.TrimSpace(input.Impact),
 		Confidence:            strings.TrimSpace(input.Confidence),
 		ReasonEvidence:        strings.TrimSpace(input.ReasonEvidence),
-	}, time.Now().UTC())
+	}, r.kernel.Clock().Read().Now)
 	return err
 }
 
@@ -242,7 +241,7 @@ func (r *operatorRuntime) ProposeSeverityChange(ctx context.Context, token, inci
 	if err != nil {
 		return err
 	}
-	_, err = service.ProposeSeverityChange(ctx, principal, domain.Scope{IncidentID: incidentID, Mode: picture.Incident.Mode, Compartment: "GENERAL"}, newOperatorID("SEVERITY"), domain.SeverityChange{Severity: strings.TrimSpace(severity), ReasonEvidence: strings.TrimSpace(reasonEvidence)}, time.Now().UTC())
+	_, err = service.ProposeSeverityChange(ctx, principal, domain.Scope{IncidentID: incidentID, Mode: picture.Incident.Mode, Compartment: "GENERAL"}, newOperatorID("SEVERITY"), domain.SeverityChange{Severity: strings.TrimSpace(severity), ReasonEvidence: strings.TrimSpace(reasonEvidence)}, r.kernel.Clock().Read().Now)
 	return err
 }
 
@@ -258,7 +257,7 @@ func (r *operatorRuntime) DecideSeverity(ctx context.Context, token, incidentID,
 	if err != nil {
 		return err
 	}
-	_, err = service.DecideSeverity(ctx, principal, incidentID, strings.TrimSpace(recordID), strings.TrimSpace(version), strings.TrimSpace(outcome), time.Now().UTC())
+	_, err = service.DecideSeverity(ctx, principal, incidentID, strings.TrimSpace(recordID), strings.TrimSpace(version), strings.TrimSpace(outcome), r.kernel.Clock().Read().Now)
 	return err
 }
 
@@ -271,7 +270,7 @@ func (r *operatorRuntime) GenerateHandover(ctx context.Context, token, incidentI
 	if err != nil {
 		return err
 	}
-	_, err = service.GenerateHandover(ctx, principal, domain.Scope{IncidentID: incidentID, Mode: picture.Incident.Mode, Compartment: "GENERAL"}, newOperatorID("HANDOVER"), nextObjectives, communicationCommitments, time.Now().UTC())
+	_, err = service.GenerateHandover(ctx, principal, domain.Scope{IncidentID: incidentID, Mode: picture.Incident.Mode, Compartment: "GENERAL"}, newOperatorID("HANDOVER"), nextObjectives, communicationCommitments, r.kernel.Clock().Read().Now)
 	return err
 }
 
@@ -296,7 +295,7 @@ func (r *operatorRuntime) RecordResourceRequest(ctx context.Context, token, inci
 		Status:          strings.TrimSpace(input.Status),
 		AuthoritySource: strings.TrimSpace(input.AuthoritySource),
 		Notes:           strings.TrimSpace(input.Notes),
-	}, time.Now().UTC())
+	}, r.kernel.Clock().Read().Now)
 	return err
 }
 
