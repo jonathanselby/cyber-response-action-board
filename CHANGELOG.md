@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased — 0.0.31-dev
+
+Post-UAT remediation, chunk C10: failure and recovery proofs.
+
+- New `crab migrate`: upgrades a deployed database in one transaction and verifies the ledger afterwards. A failed or interrupted migration leaves the previous schema untouched. CRAB now refuses an old schema with "run `crab migrate`" (T-243).
+- If CRAB cannot reach PostgreSQL, a request now says *nothing was saved* and you stay signed in. Previously a database outage signed everyone out. Service resumes when PostgreSQL returns, without restarting CRAB (T-241).
+- Readiness reports stored files that have no record, for example from an interrupted upload. They are kept for an operator to examine (F-4).
+- A write timed earlier than the last ledger record is marked as having untrusted time (R-19). Everything else that relied on the server's clock now uses CRAB's governed clock (F-11).
+- Proof harness (test only, `-tags proof`, `proof` workflow): kill points with a correctness check, PostgreSQL stop and disk-full, a populated backup restored onto a replacement database, and an upgrade from the 66b188a baseline (T-240–T-244).
+
 ## Unreleased — 0.0.30-dev
 
 Post-UAT remediation, chunk C9: Board, approvals and mechanical UX.
