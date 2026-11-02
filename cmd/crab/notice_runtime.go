@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"sync"
 	"time"
 
 	"github.com/jonathanselby/cyber-response-action-board/internal/app"
@@ -12,12 +13,30 @@ import (
 // wait list. The pass is idempotent, so the interval bounds latency only.
 const noticeInterval = 30 * time.Second
 
+// noticeState is the outcome of the last notice pass, for Readiness.
+type noticeState struct {
+	mu      sync.Mutex
+	err     error
+	lastRun time.Time
+}
+
 // NoticePass runs one notice pass at the governed time.
 func (r *operatorRuntime) NoticePass(ctx context.Context) (app.NoticeReport, error) {
 	if r.noticeStore == nil {
 		return app.NoticeReport{}, nil
 	}
-	return r.notices.Pass(ctx, r.kernel.Clock().Read().Now)
+	now := r.kernel.Clock().Read().Now
+	report, err := r.notices.Pass(ctx, now)
+	r.noticeState.mu.Lock()
+	r.noticeState.err, r.noticeState.lastRun = err, now
+	r.noticeState.mu.Unlock()
+	return report, err
+}
+
+func (r *operatorRuntime) noticePassCheck() app.Check {
+	r.noticeState.mu.Lock()
+	defer r.noticeState.mu.Unlock()
+	return app.NoticePassCheck(len(r.notices.Channels) > 0, r.noticeState.err, r.noticeState.lastRun)
 }
 
 // RunNotices runs the notice pass until ctx ends. It is started by crab serve

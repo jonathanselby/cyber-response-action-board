@@ -290,8 +290,13 @@ func (s NoticeService) decidable(ctx context.Context, principal authz.Principal,
 		if !authz.Authorise(principal, authz.ActionRead, scope).Allowed {
 			continue
 		}
-		// Access changes have their own deciders; everything else needs confirm.
-		if item.Kind != "access" && !authz.Authorise(principal, authz.ActionConfirm, scope).Allowed {
+		// Access changes are decided by Custodians; everything else needs
+		// confirm in the item's scope.
+		if item.Kind == "access" {
+			if !principal.Custodian {
+				continue
+			}
+		} else if !authz.Authorise(principal, authz.ActionConfirm, scope).Allowed {
 			continue
 		}
 		count++
@@ -332,7 +337,9 @@ func (s NoticeService) accessEvents(ctx context.Context, report *NoticeReport, n
 	for _, a := range expiring {
 		key := a.HumanID + "|" + a.IncidentID + "|" + a.Compartment + "|" + a.ExpiresAt.Format(time.RFC3339Nano)
 		for _, renewer := range a.Renewers {
-			e := event{kind: domain.NoticeAccess, incidentID: a.IncidentID, mode: a.Mode, compartment: "GENERAL", recipient: renewer, sourceID: a.IncidentID + "/" + a.HumanID, sourceAt: a.ExpiresAt, key: key}
+			// Recorded in the membership's own compartment, so the record never
+			// hints at a restricted compartment to people outside it.
+			e := event{kind: domain.NoticeAccess, incidentID: a.IncidentID, mode: a.Mode, compartment: a.Compartment, recipient: renewer, sourceID: a.IncidentID + "/" + a.HumanID, sourceAt: a.ExpiresAt, key: key}
 			if err := s.notify(ctx, report, e, now); err != nil {
 				return err
 			}
@@ -601,6 +608,20 @@ func (s RouteService) Readiness(ctx context.Context) Check {
 		return Check{Name: "notification_routes", Status: "warn", Message: fmt.Sprintf("%d Majors/Custodians have no notification route", missing)}
 	}
 	return Check{Name: "notification_routes", Status: "pass", Message: "every Major and Custodian has a notification route"}
+}
+
+// NoticePassCheck reports the last notice pass for Readiness. A failing pass
+// is never silent.
+func NoticePassCheck(configured bool, lastErr error, lastRun time.Time) Check {
+	switch {
+	case !configured:
+		return Check{Name: "notice_pass", Status: "pass", Message: "no notification channels configured; notices do not run"}
+	case lastErr != nil:
+		return Check{Name: "notice_pass", Status: "fail", Message: "the last notice pass failed: " + lastErr.Error()}
+	case lastRun.IsZero():
+		return Check{Name: "notice_pass", Status: "warn", Message: "the notice pass has not run yet in this process"}
+	}
+	return Check{Name: "notice_pass", Status: "pass", Message: "the last notice pass ran at " + lastRun.UTC().Format(DisplayTime)}
 }
 
 // NoticeLine is one notice as a person sees it on the Communications screen.

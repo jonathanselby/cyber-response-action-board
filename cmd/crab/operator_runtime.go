@@ -59,6 +59,7 @@ type operatorRuntime struct {
 	routes          app.RouteService
 	notices         app.NoticeService
 	noticeStore     *postgres.NoticeRuntime
+	noticeState     noticeState
 }
 
 type signingKeyFile struct {

@@ -231,6 +231,12 @@ func TestNotifications(t *testing.T) {
 	// Event 5: temporary access expiring soon, to the Sponsor who can renew it.
 	e.onboard(alice, bob, "frank", "Minor", false)
 	e.post("/incident/INC-N/access/member", alice, url.Values{"human_id": {"frank"}, "active": {"true"}, "reason": {"contractor"}, "expires_at": {clk.Now().Add(3 * time.Hour).Format("2006-01-02T15:04")}})
+	pass() // a pending access change is for Custodians: no decision notice to carol (Minor)
+	for _, text := range capture.smsTo(carolPhone) {
+		if strings.Contains(text, "waiting for your decision") {
+			t.Fatalf("a Minor was told to decide an access change: %q", text)
+		}
+	}
 	e.approveAll(bob)
 	pass()
 	if got := capture.smsTo(bobPhone); !containsText(got, "CRAB: temporary access you can renew on INC-N expires soon. Sign in to CRAB.") {
