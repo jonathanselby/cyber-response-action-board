@@ -148,7 +148,9 @@ async function main() {
     else { verdict = 'NEW DEFECT — record it in the register and known-defects.json'; unexpected++; }
     report.cases.push({ ...r, verdict });
   }
-  const stale = Object.keys(known).filter((id) => !seen.has(id) && wanted.some((b) => id.endsWith(':' + b)) && !unavailable.some((u) => id.includes(u.split(':')[0])));
+  const axeRan = !unavailable.some((u) => u.startsWith('axe-core'));
+  const browserRan = (id) => wanted.some((b) => id.endsWith(':' + b) && !unavailable.some((u) => u.startsWith(b + ':')));
+  const stale = Object.keys(known).filter((id) => !seen.has(id) && browserRan(id) && (axeRan || !id.startsWith('axe:')));
   for (const id of stale) { report.cases.push({ id, ok: null, detail: '', verdict: 'NOT RUN — listed defect has no case' }); unexpected++; }
   if (requireAll && unavailable.length) unexpected++;
   fs.writeFileSync(path.join(resultsDir, 'report.json'), JSON.stringify(report, null, 2));

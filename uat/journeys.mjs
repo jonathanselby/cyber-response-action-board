@@ -11,7 +11,7 @@ export async function signIn(page, info, user = 'alice') {
   await page.goto(info.base + '/');
   await page.fill('input[name="human_id"]', user);
   await page.fill('input[name="password"]', info.users[user]);
-  await Promise.all([page.waitForLoadState('load'), page.click('form[action="/login"] button')]);
+  await Promise.all([page.waitForNavigation(), page.click('form[action="/login"] button')]);
   if (await page.locator('form[action="/login"]').count()) throw new Error(`${user} could not sign in`);
 }
 
@@ -24,7 +24,7 @@ async function submitForm(page, suffix, values) {
   await openAll(page);
   const form = page.locator(`form[action$="${suffix}"]`).first();
   for (const [name, value] of Object.entries(values)) await form.locator(`[name="${name}"]`).fill(value);
-  await Promise.all([page.waitForLoadState('load'), form.locator('button').last().click()]);
+  await Promise.all([page.waitForNavigation(), form.locator('button').last().click()]);
 }
 
 async function newPage(env, options = {}) {
@@ -136,7 +136,7 @@ export const journeys = [
         await form.locator('[name="statement"]').fill(text);
         await form.locator('[name="source"]').fill('harness');
         await fetch(`${env.info.control}/expire/alice`, { method: 'POST' });
-        await Promise.all([page.waitForLoadState('load'), form.locator('button').last().click()]);
+        await Promise.all([page.waitForNavigation(), form.locator('button').last().click()]);
         const body = await page.content();
         if (!body.includes(text) && !/not (been )?(saved|recorded)/i.test(body)) {
           throw new Error('after the session expired the typed text was lost without saying so');
@@ -197,7 +197,7 @@ export const journeys = [
         await page.keyboard.press('Tab');
         if ((await focusName()) !== 'password') throw new Error('Tab from the ID does not reach the password');
         await page.keyboard.type(env.info.users.alice);
-        await Promise.all([page.waitForLoadState('load'), page.keyboard.press('Enter')]);
+        await Promise.all([page.waitForNavigation(), page.keyboard.press('Enter')]);
         if (await page.locator('form[action="/login"]').count()) throw new Error('Enter did not sign in');
         // Every focus stop on the Command Summary shows where focus is.
         await page.keyboard.press('Tab');
@@ -241,7 +241,8 @@ export const journeys = [
           if (cut.length) bad.push(`${p} header text cut off: ${cut.join(', ')}`);
         }
         await page.goto(env.info.base + `/incident/${env.info.stress}`);
-        await page.screenshot({ path: path.join(env.resultsDir, `stress-board-${env.name}-phone.png`), fullPage: true });
+        // The first screen only: a full stress Board exceeds WebKit's 32,767 px limit.
+        await page.screenshot({ path: path.join(env.resultsDir, `stress-board-${env.name}-phone.png`) });
         if (bad.length) throw new Error(bad.join('; '));
       } finally {
         await context.close();

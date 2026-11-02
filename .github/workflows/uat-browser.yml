@@ -43,6 +43,13 @@ jobs:
         run: |
           set -euo pipefail
           if [ -f package-lock.json ]; then npm ci; else npm install --no-audit --no-fund; fi
+      - name: Show the lockfile
+        if: always()
+        working-directory: uat
+        run: |
+          echo "----- BEGIN uat/package-lock.json -----"
+          cat package-lock.json || true
+          echo "----- END uat/package-lock.json -----"
       - name: Keep the lockfile
         if: always()
         uses: actions/upload-artifact@v4
