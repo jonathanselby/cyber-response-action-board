@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased — 0.0.27-dev
+
+Post-UAT remediation, chunk C6: machine first-report intake (contract addendum A4).
+
+- Intake keys: Custodians issue, rotate (with up to 24 hours' overlap) and revoke them, each confirmed by a second Custodian. Each key is bound to an accountable person, and its secret is shown once and stored only as a hash.
+- `POST /api/v1/first-reports`: security tools submit ordinary first reports, attributed to the key and its accountable person. A repeated `external_ref` returns the original report. Each key may submit 60 reports a minute; beyond that the API returns `429`. Every refusal of a key looks the same (T-230). See `docs/first-report-api.md`.
+- People names every incident a person belongs to (U-17).
+
 ## Unreleased — 0.0.26-dev
 
 Post-UAT remediation, chunk C5: closure and reopening (contract addendum A1, approved).

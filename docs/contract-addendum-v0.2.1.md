@@ -1,7 +1,7 @@
 # CRAB — Contract addendum PRD V0.2.1 / EDD V0.4.1
 
 **Date:** 2 November 2026
-**Status:** APPROVED, 2 November 2026 (product-owner sign-off covering A1–A4). A1 is implemented in 0.0.26-dev.
+**Status:** APPROVED, 2 November 2026 (product-owner sign-off covering A1–A4). A1 is implemented in 0.0.26-dev and A4 in 0.0.27-dev.
 **Amends:** `PRD.md` V0.2 and `EDD.md` V0.4. Every other section of both documents is unchanged and still governs.
 **Source:** post-UAT remediation brief; decision U-12 in `docs/uat-remediation-triage.md` §0.
 

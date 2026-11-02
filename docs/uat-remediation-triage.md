@@ -29,7 +29,7 @@ What each decision means for this plan:
 - **Playwright:** test-only, outside the binary and the runtime, pinned and reproducible, callable from CI and the UAT tooling. It covers Chromium, Firefox and WebKit, viewports, keyboard and axe.
 - **Notifier sequence:** notifier → component tests → integrate CRAB → CRAB tests. No temporary CRAB notification plumbing. V1 events are limited to the five in §3.5. *CRAB contains the truth. Notifications tell someone to look at CRAB.*
 
-Still open with a default recommendation, adopted unless changed: U-14 (shell v0.2), U-17 (Custodian membership view), U-18 (30-day external maximum), U-21 (API path), U-2 (UTC).
+Still open with a default recommendation, adopted unless changed: U-14 (shell v0.2), U-18 (30-day external maximum), U-21 (API path), U-2 (UTC).
 
 ---
 
@@ -122,7 +122,7 @@ The verdicts follow the constraint review:
 | "Set temporary access expiry" | **KEEP** | Two levels, both existing or one field: (a) per incident/compartment membership expiry (exists); (b) `account_expires_at` on the identity, after which the person cannot authenticate at all |
 | Disabled is terminal | **KEEP** | `disabled` cannot be reactivated, so a `human_id` is never reused. A returning person gets a new identity. Suspension is the reversible state |
 | Screen | **SIMPLIFY** | Extend Access admin with a *People* section (list, add, person detail). No new screen; the budget stays at 11 |
-| Custodian sees no incident content | **KEEP** | The person view shows memberships by incident ID and compartment name only for incidents the Custodian may see. Otherwise it shows a count without names (EDD §9.6, *hidden means hidden*). U-17 default, adopted unless changed |
+| Custodian sees no incident content | **KEEP** | The person view names every incident the person belongs to, by ID, as the Incident members table does (EDD §9.6). It shows no incident content. U-17 resolved: names |
 | Directory sync, SCIM, groups, self-registration | **REMOVE** | Pulls toward ITSM/IdP. Not requested |
 
 **Pseudocode — identity lifecycle (consequential, per brief rule 5)**
@@ -571,7 +571,7 @@ Load, soak, destructive, database/storage, backup/restore, upgrade and time harn
 | U-19 | Browser driver | **Decided 2 Nov:** Playwright plus axe-core, test-only, outside the binary and runtime, pinned |
 | U-20 | Notification events | **Decided 2 Nov:** the five attention/action events in §3.5; never authoritative |
 | U-14 | Header logo and signed-out navigation | Default: adopt `go-app-shell` v0.2 when supplied. If it is not supplied by S26, record both as known shell limits again rather than adding CRAB layout CSS |
-| U-17 | Custodian's view of a person's incident memberships | Default: show incidents the Custodian can see; for others show *n other incidents* with no names |
+| U-17 | Custodian's view of a person's incident memberships | **Resolved 2 Nov 2026 (product owner): show the incident names**, consistent with the members table and EDD §9.6 |
 | U-18 | Maximum account lifetime for external people | Default: 30 days, renewable by a governed change; no maximum for internal people |
 | U-21 | API path | Default: `POST /api/v1/first-reports` |
 | U-2 | Display timezone | Default: UTC, labelled |
